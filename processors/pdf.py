@@ -1,0 +1,526 @@
+"""
+PDF 处理器 — 支持 OCR 模式和 LLM 公式识别模式。
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+import re
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+from typing import Optional
+
+import fitz
+
+from OCRLLM.config import AppConfig
+from OCRLLM.core.checkpoint import Checkpoint
+from OCRLLM.core.incremental_writer import IncrementalMDWriter
+from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.task_runner import CancelledError, ProgressReporter
+from OCRLLM.core.progress_tracker import ProgressTracker
+from OCRLLM.core.utils import (
+    batch_list,
+    concat_md_files,
+    count_page_headers,
+    ensure_dir,
+    normalize_page_headers,
+    normalize_single_page_markdown,
+    resolve_workers,
+    sanitize_llm_markdown,
+    strip_md_fence,
+)
+from OCRLLM.imaging.ocr_engine import RapidOCREngine
+from OCRLLM.imaging.pdf_renderer import pdf_to_images
+from OCRLLM.imaging.scan_detector import is_scanned_pdf
+from OCRLLM.imaging.tbpu import run_tbpu
+from OCRLLM.processors.base import BaseProcessor
+from OCRLLM.core.document_model import SourceType
+from OCRLLM import prompts
+
+logger = logging.getLogger(__name__)
+
+
+class PDFProcessor(BaseProcessor):
+    """PDF → Markdown 处理器。"""
+
+    processor_key = "pdf"
+    display_name = "PDF 识别"
+    supported_extensions = (".pdf",)
+    source_type = SourceType.PDF
+
+    @staticmethod
+    def _serialize_page_range(page_range: tuple[int, int] | None) -> list[int] | None:
+        return list(page_range) if page_range is not None else None
+
+    @staticmethod
+    def _deserialize_page_range(value) -> tuple[int, int] | None:
+        if isinstance(value, (list, tuple)) and len(value) == 2:
+            return int(value[0]), int(value[1])
+        return None
+
+    def _build_checkpoint_extra(
+        self,
+        page_range: tuple[int, int] | None,
+        prompt_template: str,
+    ) -> dict:
+        page_offset = (page_range[0] - 1) if page_range else 0
+        return {
+            "page_range": self._serialize_page_range(page_range),
+            "page_offset": page_offset,
+            "batch_size": self.cfg.processing.batch_size,
+            "prompt_template": prompt_template,
+        }
+
+    @classmethod
+    def resume_options_from_checkpoint(cls, checkpoint: Checkpoint) -> dict:
+        extra = checkpoint.extra or {}
+        return {
+            "pdf_path": checkpoint.source_path,
+            "need_formula": True,
+            "output_path": checkpoint.output_path,
+            "page_range": cls._deserialize_page_range(extra.get("page_range")),
+            "prompt_template": extra.get("prompt_template") or None,
+            "resume": True,
+        }
+
+    def process(
+        self,
+        pdf_path: str,
+        need_formula: bool = False,
+        output_path: str = None,
+        page_range: tuple = None,
+        prompt_template: str = None,
+        resume: bool = False,
+    ) -> str:
+        """处理 PDF 文件并生成 Markdown。
+
+        Args:
+            pdf_path: PDF 文件路径。
+            need_formula: 是否启用 LLM 公式识别模式。
+            output_path: 输出路径，None 则自动生成。
+            page_range: 页码范围 (start, end)，None 表示全部。
+            prompt_template: 自定义提示词模板。
+            resume: 是否尝试断点续传。
+
+        Returns:
+            输出文件路径。
+        """
+        pdf_name = Path(pdf_path).stem
+        if output_path is None:
+            output_path = os.path.join(ensure_dir(self.cfg.paths.output_dir), f"{pdf_name}_识别.md")
+
+        if page_range is not None:
+            if len(page_range) != 2 or page_range[0] < 1 or page_range[0] > page_range[1]:
+                raise ValueError(
+                    f"page_range 无效: {page_range}，要求 (start, end) 且 1 <= start <= end"
+                )
+
+        scanned = is_scanned_pdf(pdf_path)
+        logger.info("[PDF] 文件=%s, 扫描型=%s, 公式=%s, 页码=%s", pdf_name, scanned, need_formula, page_range)
+
+        if scanned and not need_formula:
+            logger.warning("[PDF] 检测到扫描型PDF，建议启用大模型公式识别模式以获得更好效果")
+            self._report(0, 1, "⚠ 检测到扫描型PDF，当前为OCR模式，建议开启公式识别")
+
+        if need_formula:
+            return self._process_with_llm(pdf_path, output_path, page_range, prompt_template, resume)
+        return self._process_with_ocr(pdf_path, output_path, page_range)
+
+    def _process_with_ocr(self, pdf_path: str, output_path: str, page_range: tuple = None) -> str:
+        doc = fitz.open(pdf_path)
+        try:
+            total = len(doc)
+            start_page = max(0, page_range[0] - 1) if page_range else 0
+            end_page = min(total, page_range[1]) if page_range else total
+            pages = list(range(start_page, end_page))
+
+            self._report(0, len(pages), "初始化 RapidOCR 引擎...")
+            ocr = RapidOCREngine(max_side_len=4096)
+            md_pages = []
+
+            for idx, page_index in enumerate(pages):
+                try:
+                    page = doc[page_index]
+                    pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False)
+                    img_bytes = pix.tobytes("png")
+
+                    self._report(idx + 1, len(pages), f"OCR 识别第 {page_index + 1}/{total} 页")
+
+                    blocks = ocr.run_bytes(img_bytes)
+                    if not blocks:
+                        md_pages.append(f"<!-- meta:page number={page_index + 1} -->\n\n")
+                        continue
+
+                    ordered = run_tbpu(blocks)
+                    text = "".join(block["text"] + block.get("end", "\n") for block in ordered)
+                    md_pages.append(f"<!-- meta:page number={page_index + 1} -->\n\n{text.strip()}")
+                    self._report_content(text.strip(), f"OCR 识别 — 第 {page_index + 1} 页")
+                except (RuntimeError, OSError, ValueError, TypeError) as e:
+                    logger.error("[PDF] 第 %d 页 OCR 失败: %s", page_index + 1, e)
+                    safe_err = str(e).replace("--", "\u2014")
+                    md_pages.append(f"<!-- meta:page number={page_index + 1} -->\n\n<!-- OCR 失败: {safe_err} -->\n")
+        finally:
+            doc.close()
+
+        ensure_dir(os.path.dirname(output_path))
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n\n".join(md_pages))
+        logger.info("[PDF] RapidOCR 识别完成 -> %s", output_path)
+        return output_path
+
+    def _process_with_llm(
+        self,
+        pdf_path: str,
+        output_path: str,
+        page_range: tuple = None,
+        prompt_template: str = None,
+        resume: bool = False,
+    ) -> str:
+        prompt_template = prompt_template or prompts.PDF_FORMULA
+        checkpoint_extra = self._build_checkpoint_extra(page_range, prompt_template)
+
+        with fitz.open(pdf_path) as meta_doc:
+            total_doc_pages = len(meta_doc)
+        render_total = max(0, min(total_doc_pages, page_range[1]) - max(0, page_range[0] - 1)) if page_range else total_doc_pages
+
+        self.tracker.start_task(
+            "pdf",
+            total_items=render_total,
+            phase_weights={"render": 0.15, "llm": 0.85},
+        )
+        self.tracker.start_phase("render", "PDF 转换为图片", render_total)
+        self._report(0, 1, "PDF 转换为图片中...")
+
+        image_paths = pdf_to_images(
+            pdf_path,
+            dpi=self.cfg.processing.pdf_dpi,
+            page_range=page_range,
+            max_side=self.cfg.processing.image_max_side,
+            quality=self.cfg.processing.image_quality,
+            temp_dir=self.cfg.paths.temp_dir,
+            render_workers=self.cfg.concurrency.pdf_render_workers,
+            cancel_event=self.reporter.cancel_event,
+            progress_callback=lambda current, total: self.tracker.update_phase(
+                "render",
+                current,
+                f"PDF 转换为图片: {current}/{total}",
+                total=total,
+            ),
+        )
+        total_pages = len(image_paths)
+        self.tracker.finish_phase("render")
+        logger.info("[PDF] 共 %d 张图片待识别", total_pages)
+
+        cancelled = False
+        try:
+            batches = batch_list(image_paths, self.cfg.processing.batch_size)
+            page_offset = (page_range[0] - 1) if page_range else 0
+
+            if not batches:
+                concat_md_files([], output_path)
+                return output_path
+
+            checkpoint = None
+            restored_slots = {}
+            skip_batches = set()
+            if resume:
+                checkpoint = self.checkpoint_mgr.load("pdf", pdf_path)
+                if checkpoint and checkpoint.is_compatible(
+                    total_items=len(batches),
+                    output_path=output_path,
+                    expected_extra=checkpoint_extra,
+                ):
+                    existing_output = ""
+                    if os.path.exists(output_path):
+                        existing_output = Path(output_path).read_text(encoding="utf-8")
+                    restored_slots = self._restore_completed_slots(
+                        existing_output,
+                        checkpoint.completed_indices,
+                        batches,
+                        page_offset,
+                    )
+                    skip_batches = set(restored_slots)
+                    logger.info("[PDF] 断点续传: 跳过 %d/%d 个已完成批次", len(skip_batches), len(batches))
+                    missing_batches = checkpoint.completed_indices - skip_batches
+                    if missing_batches:
+                        logger.warning("[PDF] %d 个已完成批次缺少可恢复内容，将重新识别", len(missing_batches))
+                    self._report(
+                        0,
+                        1,
+                        f"断点续传: 从第 {len(skip_batches) + 1} 批继续 (已完成 {len(skip_batches)}/{len(batches)})",
+                    )
+                else:
+                    if checkpoint is not None:
+                        logger.warning("[PDF] 检查点与当前任务参数不兼容，忽略旧检查点")
+                    checkpoint = None
+
+            if checkpoint is None:
+                checkpoint = Checkpoint(
+                    task_type="pdf",
+                    source_path=pdf_path,
+                    output_path=output_path,
+                    total_items=len(batches),
+                    extra=checkpoint_extra,
+                )
+
+            self.tracker.set_total(total_pages)
+            self.tracker.start_phase("llm", "大模型识别", len(batches))
+
+            pending_count = len(batches) - len(skip_batches)
+            logger.info(
+                "[PDF] 识别队列: %d 批次待处理, %d 批次已完成 (每批 %d 页)",
+                pending_count,
+                len(skip_batches),
+                self.cfg.processing.batch_size,
+            )
+
+            writer = IncrementalMDWriter(
+                output_path, total_slots=len(batches),
+                truncate=not bool(restored_slots),
+            )
+            if restored_slots:
+                writer.seed_slots(restored_slots)
+
+            restored_pages = sum(len(batches[idx]) for idx in skip_batches)
+            if restored_pages:
+                self.tracker.increment_completed(restored_pages)
+                self.tracker.update_phase("llm", len(skip_batches), "已恢复断点内容")
+
+            if pending_count <= 0:
+                writer.finalize()
+                self.checkpoint_mgr.remove("pdf", pdf_path)
+                logger.info("[PDF] 断点续传直接恢复完成 -> %s", output_path)
+                return output_path
+
+            base_workers = resolve_workers(self.cfg.concurrency.llm_parallel_requests, pending_count, hard_cap=8)
+            if self.cfg.api.paid_mode and self.api_pool.pool_size > 1 and pending_count > base_workers:
+                workers = min(self.api_pool.max_parallel, pending_count, base_workers * self.api_pool.pool_size)
+                logger.info("[PDF] 付费模式: 并行度提升 %d → %d (API 池 %d 个 key)", base_workers, workers, self.api_pool.pool_size)
+            else:
+                workers = base_workers
+
+            logger.info("[PDF] 并行识别批次: 批次数=%d, workers=%d, 待处理=%d", len(batches), workers, pending_count)
+
+            stagger = self.cfg.concurrency.llm_request_stagger_seconds if pending_count > 4 else 0
+            self.tracker.update_queue(max(0, pending_count - workers), min(workers, pending_count))
+
+            executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="pdf-llm")
+            future_map = {}
+            try:
+                for batch_idx, batch in enumerate(batches):
+                    self._check_cancelled()
+                    if batch_idx in skip_batches:
+                        continue
+                    future = executor.submit(
+                        self._process_llm_batch_tracked,
+                        batch_idx,
+                        batch,
+                        page_offset,
+                        prompt_template,
+                        writer,
+                        checkpoint,
+                    )
+                    future_map[future] = batch_idx
+                    if stagger and batch_idx < len(batches) - 1:
+                        self._sleep(stagger)
+
+                done = len(skip_batches)
+                for future in self._iter_completed_futures(set(future_map)):
+                    batch_idx = future_map.pop(future, None)
+                    if batch_idx is None:
+                        continue
+                    done += 1
+                    try:
+                        idx, page_str, result = future.result()
+                        self.tracker.update_phase("llm", done, f"完成第 {page_str} 页")
+                        self.tracker.increment_completed(len(batches[idx]))
+                        self._report(done, len(batches), f"完成第 {page_str} 页批次 ({done}/{len(batches)})")
+                        self._report_content(result, f"大模型识别 — 第 {page_str} 页")
+
+                        remaining = len(batches) - done
+                        running = min(workers, remaining)
+                        self.tracker.update_queue(max(0, remaining - running), running)
+                    except CancelledError:
+                        raise
+                    except Exception as e:
+                        logger.error("[PDF] 批次 %d 异常: %s", batch_idx, e)
+                        self.tracker.increment_error()
+            finally:
+                self._cancel_futures(future_map)
+                executor.shutdown(wait=True, cancel_futures=True)
+
+            self.tracker.finish_phase("llm")
+            writer.finalize()
+            self.checkpoint_mgr.remove("pdf", pdf_path)
+
+            bottleneck = self.tracker.get_bottleneck_report()
+            if bottleneck:
+                logger.info("[PDF] %s", bottleneck)
+
+            logger.info("[PDF] 大模型识别完成 -> %s", output_path)
+            return output_path
+        except CancelledError:
+            cancelled = True
+            logger.info("[PDF] 任务已取消，保留临时图片以便调试")
+            raise
+        finally:
+            if not cancelled:
+                self._cleanup_images(image_paths)
+
+    def _process_llm_batch_tracked(
+        self,
+        batch_idx: int,
+        batch: list[str],
+        page_offset: int,
+        prompt_template: str,
+        writer: IncrementalMDWriter,
+        checkpoint: Checkpoint,
+    ) -> tuple[int, str, str]:
+        self._check_cancelled()
+        start_page = page_offset + batch_idx * self.cfg.processing.batch_size + 1
+        end_page = start_page + len(batch) - 1
+        page_str = f"{start_page}-{end_page}"
+        prompt = prompt_template.format(page_range=page_str)
+
+        if self.cfg.api.paid_mode and self.api_pool.pool_size > 1:
+            with self.api_pool.get_client() as client:
+                result, success = self._do_batch_llm(client, prompt, batch, page_str, start_page, prompt_template)
+        else:
+            result, success = self._do_batch_llm(self.llm, prompt, batch, page_str, start_page, prompt_template)
+
+        self._check_cancelled()
+        writer.write_slot(batch_idx, result)
+        if success:
+            self.checkpoint_mgr.save_incremental(checkpoint, batch_idx, "")
+        else:
+            logger.warning("[PDF] 批次 %s 未成功完成，不写入检查点", page_str)
+        return batch_idx, page_str, result
+
+    def _do_batch_llm(
+        self,
+        client: LLMClient,
+        prompt: str,
+        batch: list[str],
+        page_str: str,
+        start_page: int,
+        prompt_template: str,
+    ) -> tuple[str, bool]:
+        try:
+            result = client.chat_with_images(prompt=prompt, image_paths=batch)
+            result = strip_md_fence(result)
+            result = sanitize_llm_markdown(result)
+            result = normalize_page_headers(result, start_page, len(batch))
+
+            if count_page_headers(result) != len(batch):
+                logger.warning("[PDF] 批次 %s 页标题异常，回退逐页识别", page_str)
+                return self._rerun_per_page(batch, start_page, prompt_template)
+
+            return result, True
+        except CancelledError:
+            raise
+        except Exception as e:
+            logger.error("[PDF] 批次 %s 失败: %s", page_str, e)
+            safe_err = str(e).replace("--", "\u2014")
+            return f"\n\n<!-- 第 {page_str} 页识别失败: {safe_err} -->\n\n", False
+
+    def _restore_completed_slots(
+        self,
+        existing_content: str,
+        completed_batches: set[int],
+        batches: list,
+        page_offset: int,
+    ) -> dict[int, str]:
+        try:
+            restored = {}
+            # 支持新格式 <!-- meta:page number=X --> 和旧格式 # Page X
+            page_sections = re.split(
+                r"(?=^<!--\s*meta:page\s+number=\d+\s*-->)|(?=^# Page \d+)",
+                existing_content,
+                flags=re.MULTILINE,
+            )
+            page_map = {}
+            for section in page_sections:
+                m = re.match(r"^<!--\s*meta:page\s+number=(\d+)\s*-->", section)
+                if not m:
+                    m = re.match(r"^# Page (\d+)", section)
+                if m:
+                    page_map[int(m.group(1))] = section.strip()
+
+            for batch_idx in sorted(completed_batches):
+                start_page = page_offset + batch_idx * self.cfg.processing.batch_size + 1
+                end_page = start_page + len(batches[batch_idx]) - 1
+                parts = []
+                for page_num in range(start_page, end_page + 1):
+                    part = page_map.get(page_num)
+                    if not part:
+                        parts = []
+                        break
+                    parts.append(part)
+                if parts:
+                    restored[batch_idx] = "\n\n".join(parts)
+
+            logger.info("[PDF] 恢复了 %d 个已完成批次的内容", len(restored))
+            return restored
+        except (OSError, ValueError, IndexError) as e:
+            logger.warning("[PDF] 无法恢复旧内容: %s", e)
+            return {}
+
+    def _rerun_per_page(self, batch: list[str], start_page: int, prompt_template: str) -> tuple[str, bool]:
+        workers = resolve_workers(self.cfg.concurrency.llm_parallel_requests, len(batch), hard_cap=8)
+        parts = [""] * len(batch)
+        success = True
+
+        def _one(idx: int, img_path: str) -> tuple[int, str, bool]:
+            page_num = start_page + idx
+            try:
+                prompt = prompt_template.format(page_range=f"{page_num}-{page_num}")
+                if self.cfg.api.paid_mode and self.api_pool.pool_size > 1:
+                    with self.api_pool.get_client() as client:
+                        result = client.chat_with_images(prompt=prompt, image_paths=[img_path])
+                else:
+                    result = self.llm.chat_with_images(prompt=prompt, image_paths=[img_path])
+                result = strip_md_fence(result)
+                result = sanitize_llm_markdown(result)
+                result = normalize_single_page_markdown(result, page_num)
+                return idx, result, True
+            except CancelledError:
+                raise
+            except Exception as e:
+                logger.error("[PDF] 第 %d 页逐页识别失败: %s", page_num, e)
+                safe_err = str(e).replace("--", "\u2014")
+                return idx, f"\n\n<!-- 第 {page_num} 页识别失败: {safe_err} -->\n\n", False
+
+        executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="pdf-rerun")
+        future_map = {}
+        try:
+            for idx, path in enumerate(batch):
+                self._check_cancelled()
+                future = executor.submit(_one, idx, path)
+                future_map[future] = idx
+
+            for future in self._iter_completed_futures(set(future_map)):
+                future_map.pop(future, None)
+                idx, text, ok = future.result()
+                parts[idx] = text
+                success = success and ok
+        finally:
+            self._cancel_futures(future_map)
+            executor.shutdown(wait=True, cancel_futures=True)
+
+        return "\n\n".join(parts), success
+
+    @staticmethod
+    def _cleanup_images(paths: list[str]):
+        parent_dirs = set()
+        for path in paths:
+            try:
+                parent_dirs.add(str(Path(path).parent))
+                Path(path).unlink(missing_ok=True)
+            except Exception:
+                pass
+        for directory in parent_dirs:
+            try:
+                Path(directory).rmdir()
+            except Exception:
+                pass

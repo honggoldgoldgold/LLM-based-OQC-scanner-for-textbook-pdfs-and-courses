@@ -1,0 +1,91 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.whl
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Conda
+*.conda-env/
+conda-meta/
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# AI Assistant files
+.claude/
+.claude/settings.json
+.cursor/
+.cursorrules
+.qoder/
+AGENTS.md
+CLAUDE.md
+
+# Credentials & secrets (privacy)
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.jks
+*.keystore
+credentials*
+secrets*
+api_key*
+*_api_key*
+access_token*
+refresh_token*
+token.txt
+tokens.txt
+token.json
+tokens.json
+cookies.txt
+cookies*.txt
+
+# Output / data files
+output/
+temp/
+*.log
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.pickle
+*.pkl
+*.joblib
+
+# Large model files
+*.bin
+*.pth
+*.onnx
+*.gguf
+*.safetensors
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
