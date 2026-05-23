@@ -112,6 +112,7 @@ class BoardProcessor(BaseProcessor):
         )
         md_parts = []
         history = []
+        successful_batches = 0
 
         for batch_idx, batch in enumerate(batches):
             self._check_cancelled()
@@ -132,6 +133,7 @@ class BoardProcessor(BaseProcessor):
                 )
                 result = strip_md_fence(result)
                 md_parts.append(result)
+                successful_batches += 1
                 self._report_content(result, f"板书识别 — 第 {batch_idx + 1} 批")
 
                 # 只保留 assistant 的文本输出作为上下文摘要，不伪造图片历史
@@ -147,5 +149,7 @@ class BoardProcessor(BaseProcessor):
                 md_parts.append(f"\n\n<!-- 批次 {batch_idx + 1} ({names_str}) 识别失败: {safe_err} -->\n\n")
 
         concat_md_files(md_parts, output_path)
+        if batches and successful_batches == 0:
+            raise RuntimeError(f"板书识别全部 {len(batches)} 个批次失败，输出文件只包含错误信息: {output_path}")
         logger.info("[BOARD] 板书识别完成 -> %s", output_path)
         return output_path

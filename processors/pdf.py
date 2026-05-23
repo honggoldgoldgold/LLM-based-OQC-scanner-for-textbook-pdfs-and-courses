@@ -326,13 +326,16 @@ class PDFProcessor(BaseProcessor):
                         self._sleep(stagger)
 
                 done = len(skip_batches)
+                successful_batches = len(skip_batches)
                 for future in self._iter_completed_futures(set(future_map)):
                     batch_idx = future_map.pop(future, None)
                     if batch_idx is None:
                         continue
                     done += 1
                     try:
-                        idx, page_str, result = future.result()
+                        idx, page_str, result, success = future.result()
+                        if success:
+                            successful_batches += 1
                         self.tracker.update_phase("llm", done, f"完成第 {page_str} 页")
                         self.tracker.increment_completed(len(batches[idx]))
                         self._report(done, len(batches), f"完成第 {page_str} 页批次 ({done}/{len(batches)})")
@@ -352,6 +355,8 @@ class PDFProcessor(BaseProcessor):
 
             self.tracker.finish_phase("llm")
             writer.finalize()
+            if successful_batches == 0:
+                raise RuntimeError(f"PDF 大模型识别全部 {len(batches)} 个批次失败，输出文件只包含错误信息: {output_path}")
             self.checkpoint_mgr.remove("pdf", pdf_path)
 
             bottleneck = self.tracker.get_bottleneck_report()
@@ -376,7 +381,7 @@ class PDFProcessor(BaseProcessor):
         prompt_template: str,
         writer: IncrementalMDWriter,
         checkpoint: Checkpoint,
-    ) -> tuple[int, str, str]:
+    ) -> tuple[int, str, str, bool]:
         self._check_cancelled()
         start_page = page_offset + batch_idx * self.cfg.processing.batch_size + 1
         end_page = start_page + len(batch) - 1
@@ -395,7 +400,7 @@ class PDFProcessor(BaseProcessor):
             self.checkpoint_mgr.save_incremental(checkpoint, batch_idx, "")
         else:
             logger.warning("[PDF] 批次 %s 未成功完成，不写入检查点", page_str)
-        return batch_idx, page_str, result
+        return batch_idx, page_str, result, success
 
     def _do_batch_llm(
         self,

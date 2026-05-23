@@ -906,14 +906,17 @@ class VideoProcessor(BaseProcessor):
                     self._sleep(stagger)
 
             done = 0
+            successful_batches = 0
             for future in self._iter_completed_futures(set(future_map)):
                 bi = future_map.pop(future, None)
                 if bi is None:
                     continue
                 done += 1
                 try:
-                    idx, result_text, hw = future.result()
+                    idx, result_text, hw, success = future.result()
                     md_parts[idx] = result_text
+                    if success:
+                        successful_batches += 1
                     if hw:
                         hotwords = hw
                     self.tracker.update_phase("phase4", done, f"完成第 {idx+1}/{total_batches} 批")
@@ -935,6 +938,8 @@ class VideoProcessor(BaseProcessor):
         # 最终写入
         writer.finalize()
         self.tracker.update_phase("phase4", total_batches, "识别完成")
+        if total_batches and successful_batches == 0:
+            raise RuntimeError(f"视频板书识别全部 {total_batches} 个批次失败，输出文件只包含错误信息: {md_path}")
 
         # ---- 热词: 若没拿到，从文本中回退提取 ----
         if not hotwords:
@@ -989,8 +994,9 @@ class VideoProcessor(BaseProcessor):
         frames: tuple[dict, ...],
         paths: tuple[str, ...],
         prompt_template: str,
-    ) -> tuple[str, list[str]]:
+    ) -> tuple[str, list[str], bool]:
         parts: list[str] = []
+        success = False
 
         for frame, path in zip(frames, paths):
             self._check_cancelled()
@@ -1003,6 +1009,7 @@ class VideoProcessor(BaseProcessor):
                 else:
                     result = self.llm.chat_with_images(prompt=prompt, image_paths=[path])
                 normalized = self._ensure_batch_frame_markers(strip_md_fence(result), (frame,))
+                success = True
             except CancelledError:
                 raise
             except Exception as e:
@@ -1014,7 +1021,7 @@ class VideoProcessor(BaseProcessor):
                 )
             parts.append(normalized)
 
-        return "\n\n".join(part.strip() for part in parts if part.strip()), []
+        return "\n\n".join(part.strip() for part in parts if part.strip()), [], success
 
     def _phase4_batch_one(
         self,
@@ -1023,7 +1030,7 @@ class VideoProcessor(BaseProcessor):
         total_batches: int,
         prompt_template: str,
         writer: IncrementalMDWriter,
-    ) -> tuple[int, str, list[str]]:
+    ) -> tuple[int, str, list[str], bool]:
         """处理单个 Phase 4 批次（无状态，供并行调用）。"""
         frames, paths = zip(*batch)
         is_last = (bi == total_batches - 1)
@@ -1061,14 +1068,16 @@ class VideoProcessor(BaseProcessor):
                         bi + 1,
                         len(frames),
                     )
-                    result_text, hotwords = self._phase4_rerun_per_frame(frames, paths, prompt_template)
+                    result_text, hotwords, success = self._phase4_rerun_per_frame(frames, paths, prompt_template)
                 else:
                     result_text = self._ensure_batch_frame_markers(result_text, frames)
+                    success = True
             else:
                 result_text = self._ensure_batch_frame_markers(result_text, frames)
+                success = True
 
             writer.write_slot(bi, result_text)
-            return bi, result_text, hotwords
+            return bi, result_text, hotwords, success
         except CancelledError:
             raise
         except Exception as e:
@@ -1076,7 +1085,7 @@ class VideoProcessor(BaseProcessor):
             safe_err = str(e).replace("--", "\u2014")
             placeholder = f"\n\n<!-- 批次 {bi + 1} 失败: {safe_err} -->\n\n"
             writer.write_slot(bi, placeholder)
-            return bi, placeholder, []
+            return bi, placeholder, [], False
 
     # ---- Phase 5: 语音识别 ----
     def _phase5_asr(

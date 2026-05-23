@@ -122,6 +122,31 @@ class VisionProviderConfigTests(unittest.TestCase):
         kwargs = client.vision_client.chat.completions.create.call_args.kwargs
         self.assertNotIn("extra_body", kwargs)
 
+    def test_vision_provider_can_initialize_without_dashscope_key(self):
+        cfg = AppConfig(
+            api=APIConfig(api_key=""),
+            vision_api=VisionAPIConfig(
+                enabled=True,
+                api_key="vision-key",
+                base_url="https://vision.example/v1",
+                wire_api="chat",
+            ),
+        )
+        client = LLMClient(cfg)
+        client.vision_client.chat.completions.create = MagicMock(return_value=["OCRLLM TEST 12345"])
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
+            image_path = tmp.name
+        try:
+            Image.new("RGB", (8, 8), "white").save(image_path)
+            result = client.chat_with_images("read", [image_path], model="gpt-vision", max_retries=1)
+        finally:
+            try:
+                os.unlink(image_path)
+            except OSError:
+                pass
+
+        self.assertEqual(result, "OCRLLM TEST 12345")
+
     def test_responses_parser_accepts_dict_shape(self):
         response = {
             "output": [{

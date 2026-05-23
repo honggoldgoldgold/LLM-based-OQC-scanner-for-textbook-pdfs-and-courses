@@ -620,6 +620,10 @@ class QCRMainWindow(QMainWindow):
         vision_network = self._vision_network_cb.isChecked()
         vision_no_store = self._vision_no_store_cb.isChecked()
         vision_model = self._current_vision_model_name()
+        auto_vision_model = False
+        if vision_api_enabled and self._looks_like_qwen_model(vision_model) and vision_provider:
+            vision_model = vision_provider
+            auto_vision_model = True
         audio_model = self._current_audio_model_name()
         new_parallel = self._llm_parallel_input.value()
         new_stagger = self._llm_stagger_input.value()
@@ -682,6 +686,7 @@ class QCRMainWindow(QMainWindow):
             "vision_api_key": vision_api_key,
             "vision_base_url": vision_base_url,
             "vision_wire_api": vision_wire_api,
+            "auto_vision_model": auto_vision_model,
             "new_parallel": new_parallel, "new_stagger": new_stagger,
             "paid_mode": paid_mode, "api_keys": api_keys,
         }
@@ -703,6 +708,8 @@ class QCRMainWindow(QMainWindow):
                 return
 
         # picker dialog 已经处理过自定义模型测试 & catalog 写入，这里只做配置同步。
+        if info["auto_vision_model"]:
+            self._pending_vision_model = info["vision_model"]
         self._refresh_model_labels()
 
         self._cfg = self._cfg.with_updates(**updates)
@@ -738,7 +745,10 @@ class QCRMainWindow(QMainWindow):
 
     def _sync_api_from_ui(self):
         """将 GUI 输入框中的 API 设置同步到 config（无需手动点击"应用设置"）。"""
-        updates, _ = self._read_api_overrides_from_ui()
+        updates, info = self._read_api_overrides_from_ui()
+        if info["auto_vision_model"]:
+            self._pending_vision_model = info["vision_model"]
+            self._refresh_model_labels()
         self._cfg = self._cfg.with_updates(**updates)
 
     def _start_worker_with_tracker(self, task_func):
@@ -749,15 +759,13 @@ class QCRMainWindow(QMainWindow):
 
         # 启动前自动同步 GUI 输入框的 API 设置到 config
         self._sync_api_from_ui()
-        if not self._cfg.api.api_key:
-            QMessageBox.warning(self, "提示", "API Key 不能为空，请在 API 设置中填入 Key")
+        if not self._cfg.api.api_key and not (
+            self._cfg.vision_api.enabled and self._cfg.vision_api.api_key
+        ):
+            QMessageBox.warning(self, "提示", "API Key 不能为空，请在 API 设置中填入 Key 或视觉 Provider Key")
             return False
         if self._cfg.vision_api.enabled and (not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url):
             QMessageBox.warning(self, "提示", "视觉独立 Provider 已启用，但视觉 API Key 或 Base URL 为空")
-            return False
-        mismatch = self._vision_provider_model_warning()
-        if mismatch:
-            QMessageBox.warning(self, "视觉模型需要切换", mismatch)
             return False
 
         self._log_text.clear()

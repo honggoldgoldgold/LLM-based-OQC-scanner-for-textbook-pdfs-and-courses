@@ -137,13 +137,18 @@ class LLMClient:
     def __init__(self, cfg: Optional[AppConfig] = None, cancel_event: Optional[Event] = None):
         self.cfg = cfg or AppConfig()
         self._cancel_event = cancel_event
-        if not self.cfg.api.api_key:
+        primary_key = self.cfg.api.api_key
+        primary_base_url = self.cfg.api.base_url
+        if not primary_key and self.cfg.vision_api.enabled:
+            primary_key = self.cfg.vision_api.api_key
+            primary_base_url = self.cfg.vision_api.base_url
+        if not primary_key:
             raise ValueError(
-                "未配置 API Key。请设置环境变量 DASHSCOPE_API_KEY 或在配置中提供 api_key"
+                "未配置 API Key。请设置 DASHSCOPE_API_KEY 或视觉 Provider API Key"
             )
         self.client = OpenAI(
-            api_key=self.cfg.api.api_key,
-            base_url=self.cfg.api.base_url,
+            api_key=primary_key,
+            base_url=primary_base_url,
             timeout=httpx.Timeout(300, connect=60),
             max_retries=0,
         )

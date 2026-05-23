@@ -96,6 +96,23 @@ class GuiAppCloseTests(unittest.TestCase):
             window.deleteLater()
             self._app.processEvents()
 
+    def test_external_vision_provider_uses_pointed_model_instead_of_default_qwen(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+            window._api_key_input.setText("dash-key")
+            window._vision_api_enabled_cb.setChecked(True)
+            window._vision_provider_input.setText("oasis-vision-model")
+            window._vision_api_key_input.setText("oasis-key")
+            window._vision_base_url_input.setText("https://oasis.example/v1")
+            window._pending_vision_model = "qwen-vl-max"
+
+            window._sync_api_from_ui()
+
+            self.assertEqual(window._cfg.models.vision_model, "oasis-vision-model")
+            window.deleteLater()
+            self._app.processEvents()
+
 
 if __name__ == "__main__":
     unittest.main()
