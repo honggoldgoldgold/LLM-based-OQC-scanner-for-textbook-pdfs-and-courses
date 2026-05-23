@@ -13,6 +13,7 @@ import time
 from pathlib import Path
 from threading import Event
 from typing import Optional
+from urllib.parse import urlparse
 
 import httpx
 from openai import OpenAI, APIConnectionError, APITimeoutError, APIStatusError
@@ -141,7 +142,7 @@ class LLMClient:
         primary_base_url = self.cfg.api.base_url
         if not primary_key and self.cfg.vision_api.enabled:
             primary_key = self.cfg.vision_api.api_key
-            primary_base_url = self.cfg.vision_api.base_url
+            primary_base_url = self._normalize_openai_base_url(self.cfg.vision_api.base_url)
         if not primary_key:
             raise ValueError(
                 "未配置 API Key。请设置 DASHSCOPE_API_KEY 或视觉 Provider API Key"
@@ -154,6 +155,16 @@ class LLMClient:
         )
         self.vision_client = self._build_vision_client()
 
+    @staticmethod
+    def _normalize_openai_base_url(base_url: str) -> str:
+        normalized = (base_url or "").strip().rstrip("/")
+        if not normalized:
+            return normalized
+        parsed = urlparse(normalized)
+        if parsed.scheme and parsed.netloc and parsed.path in {"", "/"}:
+            return f"{normalized}/v1"
+        return normalized
+
     def _build_vision_client(self) -> OpenAI:
         vision_api = self.cfg.vision_api
         if not vision_api.enabled:
@@ -164,7 +175,7 @@ class LLMClient:
             raise ValueError("视觉 Provider 已启用，但未配置视觉 Base URL")
         return OpenAI(
             api_key=vision_api.api_key,
-            base_url=vision_api.base_url,
+            base_url=self._normalize_openai_base_url(vision_api.base_url),
             timeout=httpx.Timeout(300, connect=60),
             max_retries=0,
         )

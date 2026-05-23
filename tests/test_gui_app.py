@@ -6,7 +6,8 @@ from unittest.mock import patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtGui import QCloseEvent
-from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox
+from PyQt5.QtCore import Qt
+from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, QScrollArea
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.checkpoint import Checkpoint
@@ -96,24 +97,25 @@ class GuiAppCloseTests(unittest.TestCase):
             window.deleteLater()
             self._app.processEvents()
 
-    def test_external_vision_provider_uses_pointed_model_instead_of_default_qwen(self):
+    def test_external_vision_provider_model_input_is_separate_from_provider(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
             window = QCRMainWindow(cfg=cfg)
             window._api_key_input.setText("dash-key")
             window._vision_api_enabled_cb.setChecked(True)
-            window._vision_provider_input.setText("oasis-vision-model")
+            window._vision_provider_input.setText("ioasis")
+            window._vision_model_input.setText("gpt-5.5")
             window._vision_api_key_input.setText("oasis-key")
             window._vision_base_url_input.setText("https://oasis.example/v1")
-            window._pending_vision_model = "qwen-vl-max"
 
             window._sync_api_from_ui()
 
-            self.assertEqual(window._cfg.models.vision_model, "oasis-vision-model")
+            self.assertEqual(window._cfg.vision_api.provider, "ioasis")
+            self.assertEqual(window._cfg.models.vision_model, "gpt-5.5")
             window.deleteLater()
             self._app.processEvents()
 
-    def test_external_vision_provider_model_field_drives_vision_model_only(self):
+    def test_external_vision_provider_changes_do_not_overwrite_model_input(self):
         with tempfile.TemporaryDirectory() as tmp:
             cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
             window = QCRMainWindow(cfg=cfg)
@@ -121,20 +123,58 @@ class GuiAppCloseTests(unittest.TestCase):
             window._vision_api_enabled_cb.setChecked(True)
             window._vision_api_key_input.setText("provider-key")
             window._vision_base_url_input.setText("https://vision.example/v1")
-            window._pending_vision_model = "ioasis"
+            window._vision_provider_input.setText("ioasis")
+            window._vision_model_input.setText("gpt-5.5")
             window._pending_audio_model = "qwen3-asr-flash-filetrans"
 
             window._vision_provider_input.setText("fuckme")
-            self.assertEqual(window._vision_model_label.text(), "fuckme")
-            self.assertIn("视觉: fuckme", window._api_summary.text())
+            self.assertEqual(window._vision_model_input.text(), "gpt-5.5")
+            self.assertIn("视觉: gpt-5.5", window._api_summary.text())
             self.assertIn("视觉Provider: fuckme", window._api_summary.text())
             self.assertIn("音频: qwen3-asr-flash-filetrans", window._api_summary.text())
 
             window._sync_api_from_ui()
 
-            self.assertEqual(window._cfg.models.vision_model, "fuckme")
+            self.assertEqual(window._cfg.models.vision_model, "gpt-5.5")
             self.assertEqual(window._cfg.vision_api.provider, "fuckme")
             self.assertEqual(window._cfg.models.asr_model, "qwen3-asr-flash-filetrans")
+            window.deleteLater()
+            self._app.processEvents()
+
+    def test_external_vision_provider_keeps_explicit_model_when_provider_alias_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+            window._api_key_input.setText("dash-key")
+            window._vision_api_enabled_cb.setChecked(True)
+            window._vision_provider_input.setText("ioasis")
+            window._vision_api_key_input.setText("provider-key")
+            window._vision_base_url_input.setText("https://vision.example")
+            window._vision_model_input.setText("gpt-5.5")
+            window._pending_audio_model = "qwen3-asr-flash-filetrans"
+            window._refresh_model_labels()
+
+            window._vision_provider_input.setText("fuckme")
+            window._sync_api_from_ui()
+
+            self.assertEqual(window._cfg.models.vision_model, "gpt-5.5")
+            self.assertEqual(window._cfg.vision_api.provider, "fuckme")
+            self.assertEqual(window._cfg.models.asr_model, "qwen3-asr-flash-filetrans")
+            self.assertEqual(window._vision_model_input.text(), "gpt-5.5")
+            self.assertIn("视觉: gpt-5.5", window._api_summary.text())
+            self.assertIn("视觉Provider: fuckme", window._api_summary.text())
+            window.deleteLater()
+            self._app.processEvents()
+
+    def test_api_settings_body_is_scrollable(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+
+            self.assertIsInstance(window._api_scroll, QScrollArea)
+            self.assertIs(window._api_scroll.widget(), window._api_body)
+            self.assertTrue(window._api_scroll.widgetResizable())
+            self.assertEqual(window._api_scroll.verticalScrollBarPolicy(), Qt.ScrollBarAsNeeded)
             window.deleteLater()
             self._app.processEvents()
 

@@ -1033,17 +1033,14 @@ class VideoProcessor(BaseProcessor):
     ) -> tuple[int, str, list[str], bool]:
         """处理单个 Phase 4 批次（无状态，供并行调用）。"""
         frames, paths = zip(*batch)
-        is_last = (bi == total_batches - 1)
-
         names = []
         for f in frames:
             ts = f["timestamp"]
             names.append(f"{Path(f['path']).stem} [{int(ts // 60):02d}:{int(ts % 60):02d}]")
         names_str = ", ".join(names)
 
-        extra = prompts.EXTRACT_HOTWORDS if is_last else ""
         prompt = prompt_template.format(
-            image_names=names_str, extra_instruction=extra
+            image_names=names_str, extra_instruction=""
         )
 
         hotwords = []
@@ -1054,12 +1051,7 @@ class VideoProcessor(BaseProcessor):
             else:
                 result = self.llm.chat_with_images(prompt=prompt, image_paths=list(paths))
 
-            if is_last and extra:
-                board_content, hw = _split_hotwords(result)
-                result_text = strip_md_fence(board_content)
-                hotwords = hw
-            else:
-                result_text = strip_md_fence(result)
+            result_text = strip_md_fence(result)
 
             if not self._has_expected_batch_frame_markers(result_text, frames):
                 if len(frames) > 1:

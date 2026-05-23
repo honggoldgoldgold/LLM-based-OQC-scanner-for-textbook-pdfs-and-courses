@@ -147,6 +147,21 @@ class VisionProviderConfigTests(unittest.TestCase):
 
         self.assertEqual(result, "OCRLLM TEST 12345")
 
+    def test_vision_provider_root_base_url_is_normalized_to_v1(self):
+        cfg = AppConfig(
+            api=APIConfig(api_key="dash-key"),
+            vision_api=VisionAPIConfig(
+                enabled=True,
+                api_key="vision-key",
+                base_url="https://vision.example",
+                wire_api="chat",
+            ),
+        )
+
+        client = LLMClient(cfg)
+
+        self.assertEqual(str(client.vision_client.base_url), "https://vision.example/v1/")
+
     def test_responses_parser_accepts_dict_shape(self):
         response = {
             "output": [{

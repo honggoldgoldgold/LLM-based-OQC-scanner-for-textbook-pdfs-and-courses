@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QPlainTextEdit, QGroupBox, QMessageBox,
     QStatusBar, QSpinBox, QDoubleSpinBox, QLineEdit,
-    QProgressBar, QCheckBox, QFrame,
+    QProgressBar, QCheckBox, QFrame, QScrollArea,
 )
 from PyQt5.QtCore import Qt, QSettings, QTimer, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont
@@ -194,9 +194,9 @@ class QCRMainWindow(QMainWindow):
         body_layout.addLayout(row_vapi_toggle)
 
         row_vapi1 = QHBoxLayout()
-        row_vapi1.addWidget(QLabel("视觉 Provider / 模型:"))
+        row_vapi1.addWidget(QLabel("视觉 Provider:"))
         self._vision_provider_input = QLineEdit(self._cfg.vision_api.provider)
-        self._vision_provider_input.setPlaceholderText("填写该服务的视觉模型 ID")
+        self._vision_provider_input.setPlaceholderText("服务/渠道名，如 ioasis")
         row_vapi1.addWidget(self._vision_provider_input)
         row_vapi1.addWidget(QLabel("Wire API:"))
         self._vision_wire_api_input = QLineEdit(self._cfg.vision_api.wire_api or "chat")
@@ -231,14 +231,12 @@ class QCRMainWindow(QMainWindow):
         row_vapi4.addWidget(self._vision_no_store_cb)
         body_layout.addLayout(row_vapi4)
 
-        # 视觉模型 + 音频模型 — 不再用 QComboBox（条目超过 100 时下拉会爆）
-        # 改用 当前模型 Label + "更换..." 按钮 → 弹出搜索/过滤对话框
         row_vision = QHBoxLayout()
-        row_vision.addWidget(QLabel("视觉模型 (图片/截图/PDF/视频帧):"))
-        self._vision_model_label = QLabel(self._cfg.models.vision_model or "—")
-        self._vision_model_label.setStyleSheet("font-weight: bold; padding: 2px 8px; background: #f4f4f4;")
-        self._vision_model_label.setMinimumWidth(280)
-        row_vision.addWidget(self._vision_model_label, stretch=1)
+        row_vision.addWidget(QLabel("视觉模型 ID:"))
+        self._vision_model_input = QLineEdit(self._cfg.models.vision_model or "")
+        self._vision_model_input.setPlaceholderText("真实模型名，如 gpt-5.5")
+        self._vision_model_input.setMinimumWidth(280)
+        row_vision.addWidget(self._vision_model_input, stretch=1)
         btn_pick_vision = QPushButton("🔄 更换视觉模型...")
         btn_pick_vision.clicked.connect(self._open_vision_picker)
         row_vision.addWidget(btn_pick_vision)
@@ -303,8 +301,15 @@ class QCRMainWindow(QMainWindow):
         row4.addStretch()
         body_layout.addLayout(row4)
 
-        api_layout.addWidget(self._api_body)
-        self._api_body.setVisible(False)
+        self._api_scroll = QScrollArea()
+        self._api_scroll.setWidgetResizable(True)
+        self._api_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._api_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        self._api_scroll.setFrameShape(QFrame.NoFrame)
+        self._api_scroll.setMaximumHeight(280)
+        self._api_scroll.setWidget(self._api_body)
+        api_layout.addWidget(self._api_scroll)
+        self._api_scroll.setVisible(False)
         self._refresh_api_summary()
 
         layout.addWidget(self._api_group)
@@ -428,7 +433,7 @@ class QCRMainWindow(QMainWindow):
     # ---- API 设置 ----
 
     def _set_api_settings_visible(self, checked: bool):
-        self._api_body.setVisible(checked)
+        self._api_scroll.setVisible(checked)
         self._api_toggle_btn.setText("收起设置" if checked else "展开设置")
         self._refresh_api_summary()
 
@@ -438,15 +443,10 @@ class QCRMainWindow(QMainWindow):
         self._api_key_toggle.setText("🙈 隐藏" if checked else "👁 显示")
 
     def _refresh_model_labels(self):
-        v = self._effective_vision_model_name() or "—"
         a = self._pending_audio_model or "—"
-        meta_v = model_catalog.find_vision_model(v)
         meta_a = model_catalog.find_audio_model(self._pending_audio_model)
-        if meta_v:
-            v = model_catalog.display_label(meta_v)
         if meta_a:
             a = model_catalog.display_label(meta_a)
-        self._vision_model_label.setText(v)
         self._audio_model_label.setText(a)
         self._refresh_api_summary()
 
@@ -456,7 +456,7 @@ class QCRMainWindow(QMainWindow):
         provider = self._vision_provider_input.text().strip() if hasattr(self, "_vision_provider_input") else ""
         key_state = "API Key 已填" if self._api_key_input.text().strip() else "API Key 未填"
         vision_provider = f" | 视觉Provider: {provider or '自定义'}" if getattr(self, "_vision_api_enabled_cb", None) and self._vision_api_enabled_cb.isChecked() else ""
-        vision = self._effective_vision_model_name() or "—"
+        vision = self._current_vision_model_name() or "—"
         audio = self._current_audio_model_name() or "—"
         self._api_summary.setText(f"{key_state} | 视觉: {vision}{vision_provider} | 音频: {audio}")
 
@@ -475,10 +475,11 @@ class QCRMainWindow(QMainWindow):
             return _validate_vision(self, client, name)
 
         dlg = ModelPickerDialog(self, kind="vision",
-                                current_name=self._pending_vision_model,
+                                current_name=self._current_vision_model_name(),
                                 on_validate_custom=_validate_custom)
         if dlg.exec_() == ModelPickerDialog.Accepted:
             self._pending_vision_model = dlg.selected_model_name
+            self._vision_model_input.setText(dlg.selected_model_name)
             self._refresh_model_labels()
             self._schedule_persist_ui_settings()
 
@@ -507,19 +508,23 @@ class QCRMainWindow(QMainWindow):
             self._schedule_persist_ui_settings()
 
     def _current_vision_model_name(self) -> str:
+        if hasattr(self, "_vision_model_input"):
+            model = self._vision_model_input.text().strip()
+            if model:
+                return model
         return self._pending_vision_model or self._cfg.models.vision_model
-
-    def _effective_vision_model_name(self) -> str:
-        if not hasattr(self, "_vision_api_enabled_cb"):
-            return self._current_vision_model_name()
-        if self._vision_api_enabled_cb.isChecked():
-            provider_model = self._vision_provider_input.text().strip()
-            if provider_model:
-                return provider_model
-        return self._current_vision_model_name()
 
     def _current_audio_model_name(self) -> str:
         return self._pending_audio_model or self._cfg.models.asr_model
+
+    def _on_vision_provider_changed(self, *_args):
+        self._schedule_persist_ui_settings()
+        self._refresh_api_summary()
+
+    def _on_vision_model_changed(self, text: str):
+        self._pending_vision_model = text.strip()
+        self._schedule_persist_ui_settings()
+        self._refresh_api_summary()
 
     def _connect_settings_autosave(self):
         self._api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
@@ -527,8 +532,8 @@ class QCRMainWindow(QMainWindow):
         self._base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._vision_api_enabled_cb.toggled.connect(self._schedule_persist_ui_settings)
         self._vision_api_enabled_cb.toggled.connect(self._refresh_model_labels)
-        self._vision_provider_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_provider_input.textChanged.connect(self._refresh_model_labels)
+        self._vision_provider_input.textChanged.connect(self._on_vision_provider_changed)
+        self._vision_model_input.textChanged.connect(self._on_vision_model_changed)
         self._vision_api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._vision_base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._vision_wire_api_input.textChanged.connect(self._schedule_persist_ui_settings)
@@ -593,6 +598,7 @@ class QCRMainWindow(QMainWindow):
                 saved_vision = self._settings.value("ui/vision_model", type=str) or ""
                 if saved_vision:
                     self._pending_vision_model = saved_vision
+                    self._vision_model_input.setText(saved_vision)
             if self._settings.contains("ui/audio_model"):
                 saved_audio = self._settings.value("ui/audio_model", type=str) or ""
                 if saved_audio:
@@ -628,8 +634,8 @@ class QCRMainWindow(QMainWindow):
         vision_reasoning = self._vision_reasoning_input.text().strip()
         vision_network = self._vision_network_cb.isChecked()
         vision_no_store = self._vision_no_store_cb.isChecked()
-        vision_model = self._effective_vision_model_name()
-        auto_vision_model = bool(vision_api_enabled and vision_provider)
+        vision_model = self._current_vision_model_name()
+        auto_vision_model = False
         audio_model = self._current_audio_model_name()
         new_parallel = self._llm_parallel_input.value()
         new_stagger = self._llm_stagger_input.value()

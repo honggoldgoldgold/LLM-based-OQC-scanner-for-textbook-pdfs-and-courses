@@ -36,6 +36,19 @@ class _SingleClientPool:
         return _FailingLLM()
 
 
+class _HotwordOnlyWhenAskedLLM:
+    def set_cancel_event(self, *_args):
+        pass
+
+    def chat_with_images(self, prompt, *_args, **_kwargs):
+        if "热词表" in prompt or "热词1" in prompt:
+            return "Linux\nUbuntu\nShell\n命令行\n终端"
+        return "## Linux shell demo\n\nScreen shows terminal commands."
+
+    def chat_text(self, *_args, **_kwargs):
+        return "Linux\nShell"
+
+
 def _cfg(tmp: str) -> AppConfig:
     return AppConfig(
         api=APIConfig(api_key="dummy-key"),
@@ -103,6 +116,30 @@ class VisionFailurePropagationTests(unittest.TestCase):
             board_md = os.path.join(tmp, "lecture_板书识别.md")
             with open(board_md, encoding="utf-8") as f:
                 self.assertIn("批次 1 失败", f.read())
+
+    def test_video_phase4_does_not_accept_hotword_only_response_as_board_content(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            frame_path = os.path.join(tmp, "board_001_010s.jpg")
+            Image.new("RGB", (8, 8), "white").save(frame_path)
+            proc = VideoProcessor(
+                cfg=_cfg(tmp),
+                llm=_HotwordOnlyWhenAskedLLM(),
+                reporter=ProgressReporter(),
+                tracker=ProgressTracker(),
+                api_pool=_SingleClientPool(),
+            )
+
+            md_path, hotwords, _ = proc._phase4_llm(
+                [{"path": frame_path, "timestamp": 10.0, "frame_idx": 1}],
+                [frame_path],
+                tmp,
+                "lecture",
+            )
+
+            with open(md_path, encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("Screen shows terminal commands", content)
+            self.assertEqual(hotwords, ["Linux", "Shell"])
 
 
 if __name__ == "__main__":
