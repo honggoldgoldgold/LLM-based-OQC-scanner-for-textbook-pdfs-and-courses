@@ -39,6 +39,23 @@ class APIConfig:
 
 
 @dataclass
+class VisionAPIConfig:
+    """视觉模型可选的独立 OpenAI-compatible Provider 配置。
+
+    留空/禁用时，图片、PDF、视频帧识别沿用 api 段；启用后仅视觉请求切到这里，
+    长音频 filetrans 仍使用 DashScope api 段。
+    """
+    enabled: bool = False
+    provider: str = ""
+    api_key: str = ""
+    base_url: str = ""
+    wire_api: str = "chat"  # "chat" 或 "responses"
+    model_reasoning_effort: str = ""
+    network_access: bool = False
+    disable_response_storage: bool = True
+
+
+@dataclass
 class ModelConfig:
     """模型名称配置。
 
@@ -153,6 +170,7 @@ class AppConfig:
     """应用全局配置。"""
 
     api: APIConfig = field(default_factory=APIConfig)
+    vision_api: VisionAPIConfig = field(default_factory=VisionAPIConfig)
     models: ModelConfig = field(default_factory=ModelConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     concurrency: ConcurrencyConfig = field(default_factory=ConcurrencyConfig)
@@ -180,6 +198,20 @@ class AppConfig:
         url = os.environ.get("DASHSCOPE_BASE_URL")
         if url:
             updates.setdefault("api", {})["base_url"] = url
+        vision_key = os.environ.get("OCRLLM_VISION_API_KEY")
+        if vision_key:
+            updates.setdefault("vision_api", {})["api_key"] = vision_key
+            updates.setdefault("vision_api", {})["enabled"] = True
+        vision_url = os.environ.get("OCRLLM_VISION_BASE_URL")
+        if vision_url:
+            updates.setdefault("vision_api", {})["base_url"] = vision_url
+            updates.setdefault("vision_api", {})["enabled"] = True
+        vision_wire_api = os.environ.get("OCRLLM_VISION_WIRE_API")
+        if vision_wire_api:
+            updates.setdefault("vision_api", {})["wire_api"] = vision_wire_api
+        vision_model = os.environ.get("OCRLLM_VISION_MODEL")
+        if vision_model:
+            updates.setdefault("models", {})["vision_model"] = vision_model
         return cfg.with_updates(**updates) if updates else cfg
 
     def with_updates(self, **kwargs) -> AppConfig:
@@ -197,6 +229,7 @@ class AppConfig:
 
 _SECTION_NAMES = {
     "api",
+    "vision_api",
     "models",
     "processing",
     "concurrency",

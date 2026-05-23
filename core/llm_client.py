@@ -74,6 +74,44 @@ def _is_retriable(exc: Exception) -> bool:
     return False
 
 
+def _field(value, name: str, default=None):
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _content_text(content) -> str:
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            text = _content_text(_field(item, "text"))
+            if not text and isinstance(item, str):
+                text = item
+            if not text:
+                text = _content_text(_field(item, "content"))
+            if text:
+                parts.append(text)
+        return "".join(parts)
+    text = _field(content, "text")
+    if text:
+        return str(text)
+    nested = _field(content, "content")
+    if nested is not None and nested is not content:
+        return _content_text(nested)
+    return ""
+
+
+def _first_choice(response):
+    choices = _field(response, "choices") or []
+    if not choices:
+        return None
+    return choices[0]
+
+
 # 进程级单例：免费模型切换通知回调（GUI 在启动时挂上去，弹一次警告）
 _FREE_TIER_NOTIFIER = None
 
@@ -109,6 +147,25 @@ class LLMClient:
             timeout=httpx.Timeout(300, connect=60),
             max_retries=0,
         )
+        self.vision_client = self._build_vision_client()
+
+    def _build_vision_client(self) -> OpenAI:
+        vision_api = self.cfg.vision_api
+        if not vision_api.enabled:
+            return self.client
+        if not vision_api.api_key:
+            raise ValueError("视觉 Provider 已启用，但未配置视觉 API Key")
+        if not vision_api.base_url:
+            raise ValueError("视觉 Provider 已启用，但未配置视觉 Base URL")
+        return OpenAI(
+            api_key=vision_api.api_key,
+            base_url=vision_api.base_url,
+            timeout=httpx.Timeout(300, connect=60),
+            max_retries=0,
+        )
+
+    def _active_vision_client(self) -> OpenAI:
+        return self.vision_client if self.cfg.vision_api.enabled else self.client
 
     def set_cancel_event(self, cancel_event: Optional[Event]):
         """设置取消事件，用于协作式中断正在进行的请求。
@@ -124,11 +181,16 @@ class LLMClient:
         chunk_count = 0
         for chunk in stream:
             chunk_count += 1
-            if not chunk.choices:
+            if isinstance(chunk, str):
+                parts.append(chunk)
                 continue
-            delta = chunk.choices[0].delta
-            if delta.content:
-                parts.append(delta.content)
+            choice = _first_choice(chunk)
+            if choice is None:
+                continue
+            delta = _field(choice, "delta") or _field(choice, "message") or choice
+            text = _content_text(_field(delta, "content") or _field(delta, "text"))
+            if text:
+                parts.append(text)
         result = "".join(parts)
         if not result and chunk_count > 0:
             logger.warning("[LLM] 流式响应为空 (收到 %d 个 chunk)", chunk_count)
@@ -136,20 +198,13 @@ class LLMClient:
 
     @staticmethod
     def _extract_message_text(completion) -> str:
-        content = completion.choices[0].message.content
-        if isinstance(content, str):
-            return content.strip()
-        if isinstance(content, list):
-            parts = []
-            for part in content:
-                text = getattr(part, "text", None)
-                if text:
-                    parts.append(text)
-                    continue
-                if isinstance(part, dict) and part.get("text"):
-                    parts.append(str(part["text"]))
-            return "".join(parts).strip()
-        return ""
+        if isinstance(completion, str):
+            return completion.strip()
+        choice = _first_choice(completion)
+        if choice is None:
+            return _content_text(_field(completion, "output_text")).strip()
+        message = _field(choice, "message") or _field(choice, "delta") or choice
+        return _content_text(_field(message, "content") or _field(message, "text")).strip()
 
     @staticmethod
     def _encode_file(file_path: str, mime_map: dict[str, str], default_mime: str) -> str:
@@ -197,14 +252,26 @@ class LLMClient:
                 return
             self._cancel_event.wait(min(0.2, remaining))
 
-    def _chat_with_stream_fallback(self, model: str, messages: list[dict]) -> str:
+    def _chat_with_stream_fallback(
+        self,
+        model: str,
+        messages: list[dict],
+        *,
+        client: Optional[OpenAI] = None,
+        extra_body: Optional[dict] = None,
+    ) -> str:
+        api_client = client or self.client
         self._check_cancelled()
+        request_kwargs = {
+            "model": model,
+            "messages": messages,
+        }
+        if extra_body:
+            request_kwargs["extra_body"] = extra_body
         try:
-            stream = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
+            stream = api_client.chat.completions.create(
+                **request_kwargs,
                 stream=True,
-                extra_body={"enable_thinking": False},
             )
             result = self._collect_stream(stream)
         except Exception as exc:
@@ -216,11 +283,9 @@ class LLMClient:
 
         logger.warning("[LLM] 流式响应为空，回退到非流式请求")
         try:
-            completion = self.client.chat.completions.create(
-                model=model,
-                messages=messages,
+            completion = api_client.chat.completions.create(
+                **request_kwargs,
                 stream=False,
-                extra_body={"enable_thinking": False},
             )
         except Exception as exc:
             if _looks_like_free_tier_exhausted(exc):
@@ -230,6 +295,83 @@ class LLMClient:
         if result:
             return result
         raise EmptyResponseError("LLM 响应为空")
+
+    @staticmethod
+    def _extract_responses_text(response) -> str:
+        text = _field(response, "output_text")
+        if isinstance(text, str) and text.strip():
+            return text.strip()
+        parts: list[str] = []
+        for item in _field(response, "output", []) or []:
+            for content in _field(item, "content", []) or []:
+                content_text = _content_text(_field(content, "text") or _field(content, "content"))
+                if content_text:
+                    parts.append(content_text)
+        return "".join(parts).strip()
+
+    def _responses_payload(self, model: str, prompt: str, image_paths: list[str]) -> dict:
+        content = [{"type": "input_text", "text": prompt}]
+        for img in image_paths:
+            content.append({"type": "input_image", "image_url": self._encode_image(img)})
+        payload = {
+            "model": model,
+            "input": [{"role": "user", "content": content}],
+        }
+        vision_api = self.cfg.vision_api
+        if vision_api.model_reasoning_effort:
+            payload["reasoning"] = {"effort": vision_api.model_reasoning_effort}
+        if vision_api.network_access:
+            payload["tools"] = [{"type": "web_search_preview"}]
+        if vision_api.disable_response_storage:
+            payload["store"] = False
+        return payload
+
+    def _responses_with_images(self, model: str, prompt: str, image_paths: list[str]) -> str:
+        self._check_cancelled()
+        try:
+            response = self._active_vision_client().responses.create(**self._responses_payload(model, prompt, image_paths))
+        except Exception as exc:
+            if _looks_like_free_tier_exhausted(exc):
+                raise FreeTierExhaustedError(model, str(exc)) from exc
+            raise
+        result = self._extract_responses_text(response)
+        if result:
+            return result
+        raise EmptyResponseError("Responses API 响应为空")
+
+    def _chat_messages_for_images(self, prompt: str, image_paths: list[str]) -> list[dict]:
+        content = []
+        for img in image_paths:
+            content.append({
+                "type": "image_url",
+                "image_url": {"url": self._encode_image(img)},
+            })
+        content.append({"type": "text", "text": prompt})
+        return [{"role": "user", "content": content}]
+
+    def _vision_chat_extra_body(self) -> Optional[dict]:
+        if not self.cfg.vision_api.enabled:
+            return {"enable_thinking": False}
+        base_url = (self.cfg.vision_api.base_url or "").lower()
+        if "dashscope" in base_url or "aliyuncs" in base_url:
+            return {"enable_thinking": False}
+        return None
+
+    def _vision_with_images(self, model: str, prompt: str, image_paths: list[str], messages: Optional[list[dict]] = None) -> str:
+        if self.cfg.vision_api.enabled and self.cfg.vision_api.wire_api.lower() == "responses":
+            return self._responses_with_images(model, prompt, image_paths)
+        return self._chat_with_stream_fallback(
+            model,
+            messages or self._chat_messages_for_images(prompt, image_paths),
+            client=self._active_vision_client(),
+            extra_body=self._vision_chat_extra_body(),
+        )
+
+    def _vision_fallback_chain(self) -> list[str]:
+        if self.cfg.vision_api.enabled:
+            return []
+        from OCRLLM.core import model_catalog
+        return model_catalog.free_vision_chain()
 
     def _call_with_free_tier_fallback(
         self,
@@ -313,25 +455,17 @@ class LLMClient:
             EmptyResponseError: LLM 返回空响应。
         """
         primary_model = model or self.cfg.models.vision_model
-        content = []
-        for img in image_paths:
-            content.append({
-                "type": "image_url",
-                "image_url": {"url": self._encode_image(img)},
-            })
-        content.append({"type": "text", "text": prompt})
-        messages = [{"role": "user", "content": content}]
+        messages = self._chat_messages_for_images(prompt, image_paths)
 
         def _call_one(model_name: str):
             def _call():
                 logger.info("[LLM] 发送请求: model=%s, 图片=%d", model_name, len(image_paths))
-                result = self._chat_with_stream_fallback(model_name, messages)
+                result = self._vision_with_images(model_name, prompt, image_paths, messages)
                 logger.info("[LLM] 收到响应: %d 字符", len(result))
                 return result
             return self._retry_call(_call, max_retries)
 
-        from OCRLLM.core import model_catalog
-        chain = model_catalog.free_vision_chain()
+        chain = self._vision_fallback_chain()
         return self._call_with_free_tier_fallback(primary_model, chain, "vision", _call_one)
 
     def chat_with_images_contextual(
@@ -369,13 +503,12 @@ class LLMClient:
             def _call():
                 logger.info("[LLM] 上下文请求: model=%s, 图片=%d, 历史=%d",
                             model_name, len(image_paths), len(history or []))
-                result = self._chat_with_stream_fallback(model_name, messages)
+                result = self._vision_with_images(model_name, prompt, image_paths, messages)
                 logger.info("[LLM] 收到响应: %d 字符", len(result))
                 return result
             return self._retry_call(_call, max_retries)
 
-        from OCRLLM.core import model_catalog
-        chain = model_catalog.free_vision_chain()
+        chain = self._vision_fallback_chain()
         return self._call_with_free_tier_fallback(primary_model, chain, "vision", _call_one)
 
     def chat_text(
@@ -408,7 +541,7 @@ class LLMClient:
 
         def _call_one(model_name: str):
             def _call():
-                return self._chat_with_stream_fallback(model_name, messages)
+                return self._chat_with_stream_fallback(model_name, messages, extra_body={"enable_thinking": False})
             return self._retry_call(_call, max_retries)
 
         from OCRLLM.core import model_catalog
@@ -483,18 +616,11 @@ class LLMClient:
             (ok, message)。message 在失败时携带后端错误片段。
         """
         try:
-            content = [
-                {"type": "image_url", "image_url": {"url": self._encode_image(image_path)}},
-                {"type": "text", "text": "请用一句话说明你看到了什么。"},
-            ]
-            completion = self.client.chat.completions.create(
-                model=model,
-                messages=[{"role": "user", "content": content}],
-                stream=False,
-                timeout=timeout,
-                extra_body={"enable_thinking": False},
+            text = self._vision_with_images(
+                model,
+                "请读取图片中的测试文字，并回复你读到的主要字符。",
+                [image_path],
             )
-            text = self._extract_message_text(completion)
             if not text:
                 return False, "模型返回空响应"
             return True, text[:80]

@@ -6,10 +6,12 @@ from unittest.mock import patch
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PyQt5.QtGui import QCloseEvent
-from PyQt5.QtWidgets import QApplication, QMessageBox
+from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.gui.app import QCRMainWindow
+from OCRLLM.gui.widgets import IncompleteTasksDialog
 
 
 class _DummyWorker:
@@ -40,6 +42,57 @@ class GuiAppCloseTests(unittest.TestCase):
             self.assertTrue(window._worker.cancel_requested)
             self.assertTrue(window._close_after_worker)
             self.assertTrue(window._suppress_worker_dialogs)
+            window.deleteLater()
+            self._app.processEvents()
+
+    def test_incomplete_tasks_dialog_select_all_resumes_multiple_tasks(self):
+        checkpoints = [
+            Checkpoint("pdf", "/tmp/a.pdf", "/tmp/a.md", 3),
+            Checkpoint("video", "/tmp/b.mp4", "/tmp/b", 5),
+        ]
+
+        class _FakeManager:
+            def list_incomplete(self):
+                return checkpoints
+
+        dlg = IncompleteTasksDialog(_FakeManager())
+        dlg._select_all()
+        dlg._on_resume()
+
+        self.assertEqual(dlg.action, "resume")
+        self.assertEqual(dlg.selected_checkpoints, checkpoints)
+        self.assertEqual(dlg.selected_checkpoint, checkpoints[0])
+        dlg.deleteLater()
+        self._app.processEvents()
+
+    def test_manage_tasks_resumes_multiple_selected_tasks_in_one_batch(self):
+        checkpoints = [
+            Checkpoint("pdf", "/tmp/a.pdf", "/tmp/a.md", 3),
+            Checkpoint("video", "/tmp/b.mp4", "/tmp/b", 5),
+        ]
+
+        class _FakeDialog:
+            Accepted = QDialog.Accepted
+
+            def __init__(self, *_args, **_kwargs):
+                self.action = "resume"
+                self.selected_checkpoint = checkpoints[0]
+                self.selected_checkpoints = checkpoints
+
+            def exec_(self):
+                return QDialog.Accepted
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+
+            with patch("OCRLLM.gui.app.CheckpointManager"), \
+                    patch("OCRLLM.gui.app.IncompleteTasksDialog", _FakeDialog), \
+                    patch.object(window, "_resume_many", create=True) as resume_many, \
+                    patch.object(window, "_on_resume_clicked"):
+                window._on_manage_tasks()
+
+            resume_many.assert_called_once_with(checkpoints)
             window.deleteLater()
             self._app.processEvents()
 

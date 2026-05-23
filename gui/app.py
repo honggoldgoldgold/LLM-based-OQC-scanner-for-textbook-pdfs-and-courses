@@ -54,7 +54,7 @@ class _QtLogHandler(logging.Handler):
     def emit(self, record):
         try:
             self._signal.emit(self.format(record))
-        except RuntimeError:
+        except (RuntimeError, AttributeError):
             pass
 
 
@@ -101,6 +101,7 @@ class QCRMainWindow(QMainWindow):
         self._connect_settings_autosave()
         self._sync_api_from_ui()
         self._init_logging()
+        self.destroyed.connect(lambda *_: self._cleanup_log_handler())
         self._connect_worker()
         self._check_resume_on_startup()
 
@@ -179,10 +180,56 @@ class QCRMainWindow(QMainWindow):
         body_layout.addLayout(row1)
 
         row2 = QHBoxLayout()
-        row2.addWidget(QLabel("Base URL:"))
+        row2.addWidget(QLabel("DashScope Base URL:"))
         self._base_url_input = QLineEdit(self._cfg.api.base_url)
         row2.addWidget(self._base_url_input, stretch=1)
         body_layout.addLayout(row2)
+
+        row_vapi_toggle = QHBoxLayout()
+        self._vision_api_enabled_cb = QCheckBox("视觉模型使用独立 OpenAI-compatible Provider")
+        self._vision_api_enabled_cb.setChecked(self._cfg.vision_api.enabled)
+        self._vision_api_enabled_cb.setToolTip("只影响图片/截图/PDF/视频帧识别；音频和 DashScope filetrans 不会切走。")
+        row_vapi_toggle.addWidget(self._vision_api_enabled_cb)
+        row_vapi_toggle.addStretch()
+        body_layout.addLayout(row_vapi_toggle)
+
+        row_vapi1 = QHBoxLayout()
+        row_vapi1.addWidget(QLabel("视觉 Provider:"))
+        self._vision_provider_input = QLineEdit(self._cfg.vision_api.provider)
+        self._vision_provider_input.setPlaceholderText("如 ioasis")
+        row_vapi1.addWidget(self._vision_provider_input)
+        row_vapi1.addWidget(QLabel("Wire API:"))
+        self._vision_wire_api_input = QLineEdit(self._cfg.vision_api.wire_api or "chat")
+        self._vision_wire_api_input.setPlaceholderText("chat 或 responses")
+        row_vapi1.addWidget(self._vision_wire_api_input)
+        body_layout.addLayout(row_vapi1)
+
+        row_vapi2 = QHBoxLayout()
+        row_vapi2.addWidget(QLabel("视觉 API Key:"))
+        self._vision_api_key_input = QLineEdit(self._cfg.vision_api.api_key)
+        self._vision_api_key_input.setEchoMode(QLineEdit.Password)
+        row_vapi2.addWidget(self._vision_api_key_input, stretch=1)
+        body_layout.addLayout(row_vapi2)
+
+        row_vapi3 = QHBoxLayout()
+        row_vapi3.addWidget(QLabel("视觉 Base URL:"))
+        self._vision_base_url_input = QLineEdit(self._cfg.vision_api.base_url)
+        self._vision_base_url_input.setPlaceholderText("https://example.com/v1")
+        row_vapi3.addWidget(self._vision_base_url_input, stretch=1)
+        body_layout.addLayout(row_vapi3)
+
+        row_vapi4 = QHBoxLayout()
+        row_vapi4.addWidget(QLabel("Reasoning effort:"))
+        self._vision_reasoning_input = QLineEdit(self._cfg.vision_api.model_reasoning_effort)
+        self._vision_reasoning_input.setPlaceholderText("留空或 high")
+        row_vapi4.addWidget(self._vision_reasoning_input)
+        self._vision_network_cb = QCheckBox("network_access")
+        self._vision_network_cb.setChecked(self._cfg.vision_api.network_access)
+        row_vapi4.addWidget(self._vision_network_cb)
+        self._vision_no_store_cb = QCheckBox("disable_response_storage")
+        self._vision_no_store_cb.setChecked(self._cfg.vision_api.disable_response_storage)
+        row_vapi4.addWidget(self._vision_no_store_cb)
+        body_layout.addLayout(row_vapi4)
 
         # 视觉模型 + 音频模型 — 不再用 QComboBox（条目超过 100 时下拉会爆）
         # 改用 当前模型 Label + "更换..." 按钮 → 弹出搜索/过滤对话框
@@ -406,10 +453,12 @@ class QCRMainWindow(QMainWindow):
     def _refresh_api_summary(self, *_args):
         if not hasattr(self, "_api_summary"):
             return
+        provider = self._vision_provider_input.text().strip() if hasattr(self, "_vision_provider_input") else ""
         key_state = "API Key 已填" if self._api_key_input.text().strip() else "API Key 未填"
+        vision_provider = f" | 视觉Provider: {provider or '自定义'}" if getattr(self, "_vision_api_enabled_cb", None) and self._vision_api_enabled_cb.isChecked() else ""
         vision = self._current_vision_model_name() or "—"
         audio = self._current_audio_model_name() or "—"
-        self._api_summary.setText(f"{key_state} | 视觉: {vision} | 音频: {audio}")
+        self._api_summary.setText(f"{key_state} | 视觉: {vision}{vision_provider} | 音频: {audio}")
 
     def _open_vision_picker(self):
         from OCRLLM.gui.model_picker import ModelPickerDialog
@@ -417,14 +466,11 @@ class QCRMainWindow(QMainWindow):
         def _validate_custom(name: str) -> bool:
             from OCRLLM.gui.model_validator import _validate_vision
             from OCRLLM.core.llm_client import LLMClient
-            from OCRLLM.config import APIConfig
-            api_key = self._api_key_input.text().strip()
-            if not api_key:
+            updates, info = self._read_api_overrides_from_ui()
+            if not info["new_key"] and not info["vision_api_key"]:
                 QMessageBox.warning(self, "缺少 API Key", "请先填入 API Key 再测试自定义模型。")
                 return False
-            cfg = self._cfg.with_updates(api={"api_key": api_key,
-                                              "base_url": self._base_url_input.text().strip()
-                                              or self._cfg.api.base_url})
+            cfg = self._cfg.with_updates(**updates)
             client = LLMClient(cfg=cfg)
             return _validate_vision(self, client, name)
 
@@ -470,6 +516,16 @@ class QCRMainWindow(QMainWindow):
         self._api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._api_key_input.textChanged.connect(self._refresh_api_summary)
         self._base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
+        self._vision_api_enabled_cb.toggled.connect(self._schedule_persist_ui_settings)
+        self._vision_api_enabled_cb.toggled.connect(self._refresh_api_summary)
+        self._vision_provider_input.textChanged.connect(self._schedule_persist_ui_settings)
+        self._vision_provider_input.textChanged.connect(self._refresh_api_summary)
+        self._vision_api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
+        self._vision_base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
+        self._vision_wire_api_input.textChanged.connect(self._schedule_persist_ui_settings)
+        self._vision_reasoning_input.textChanged.connect(self._schedule_persist_ui_settings)
+        self._vision_network_cb.toggled.connect(self._schedule_persist_ui_settings)
+        self._vision_no_store_cb.toggled.connect(self._schedule_persist_ui_settings)
         self._llm_parallel_input.valueChanged.connect(self._schedule_persist_ui_settings)
         self._llm_stagger_input.valueChanged.connect(self._schedule_persist_ui_settings)
         self._paid_mode_cb.toggled.connect(self._schedule_persist_ui_settings)
@@ -484,6 +540,14 @@ class QCRMainWindow(QMainWindow):
     def _persist_ui_settings(self):
         self._settings.setValue("ui/api_key", self._api_key_input.text())
         self._settings.setValue("ui/base_url", self._base_url_input.text())
+        self._settings.setValue("ui/vision_api_enabled", self._vision_api_enabled_cb.isChecked())
+        self._settings.setValue("ui/vision_provider", self._vision_provider_input.text())
+        self._settings.setValue("ui/vision_api_key", self._vision_api_key_input.text())
+        self._settings.setValue("ui/vision_base_url", self._vision_base_url_input.text())
+        self._settings.setValue("ui/vision_wire_api", self._vision_wire_api_input.text())
+        self._settings.setValue("ui/vision_reasoning_effort", self._vision_reasoning_input.text())
+        self._settings.setValue("ui/vision_network_access", self._vision_network_cb.isChecked())
+        self._settings.setValue("ui/vision_disable_response_storage", self._vision_no_store_cb.isChecked())
         self._settings.setValue("ui/vision_model", self._current_vision_model_name())
         self._settings.setValue("ui/audio_model", self._current_audio_model_name())
         self._settings.setValue("ui/llm_parallel_requests", self._llm_parallel_input.value())
@@ -500,6 +564,22 @@ class QCRMainWindow(QMainWindow):
                 self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
             if self._settings.contains("ui/base_url"):
                 self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
+            if self._settings.contains("ui/vision_api_enabled"):
+                self._vision_api_enabled_cb.setChecked(self._settings.value("ui/vision_api_enabled", type=bool))
+            if self._settings.contains("ui/vision_provider"):
+                self._vision_provider_input.setText(self._settings.value("ui/vision_provider", type=str) or "")
+            if self._settings.contains("ui/vision_api_key"):
+                self._vision_api_key_input.setText(self._settings.value("ui/vision_api_key", type=str) or "")
+            if self._settings.contains("ui/vision_base_url"):
+                self._vision_base_url_input.setText(self._settings.value("ui/vision_base_url", type=str) or "")
+            if self._settings.contains("ui/vision_wire_api"):
+                self._vision_wire_api_input.setText(self._settings.value("ui/vision_wire_api", type=str) or "")
+            if self._settings.contains("ui/vision_reasoning_effort"):
+                self._vision_reasoning_input.setText(self._settings.value("ui/vision_reasoning_effort", type=str) or "")
+            if self._settings.contains("ui/vision_network_access"):
+                self._vision_network_cb.setChecked(self._settings.value("ui/vision_network_access", type=bool))
+            if self._settings.contains("ui/vision_disable_response_storage"):
+                self._vision_no_store_cb.setChecked(self._settings.value("ui/vision_disable_response_storage", type=bool))
             if self._settings.contains("ui/vision_model"):
                 saved_vision = self._settings.value("ui/vision_model", type=str) or ""
                 if saved_vision:
@@ -531,6 +611,14 @@ class QCRMainWindow(QMainWindow):
         """
         new_key = self._api_key_input.text().strip()
         new_url = self._base_url_input.text().strip()
+        vision_api_enabled = self._vision_api_enabled_cb.isChecked()
+        vision_provider = self._vision_provider_input.text().strip()
+        vision_api_key = self._vision_api_key_input.text().strip()
+        vision_base_url = self._vision_base_url_input.text().strip()
+        vision_wire_api = (self._vision_wire_api_input.text().strip() or "chat").lower()
+        vision_reasoning = self._vision_reasoning_input.text().strip()
+        vision_network = self._vision_network_cb.isChecked()
+        vision_no_store = self._vision_no_store_cb.isChecked()
         vision_model = self._current_vision_model_name()
         audio_model = self._current_audio_model_name()
         new_parallel = self._llm_parallel_input.value()
@@ -548,7 +636,8 @@ class QCRMainWindow(QMainWindow):
         models_update: dict = {}
         if vision_model:
             models_update["vision_model"] = vision_model
-            models_update["text_model"] = vision_model  # 文本任务沿用同一模型，避免再开一个下拉
+            if not vision_api_enabled:
+                models_update["text_model"] = vision_model  # 默认路径沿用旧行为；独立视觉 Provider 不污染文本任务
         if audio_model:
             models_update["asr_model"] = audio_model
             # 短音频派生：若选了长 ASR (asr_long)，对应短音频用 qwen3-asr-flash 兜底；
@@ -565,6 +654,16 @@ class QCRMainWindow(QMainWindow):
                 "paid_mode": paid_mode,
                 "api_keys": api_keys if paid_mode else [],
             },
+            "vision_api": {
+                "enabled": vision_api_enabled,
+                "provider": vision_provider,
+                "api_key": vision_api_key,
+                "base_url": vision_base_url,
+                "wire_api": vision_wire_api,
+                "model_reasoning_effort": vision_reasoning,
+                "network_access": vision_network,
+                "disable_response_storage": vision_no_store,
+            },
             "concurrency": {
                 "llm_parallel_requests": new_parallel,
                 "llm_request_stagger_seconds": new_stagger,
@@ -578,6 +677,11 @@ class QCRMainWindow(QMainWindow):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
+            "vision_api_enabled": vision_api_enabled,
+            "vision_provider": vision_provider,
+            "vision_api_key": vision_api_key,
+            "vision_base_url": vision_base_url,
+            "vision_wire_api": vision_wire_api,
             "new_parallel": new_parallel, "new_stagger": new_stagger,
             "paid_mode": paid_mode, "api_keys": api_keys,
         }
@@ -590,6 +694,14 @@ class QCRMainWindow(QMainWindow):
             QMessageBox.warning(self, "提示", "API Key 不能为空")
             return
 
+        if info["vision_api_enabled"]:
+            if info["vision_wire_api"] not in {"chat", "responses"}:
+                QMessageBox.warning(self, "提示", "视觉 Wire API 只能是 chat 或 responses")
+                return
+            if not info["vision_api_key"] or not info["vision_base_url"]:
+                QMessageBox.warning(self, "提示", "启用视觉独立 Provider 时，视觉 API Key 和视觉 Base URL 不能为空")
+                return
+
         # picker dialog 已经处理过自定义模型测试 & catalog 写入，这里只做配置同步。
         self._refresh_model_labels()
 
@@ -598,13 +710,16 @@ class QCRMainWindow(QMainWindow):
 
         api_keys = info["api_keys"]
         pool_msg = f", API 池={len(api_keys)} 个 key" if info["paid_mode"] else ""
+        provider_msg = f" | 视觉Provider={info['vision_provider'] or 'custom'}({info['vision_wire_api']})" if info["vision_api_enabled"] else ""
         self._api_status.setText(
-            f"✅ 已切换: 视觉={info['vision_model']} | 音频={info['audio_model']} | "
+            f"✅ 已切换: 视觉={info['vision_model']}{provider_msg} | 音频={info['audio_model']} | "
             f"并发={info['new_parallel']}, 错峰={info['new_stagger']:.1f}s{pool_msg}"
         )
         logging.info(
-            "[设置] API 已更新: vision=%s, audio=%s, parallel=%s, stagger=%.1fs, paid=%s, keys=%d, key=…%s, url=%s",
+            "[设置] API 已更新: vision=%s, audio=%s, vision_provider=%s/%s, parallel=%s, stagger=%.1fs, paid=%s, keys=%d, key=…%s, url=%s",
             info["vision_model"], info["audio_model"],
+            info["vision_provider"] if info["vision_api_enabled"] else "default",
+            info["vision_wire_api"] if info["vision_api_enabled"] else "chat",
             info["new_parallel"], info["new_stagger"],
             info["paid_mode"], len(api_keys),
             info["new_key"][-6:] if len(info["new_key"]) > 6 else "***",
@@ -637,6 +752,13 @@ class QCRMainWindow(QMainWindow):
         if not self._cfg.api.api_key:
             QMessageBox.warning(self, "提示", "API Key 不能为空，请在 API 设置中填入 Key")
             return False
+        if self._cfg.vision_api.enabled and (not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url):
+            QMessageBox.warning(self, "提示", "视觉独立 Provider 已启用，但视觉 API Key 或 Base URL 为空")
+            return False
+        mismatch = self._vision_provider_model_warning()
+        if mismatch:
+            QMessageBox.warning(self, "视觉模型需要切换", mismatch)
+            return False
 
         self._log_text.clear()
         self._log_buffer.clear()
@@ -651,6 +773,38 @@ class QCRMainWindow(QMainWindow):
             btn.setEnabled(False)
         self._worker.start(task_func, tracker=self._tracker)
         return True
+
+    def _vision_provider_model_warning(self) -> str:
+        model = (self._cfg.models.vision_model or "").strip()
+        if not self._looks_like_qwen_model(model):
+            return ""
+        if self._cfg.vision_api.enabled:
+            provider = self._cfg.vision_api.provider
+            base_url = self._cfg.vision_api.base_url
+        else:
+            provider = ""
+            base_url = self._cfg.api.base_url
+        if not self._looks_like_external_openai_provider(provider, base_url):
+            return ""
+        return (
+            f"当前视觉模型仍是 {model}，但视觉 Provider/Base URL 看起来不是 DashScope。\n\n"
+            "请点击“更换视觉模型...”并选择或测试添加该 Provider 支持的模型 ID，"
+            "再开始图片/PDF/视频帧识别。"
+        )
+
+    @staticmethod
+    def _looks_like_qwen_model(model: str) -> bool:
+        lowered = model.lower()
+        return lowered.startswith("qwen") or lowered.startswith("qwq")
+
+    @staticmethod
+    def _looks_like_external_openai_provider(provider: str, base_url: str) -> bool:
+        marker = f"{provider} {base_url}".lower()
+        if not marker.strip():
+            return False
+        if "dashscope" in marker or "aliyuncs" in marker:
+            return False
+        return bool(base_url.strip())
 
     def _show_log_window(self):
         if self._log_window is None:
@@ -789,35 +943,63 @@ class QCRMainWindow(QMainWindow):
         mgr = CheckpointManager(self._cfg.paths.output_dir)
         dlg = IncompleteTasksDialog(mgr, parent=self)
         if dlg.exec_() == IncompleteTasksDialog.Accepted:
-            cp = dlg.selected_checkpoint
-            if cp is not None and dlg.action == "resume":
-                self._pending_resume = cp
-                self._on_resume_clicked()
+            checkpoints = getattr(dlg, "selected_checkpoints", [])
+            if checkpoints and dlg.action == "resume":
+                self._resume_many(checkpoints)
                 return
         # 刷新横幅（可能有任务被删除了）
         self._check_resume_on_startup()
 
+    def _resume_many(self, checkpoints):
+        checkpoints = list(checkpoints)
+        if not checkpoints:
+            return
+        if len(checkpoints) == 1:
+            self._pending_resume = checkpoints[0]
+            self._on_resume_clicked()
+            return
+
+        def task(reporter):
+            results = []
+            total = len(checkpoints)
+            for idx, cp in enumerate(checkpoints, start=1):
+                name = Path(cp.source_path).name
+                reporter.progress(idx - 1, total, f"继续未完成任务 {idx}/{total}: {name}")
+                results.append(self._run_resume_checkpoint(cp, reporter))
+                reporter.progress(idx, total, f"已完成续传 {idx}/{total}: {name}")
+            return "批量续传完成:\n" + "\n".join(f"- {item}" for item in results)
+
+        self._resume_frame.setVisible(False)
+        self._start_worker_with_tracker(task)
+
     def _resume_pdf(self, cp):
         """恢复 PDF 任务。"""
         def task(reporter):
-            from OCRLLM.processors.pdf import PDFProcessor
-            cfg = self._get_cfg()
-            proc = PDFProcessor(cfg=cfg, reporter=reporter, tracker=self._tracker)
-            result = proc.process(**PDFProcessor.resume_options_from_checkpoint(cp))
-            return f"PDF 续传完成: {result}"
+            return self._run_resume_checkpoint(cp, reporter)
 
         self._start_worker_with_tracker(task)
 
     def _resume_video(self, cp):
         """恢复视频任务。"""
         def task(reporter):
+            return self._run_resume_checkpoint(cp, reporter)
+
+        self._start_worker_with_tracker(task)
+
+    def _run_resume_checkpoint(self, cp, reporter) -> str:
+        if cp.task_type == "pdf":
+            from OCRLLM.processors.pdf import PDFProcessor
+            cfg = self._get_cfg()
+            proc = PDFProcessor(cfg=cfg, reporter=reporter, tracker=self._tracker)
+            result = proc.process(**PDFProcessor.resume_options_from_checkpoint(cp))
+            return f"PDF 续传完成: {result}"
+        if cp.task_type == "video":
             from OCRLLM.processors.video import VideoProcessor
             cfg = self._get_cfg()
             proc = VideoProcessor(cfg=cfg, reporter=reporter, tracker=self._tracker)
             result = proc.process(**VideoProcessor.resume_options_from_checkpoint(cp))
-            return f"视频续传完成!\n输出: {result.get('output_dir', '')}"
-
-        self._start_worker_with_tracker(task)
+            return f"视频续传完成: {result.get('output_dir', '')}"
+        raise ValueError(f"不支持续传的任务类型: {cp.task_type}")
 
     # ---- Misc ----
 
@@ -934,6 +1116,10 @@ class QCRMainWindow(QMainWindow):
         logger.warning("[GUI] Worker 未在 15s 内结束，强制关闭窗口")
         self._allow_immediate_close = True
         self.close()
+
+    def deleteLater(self):
+        self._cleanup_log_handler()
+        super().deleteLater()
 
     def _cleanup_log_handler(self):
         """M9: 关闭窗口时移除日志 handler，防止多次 open/close 后 handler 累积。"""

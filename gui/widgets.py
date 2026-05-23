@@ -237,6 +237,7 @@ class IncompleteTasksDialog(QDialog):
         super().__init__(parent)
         self._mgr = checkpoint_mgr
         self._selected_checkpoint: Optional[Checkpoint] = None
+        self._selected_checkpoints: list[Checkpoint] = []
         self._action: Optional[str] = None  # "resume" or "delete"
         self._init_ui()
         self._refresh()
@@ -244,6 +245,10 @@ class IncompleteTasksDialog(QDialog):
     @property
     def selected_checkpoint(self) -> Optional[Checkpoint]:
         return self._selected_checkpoint
+
+    @property
+    def selected_checkpoints(self) -> list[Checkpoint]:
+        return list(self._selected_checkpoints)
 
     @property
     def action(self) -> Optional[str]:
@@ -256,7 +261,7 @@ class IncompleteTasksDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        hint = QLabel("以下是所有未完成的识别任务。你可以选择继续某个任务，或删除不需要的任务（同时清理临时文件）。")
+        hint = QLabel("以下是所有未完成的识别任务。可以多选后批量继续，或删除不需要的任务（同时清理临时文件）。")
         hint.setWordWrap(True)
         hint.setFont(QFont("Microsoft YaHei", 9))
         layout.addWidget(hint)
@@ -265,7 +270,7 @@ class IncompleteTasksDialog(QDialog):
         self._table.setColumnCount(5)
         self._table.setHorizontalHeaderLabels(["类型", "源文件", "进度", "输出位置", "更新时间"])
         self._table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self._table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self._table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self._table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.Stretch)
@@ -273,6 +278,10 @@ class IncompleteTasksDialog(QDialog):
         layout.addWidget(self._table, stretch=1)
 
         btn_row = QHBoxLayout()
+        self._select_all_btn = QPushButton("全选")
+        self._select_all_btn.clicked.connect(self._select_all)
+        btn_row.addWidget(self._select_all_btn)
+
         self._resume_btn = QPushButton("⏩ 继续选中任务")
         self._resume_btn.clicked.connect(self._on_resume)
         btn_row.addWidget(self._resume_btn)
@@ -307,6 +316,7 @@ class IncompleteTasksDialog(QDialog):
             self._table.setItem(row, 4, QTableWidgetItem(updated))
 
         has_items = len(self._checkpoints) > 0
+        self._select_all_btn.setEnabled(has_items)
         self._resume_btn.setEnabled(has_items)
         self._delete_btn.setEnabled(has_items)
         self._delete_all_btn.setEnabled(has_items)
@@ -314,38 +324,51 @@ class IncompleteTasksDialog(QDialog):
         if has_items:
             self._table.selectRow(0)
 
-    def _get_selected_cp(self) -> Optional[Checkpoint]:
+    def _select_all(self):
+        self._table.selectAll()
+
+    def _get_selected_cps(self) -> list[Checkpoint]:
         rows = self._table.selectionModel().selectedRows()
         if not rows:
-            return None
-        row = rows[0].row()
-        if 0 <= row < len(self._checkpoints):
-            return self._checkpoints[row]
-        return None
+            return []
+        selected = []
+        for row in sorted({idx.row() for idx in rows}):
+            if 0 <= row < len(self._checkpoints):
+                selected.append(self._checkpoints[row])
+        return selected
+
+    def _get_selected_cp(self) -> Optional[Checkpoint]:
+        selected = self._get_selected_cps()
+        return selected[0] if selected else None
 
     def _on_resume(self):
-        cp = self._get_selected_cp()
-        if cp is None:
-            QMessageBox.information(self, "提示", "请先选择一个任务")
+        checkpoints = self._get_selected_cps()
+        if not checkpoints:
+            QMessageBox.information(self, "提示", "请先选择任务")
             return
-        self._selected_checkpoint = cp
+        self._selected_checkpoints = checkpoints
+        self._selected_checkpoint = checkpoints[0]
         self._action = "resume"
         self.accept()
 
     def _on_delete(self):
-        cp = self._get_selected_cp()
-        if cp is None:
-            QMessageBox.information(self, "提示", "请先选择一个任务")
+        checkpoints = self._get_selected_cps()
+        if not checkpoints:
+            QMessageBox.information(self, "提示", "请先选择任务")
             return
-        src_name = Path(cp.source_path).name
+        if len(checkpoints) == 1:
+            msg = f"确定删除任务 \"{Path(checkpoints[0].source_path).name}\" 吗？\n\n将同时删除该任务产生的临时文件和输出文件。"
+        else:
+            msg = f"确定删除选中的 {len(checkpoints)} 个未完成任务吗？\n\n将同时删除这些任务产生的临时文件和输出文件。"
         reply = QMessageBox.question(
             self, "确认删除",
-            f"确定删除任务 \"{src_name}\" 吗？\n\n将同时删除该任务产生的临时文件和输出文件。",
+            msg,
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if reply != QMessageBox.Yes:
             return
-        self._mgr.remove_with_artifacts(cp)
+        for cp in checkpoints:
+            self._mgr.remove_with_artifacts(cp)
         self._refresh()
 
     def _on_delete_all(self):
