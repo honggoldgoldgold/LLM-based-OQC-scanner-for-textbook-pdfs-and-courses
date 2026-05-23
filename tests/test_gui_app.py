@@ -113,6 +113,31 @@ class GuiAppCloseTests(unittest.TestCase):
             window.deleteLater()
             self._app.processEvents()
 
+    def test_external_vision_provider_model_field_drives_vision_model_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+            window._api_key_input.setText("dash-key")
+            window._vision_api_enabled_cb.setChecked(True)
+            window._vision_api_key_input.setText("provider-key")
+            window._vision_base_url_input.setText("https://vision.example/v1")
+            window._pending_vision_model = "ioasis"
+            window._pending_audio_model = "qwen3-asr-flash-filetrans"
+
+            window._vision_provider_input.setText("fuckme")
+            self.assertEqual(window._vision_model_label.text(), "fuckme")
+            self.assertIn("视觉: fuckme", window._api_summary.text())
+            self.assertIn("视觉Provider: fuckme", window._api_summary.text())
+            self.assertIn("音频: qwen3-asr-flash-filetrans", window._api_summary.text())
+
+            window._sync_api_from_ui()
+
+            self.assertEqual(window._cfg.models.vision_model, "fuckme")
+            self.assertEqual(window._cfg.vision_api.provider, "fuckme")
+            self.assertEqual(window._cfg.models.asr_model, "qwen3-asr-flash-filetrans")
+            window.deleteLater()
+            self._app.processEvents()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -194,9 +194,9 @@ class QCRMainWindow(QMainWindow):
         body_layout.addLayout(row_vapi_toggle)
 
         row_vapi1 = QHBoxLayout()
-        row_vapi1.addWidget(QLabel("视觉 Provider:"))
+        row_vapi1.addWidget(QLabel("视觉 Provider / 模型:"))
         self._vision_provider_input = QLineEdit(self._cfg.vision_api.provider)
-        self._vision_provider_input.setPlaceholderText("如 ioasis")
+        self._vision_provider_input.setPlaceholderText("填写该服务的视觉模型 ID")
         row_vapi1.addWidget(self._vision_provider_input)
         row_vapi1.addWidget(QLabel("Wire API:"))
         self._vision_wire_api_input = QLineEdit(self._cfg.vision_api.wire_api or "chat")
@@ -438,9 +438,9 @@ class QCRMainWindow(QMainWindow):
         self._api_key_toggle.setText("🙈 隐藏" if checked else "👁 显示")
 
     def _refresh_model_labels(self):
-        v = self._pending_vision_model or "—"
+        v = self._effective_vision_model_name() or "—"
         a = self._pending_audio_model or "—"
-        meta_v = model_catalog.find_vision_model(self._pending_vision_model)
+        meta_v = model_catalog.find_vision_model(v)
         meta_a = model_catalog.find_audio_model(self._pending_audio_model)
         if meta_v:
             v = model_catalog.display_label(meta_v)
@@ -456,7 +456,7 @@ class QCRMainWindow(QMainWindow):
         provider = self._vision_provider_input.text().strip() if hasattr(self, "_vision_provider_input") else ""
         key_state = "API Key 已填" if self._api_key_input.text().strip() else "API Key 未填"
         vision_provider = f" | 视觉Provider: {provider or '自定义'}" if getattr(self, "_vision_api_enabled_cb", None) and self._vision_api_enabled_cb.isChecked() else ""
-        vision = self._current_vision_model_name() or "—"
+        vision = self._effective_vision_model_name() or "—"
         audio = self._current_audio_model_name() or "—"
         self._api_summary.setText(f"{key_state} | 视觉: {vision}{vision_provider} | 音频: {audio}")
 
@@ -509,6 +509,15 @@ class QCRMainWindow(QMainWindow):
     def _current_vision_model_name(self) -> str:
         return self._pending_vision_model or self._cfg.models.vision_model
 
+    def _effective_vision_model_name(self) -> str:
+        if not hasattr(self, "_vision_api_enabled_cb"):
+            return self._current_vision_model_name()
+        if self._vision_api_enabled_cb.isChecked():
+            provider_model = self._vision_provider_input.text().strip()
+            if provider_model:
+                return provider_model
+        return self._current_vision_model_name()
+
     def _current_audio_model_name(self) -> str:
         return self._pending_audio_model or self._cfg.models.asr_model
 
@@ -517,9 +526,9 @@ class QCRMainWindow(QMainWindow):
         self._api_key_input.textChanged.connect(self._refresh_api_summary)
         self._base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._vision_api_enabled_cb.toggled.connect(self._schedule_persist_ui_settings)
-        self._vision_api_enabled_cb.toggled.connect(self._refresh_api_summary)
+        self._vision_api_enabled_cb.toggled.connect(self._refresh_model_labels)
         self._vision_provider_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_provider_input.textChanged.connect(self._refresh_api_summary)
+        self._vision_provider_input.textChanged.connect(self._refresh_model_labels)
         self._vision_api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._vision_base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
         self._vision_wire_api_input.textChanged.connect(self._schedule_persist_ui_settings)
@@ -619,11 +628,8 @@ class QCRMainWindow(QMainWindow):
         vision_reasoning = self._vision_reasoning_input.text().strip()
         vision_network = self._vision_network_cb.isChecked()
         vision_no_store = self._vision_no_store_cb.isChecked()
-        vision_model = self._current_vision_model_name()
-        auto_vision_model = False
-        if vision_api_enabled and self._looks_like_qwen_model(vision_model) and vision_provider:
-            vision_model = vision_provider
-            auto_vision_model = True
+        vision_model = self._effective_vision_model_name()
+        auto_vision_model = bool(vision_api_enabled and vision_provider)
         audio_model = self._current_audio_model_name()
         new_parallel = self._llm_parallel_input.value()
         new_stagger = self._llm_stagger_input.value()
