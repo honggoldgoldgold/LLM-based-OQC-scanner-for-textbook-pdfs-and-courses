@@ -45,7 +45,6 @@ class SocialLongVideoProcessor(BaseProcessor):
         skip_audio: bool = False,
         part_indices: Optional[list[int]] = None,
         download_result: Optional[DownloadResult] = None,
-        prompt_template: Optional[str] = None,
     ) -> str:
         """处理社交媒体长视频 URL。
 
@@ -56,7 +55,6 @@ class SocialLongVideoProcessor(BaseProcessor):
             skip_audio: 跳过音频阶段。
             part_indices: B站分P选择（从1开始），None=全部。
             download_result: 已有的下载结果（避免重复下载）。
-            prompt_template: 自定义板书/课件识别提示词模板。
 
         Returns:
             输出目录路径。
@@ -79,9 +77,9 @@ class SocialLongVideoProcessor(BaseProcessor):
 
         # ── Step 2: 逐 Part 处理 ──
         if download_result.is_playlist and download_result.parts:
-            return self._process_multi_parts(download_result, output_dir, phases, skip_audio, prompt_template)
+            return self._process_multi_parts(download_result, output_dir, phases, skip_audio)
         else:
-            return self._process_single_video(download_result, output_dir, phases, skip_audio, prompt_template)
+            return self._process_single_video(download_result, output_dir, phases, skip_audio)
 
     def _process_single_video(
         self,
@@ -89,14 +87,13 @@ class SocialLongVideoProcessor(BaseProcessor):
         output_dir: str,
         phases: Optional[list[int]],
         skip_audio: bool,
-        prompt_template: Optional[str],
     ) -> str:
         """处理单个视频文件。"""
         if not dl.video_path or not os.path.isfile(dl.video_path):
             raise FileNotFoundError(f"下载的视频文件不存在: {dl.video_path}")
 
         self._report(1, 3, f"处理视频: {dl.title}")
-        result_path = self._run_video_processor(dl.video_path, output_dir, phases, skip_audio, prompt_template)
+        result_path = self._run_video_processor(dl.video_path, output_dir, phases, skip_audio)
         return self._normalize_user_outputs(dl.video_path, output_dir, result_path)
 
     def _process_multi_parts(
@@ -105,7 +102,6 @@ class SocialLongVideoProcessor(BaseProcessor):
         output_dir: str,
         phases: Optional[list[int]],
         skip_audio: bool,
-        prompt_template: Optional[str],
     ) -> str:
         """逐 Part 处理 B站分P 等 playlist。"""
         valid_parts = [p for p in dl.parts if p.video_path and os.path.isfile(p.video_path)]
@@ -122,7 +118,7 @@ class SocialLongVideoProcessor(BaseProcessor):
             ensure_dir(part_output)
 
             try:
-                result_path = self._run_video_processor(part.video_path, part_output, phases, skip_audio, prompt_template)
+                result_path = self._run_video_processor(part.video_path, part_output, phases, skip_audio)
                 self._normalize_user_outputs(part.video_path, part_output, result_path)
                 logger.info("分P %d/%d 处理完成: %s", part.index, total, part.title)
             except Exception as exc:
@@ -137,7 +133,6 @@ class SocialLongVideoProcessor(BaseProcessor):
         output_dir: str,
         phases: Optional[list[int]],
         skip_audio: bool,
-        prompt_template: Optional[str],
     ) -> str:
         """创建 VideoProcessor 并执行处理。"""
         from OCRLLM.processors.video import VideoProcessor
@@ -154,7 +149,6 @@ class SocialLongVideoProcessor(BaseProcessor):
             output_dir=output_dir,
             phases=phases,
             skip_audio=skip_audio,
-            prompt_template=prompt_template,
         )
 
     def _normalize_user_outputs(self, video_path: str, output_dir: str, result_path: str) -> str:

@@ -50,7 +50,6 @@ class ShortVideoProcessor(BaseProcessor):
         title: str = "",
         danmaku_texts: Optional[list[str]] = None,
         comment_texts: Optional[list[str]] = None,
-        prompt_template: Optional[str] = None,
     ) -> str:
         """处理短视频 → Markdown。
 
@@ -60,7 +59,6 @@ class ShortVideoProcessor(BaseProcessor):
             title: 视频标题（用于输出命名/展示）。
             danmaku_texts: 兼容保留参数，当前不参与热词提取。
             comment_texts: 兼容保留参数，当前不参与热词提取。
-            prompt_template: 自定义画面识别提示词模板。
 
         Returns:
             输出 Markdown 文件路径。
@@ -99,7 +97,7 @@ class ShortVideoProcessor(BaseProcessor):
 
         # ── Phase 3: LLM 画面识别 ──
         self._report(3, total_phases, "LLM 识别画面内容...")
-        scene_md = self._recognize_scenes(segments, frame_map, detection.fps, prompt_template)
+        scene_md = self._recognize_scenes(segments, frame_map, detection.fps)
         
         # 添加社交视频标题元数据标记
         video_title = title or stem
@@ -178,12 +176,10 @@ class ShortVideoProcessor(BaseProcessor):
         segments: list[SceneSegment],
         frame_map: dict[int, list[str]],
         fps: float,
-        prompt_template: Optional[str] = None,
     ) -> str:
         """并行调用 LLM 识别每个场景的帧。无记忆系统。"""
         results: dict[int, str] = {}
         workers = min(self.cfg.concurrency.llm_parallel_requests, len(segments))
-        template = prompt_template or prompts.SHORT_VIDEO_RECOGNIZE
 
         def _recognize_one(seg: SceneSegment) -> tuple[int, str]:
             self._check_cancelled()
@@ -196,7 +192,7 @@ class ShortVideoProcessor(BaseProcessor):
             end_ts = f"{int(seg.end_time) // 60}:{int(seg.end_time) % 60:02d}"
             time_range = f"{start_ts}~{end_ts}"
 
-            prompt = template.format(
+            prompt = prompts.SHORT_VIDEO_RECOGNIZE.format(
                 scene_id=str(seg.index),
                 time_range=time_range,
                 image_names=image_names,
