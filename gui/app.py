@@ -22,8 +22,8 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget,
     QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QPlainTextEdit, QGroupBox, QMessageBox,
-    QStatusBar, QSpinBox, QDoubleSpinBox, QLineEdit,
-    QProgressBar, QCheckBox, QFrame, QScrollArea,
+    QStatusBar, QSpinBox, QLineEdit,
+    QProgressBar, QCheckBox, QFrame,
 )
 from PyQt5.QtCore import Qt, QSettings, QTimer, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont
@@ -148,170 +148,22 @@ class QCRMainWindow(QMainWindow):
         layout.addWidget(subtitle)
 
     def _build_api_group(self, layout: QVBoxLayout):
-        self._api_group = QGroupBox("API / 调试设置")
-        api_layout = QVBoxLayout(self._api_group)
-        api_layout.setContentsMargins(6, 4, 6, 4)
+        self._api_group = QGroupBox("API / 模型设置")
+        api_layout = QHBoxLayout(self._api_group)
+        api_layout.setContentsMargins(8, 6, 8, 6)
 
-        api_header = QHBoxLayout()
         self._api_summary = QLabel("")
         self._api_summary.setWordWrap(True)
-        api_header.addWidget(self._api_summary, stretch=1)
-        self._api_toggle_btn = QPushButton("展开设置")
-        self._api_toggle_btn.setCheckable(True)
-        self._api_toggle_btn.toggled.connect(self._set_api_settings_visible)
-        api_header.addWidget(self._api_toggle_btn)
-        api_layout.addLayout(api_header)
+        api_layout.addWidget(self._api_summary, stretch=1)
 
-        self._api_body = QWidget()
-        body_layout = QVBoxLayout(self._api_body)
-        body_layout.setContentsMargins(0, 4, 0, 0)
-
-        row1 = QHBoxLayout()
-        row1.addWidget(QLabel("API Key:"))
-        self._api_key_input = QLineEdit(self._cfg.api.api_key)
-        self._api_key_input.setEchoMode(QLineEdit.Password)
-        self._api_key_input.setMinimumWidth(280)
-        row1.addWidget(self._api_key_input, stretch=1)
-        self._api_key_toggle = QPushButton("👁 显示")
-        self._api_key_toggle.setFixedWidth(60)
-        self._api_key_toggle.setCheckable(True)
-        self._api_key_toggle.toggled.connect(self._toggle_api_key_vis)
-        row1.addWidget(self._api_key_toggle)
-        body_layout.addLayout(row1)
-
-        row2 = QHBoxLayout()
-        row2.addWidget(QLabel("DashScope Base URL:"))
-        self._base_url_input = QLineEdit(self._cfg.api.base_url)
-        row2.addWidget(self._base_url_input, stretch=1)
-        body_layout.addLayout(row2)
-
-        row_vapi_toggle = QHBoxLayout()
-        self._vision_api_enabled_cb = QCheckBox("视觉模型使用独立 OpenAI-compatible Provider")
-        self._vision_api_enabled_cb.setChecked(self._cfg.vision_api.enabled)
-        self._vision_api_enabled_cb.setToolTip("只影响图片/截图/PDF/视频帧识别；音频和 DashScope filetrans 不会切走。")
-        row_vapi_toggle.addWidget(self._vision_api_enabled_cb)
-        row_vapi_toggle.addStretch()
-        body_layout.addLayout(row_vapi_toggle)
-
-        row_vapi1 = QHBoxLayout()
-        row_vapi1.addWidget(QLabel("视觉 Provider:"))
-        self._vision_provider_input = QLineEdit(self._cfg.vision_api.provider)
-        self._vision_provider_input.setPlaceholderText("服务/渠道名，如 ioasis")
-        row_vapi1.addWidget(self._vision_provider_input)
-        row_vapi1.addWidget(QLabel("Wire API:"))
-        self._vision_wire_api_input = QLineEdit(self._cfg.vision_api.wire_api or "chat")
-        self._vision_wire_api_input.setPlaceholderText("chat 或 responses")
-        row_vapi1.addWidget(self._vision_wire_api_input)
-        body_layout.addLayout(row_vapi1)
-
-        row_vapi2 = QHBoxLayout()
-        row_vapi2.addWidget(QLabel("视觉 API Key:"))
-        self._vision_api_key_input = QLineEdit(self._cfg.vision_api.api_key)
-        self._vision_api_key_input.setEchoMode(QLineEdit.Password)
-        row_vapi2.addWidget(self._vision_api_key_input, stretch=1)
-        body_layout.addLayout(row_vapi2)
-
-        row_vapi3 = QHBoxLayout()
-        row_vapi3.addWidget(QLabel("视觉 Base URL:"))
-        self._vision_base_url_input = QLineEdit(self._cfg.vision_api.base_url)
-        self._vision_base_url_input.setPlaceholderText("https://example.com/v1")
-        row_vapi3.addWidget(self._vision_base_url_input, stretch=1)
-        body_layout.addLayout(row_vapi3)
-
-        row_vapi4 = QHBoxLayout()
-        row_vapi4.addWidget(QLabel("Reasoning effort:"))
-        self._vision_reasoning_input = QLineEdit(self._cfg.vision_api.model_reasoning_effort)
-        self._vision_reasoning_input.setPlaceholderText("留空或 high")
-        row_vapi4.addWidget(self._vision_reasoning_input)
-        self._vision_network_cb = QCheckBox("network_access")
-        self._vision_network_cb.setChecked(self._cfg.vision_api.network_access)
-        row_vapi4.addWidget(self._vision_network_cb)
-        self._vision_no_store_cb = QCheckBox("disable_response_storage")
-        self._vision_no_store_cb.setChecked(self._cfg.vision_api.disable_response_storage)
-        row_vapi4.addWidget(self._vision_no_store_cb)
-        body_layout.addLayout(row_vapi4)
-
-        row_vision = QHBoxLayout()
-        row_vision.addWidget(QLabel("视觉模型 ID:"))
-        self._vision_model_input = QLineEdit(self._cfg.models.vision_model or "")
-        self._vision_model_input.setPlaceholderText("真实模型名，如 gpt-5.5")
-        self._vision_model_input.setMinimumWidth(280)
-        row_vision.addWidget(self._vision_model_input, stretch=1)
-        btn_pick_vision = QPushButton("🔄 更换视觉模型...")
-        btn_pick_vision.clicked.connect(self._open_vision_picker)
-        row_vision.addWidget(btn_pick_vision)
-        body_layout.addLayout(row_vision)
-
-        row_audio = QHBoxLayout()
-        row_audio.addWidget(QLabel("音频模型 (语音/录课):"))
-        self._audio_model_label = QLabel(self._cfg.models.asr_model or "—")
-        self._audio_model_label.setStyleSheet("font-weight: bold; padding: 2px 8px; background: #f4f4f4;")
-        self._audio_model_label.setMinimumWidth(280)
-        row_audio.addWidget(self._audio_model_label, stretch=1)
-        btn_pick_audio = QPushButton("🔄 更换音频模型...")
-        btn_pick_audio.clicked.connect(self._open_audio_picker)
-        row_audio.addWidget(btn_pick_audio)
-        body_layout.addLayout(row_audio)
-
-        # 内部状态：当前选中的模型名（独立于 cfg，"应用设置"时才同步过去）
-        self._pending_vision_model = self._cfg.models.vision_model
-        self._pending_audio_model = self._cfg.models.asr_model
-
-        row3 = QHBoxLayout()
-        llm_parallel_label = QLabel("LLM 并发:")
-        row3.addWidget(llm_parallel_label)
-        self._llm_parallel_input = QSpinBox()
-        self._llm_parallel_input.setRange(0, 100)
-        self._llm_parallel_input.setValue(self._cfg.concurrency.llm_parallel_requests)
-        self._llm_parallel_input.setToolTip("0 表示自动；大于 0 表示显式并发数")
-        row3.addWidget(self._llm_parallel_input)
-        stagger_label = QLabel("错峰间隔(秒):")
-        row3.addWidget(stagger_label)
-        self._llm_stagger_input = QDoubleSpinBox()
-        self._llm_stagger_input.setRange(0.0, 10.0)
-        self._llm_stagger_input.setDecimals(1)
-        self._llm_stagger_input.setSingleStep(0.1)
-        self._llm_stagger_input.setValue(self._cfg.concurrency.llm_request_stagger_seconds)
-        self._llm_stagger_input.setToolTip("批次提交之间的延迟；0 表示不额外错峰")
-        row3.addWidget(self._llm_stagger_input)
-        row3.addStretch()
-        body_layout.addLayout(row3)
-
-        # ---- API 池 / 付费模式 ----
-        row_pool = QHBoxLayout()
-        self._paid_mode_cb = QCheckBox("付费模式 (启用 API 池加速)")
-        self._paid_mode_cb.setChecked(self._cfg.api.paid_mode)
-        self._paid_mode_cb.setToolTip("启用后，多个 API Key 并行工作提高速度")
-        row_pool.addWidget(self._paid_mode_cb)
-        row_pool.addWidget(QLabel("  额外 API Key (逗号分隔):"))
-        self._extra_keys_input = QLineEdit()
-        self._extra_keys_input.setPlaceholderText("sk-xxx, sk-yyy, ...")
-        self._extra_keys_input.setEchoMode(QLineEdit.Password)
-        if self._cfg.api.api_keys:
-            self._extra_keys_input.setText(", ".join(self._cfg.api.api_keys))
-        row_pool.addWidget(self._extra_keys_input, stretch=1)
-        body_layout.addLayout(row_pool)
-
-        row4 = QHBoxLayout()
-        btn_apply = QPushButton("✅ 应用设置")
-        btn_apply.clicked.connect(self._apply_api_settings)
-        row4.addWidget(btn_apply)
         self._api_status = QLabel("")
-        row4.addWidget(self._api_status)
-        row4.addStretch()
-        body_layout.addLayout(row4)
+        api_layout.addWidget(self._api_status)
 
-        self._api_scroll = QScrollArea()
-        self._api_scroll.setWidgetResizable(True)
-        self._api_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self._api_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        self._api_scroll.setFrameShape(QFrame.NoFrame)
-        self._api_scroll.setMaximumHeight(280)
-        self._api_scroll.setWidget(self._api_body)
-        api_layout.addWidget(self._api_scroll)
-        self._api_scroll.setVisible(False)
+        btn_settings = QPushButton("⚙ 设置...")
+        btn_settings.clicked.connect(self._open_settings_dialog)
+        api_layout.addWidget(btn_settings)
+
         self._refresh_api_summary()
-
         layout.addWidget(self._api_group)
 
     def _build_spawn_row(self, layout: QVBoxLayout):
@@ -432,215 +284,57 @@ class QCRMainWindow(QMainWindow):
 
     # ---- API 设置 ----
 
-    def _set_api_settings_visible(self, checked: bool):
-        self._api_scroll.setVisible(checked)
-        self._api_toggle_btn.setText("收起设置" if checked else "展开设置")
-        self._refresh_api_summary()
+    def _open_settings_dialog(self):
+        from OCRLLM.gui.settings_dialog import SettingsDialog
 
-    def _toggle_api_key_vis(self, checked):
-        self._api_key_input.setEchoMode(
-            QLineEdit.Normal if checked else QLineEdit.Password)
-        self._api_key_toggle.setText("🙈 隐藏" if checked else "👁 显示")
-
-    def _refresh_model_labels(self):
-        a = self._pending_audio_model or "—"
-        meta_a = model_catalog.find_audio_model(self._pending_audio_model)
-        if meta_a:
-            a = model_catalog.display_label(meta_a)
-        self._audio_model_label.setText(a)
-        self._refresh_api_summary()
+        dlg = SettingsDialog(self, self._cfg)
+        if dlg.exec_() == SettingsDialog.Accepted:
+            self._cfg = dlg.apply_config()
+            self._refresh_api_summary()
+            self._api_status.setText("已应用设置")
 
     def _refresh_api_summary(self, *_args):
         if not hasattr(self, "_api_summary"):
             return
-        provider = self._vision_provider_input.text().strip() if hasattr(self, "_vision_provider_input") else ""
-        key_state = "API Key 已填" if self._api_key_input.text().strip() else "API Key 未填"
-        vision_provider = f" | 视觉Provider: {provider or '自定义'}" if getattr(self, "_vision_api_enabled_cb", None) and self._vision_api_enabled_cb.isChecked() else ""
-        vision = self._current_vision_model_name() or "—"
-        audio = self._current_audio_model_name() or "—"
-        self._api_summary.setText(f"{key_state} | 视觉: {vision}{vision_provider} | 音频: {audio}")
-
-    def _open_vision_picker(self):
-        from OCRLLM.gui.model_picker import ModelPickerDialog
-
-        def _validate_custom(name: str) -> bool:
-            from OCRLLM.gui.model_validator import _validate_vision
-            from OCRLLM.core.llm_client import LLMClient
-            updates, info = self._read_api_overrides_from_ui()
-            if not info["new_key"] and not info["vision_api_key"]:
-                QMessageBox.warning(self, "缺少 API Key", "请先填入 API Key 再测试自定义模型。")
-                return False
-            cfg = self._cfg.with_updates(**updates)
-            client = LLMClient(cfg=cfg)
-            return _validate_vision(self, client, name)
-
-        dlg = ModelPickerDialog(self, kind="vision",
-                                current_name=self._current_vision_model_name(),
-                                on_validate_custom=_validate_custom)
-        if dlg.exec_() == ModelPickerDialog.Accepted:
-            self._pending_vision_model = dlg.selected_model_name
-            self._vision_model_input.setText(dlg.selected_model_name)
-            self._refresh_model_labels()
-            self._schedule_persist_ui_settings()
-
-    def _open_audio_picker(self):
-        from OCRLLM.gui.model_picker import ModelPickerDialog
-
-        def _validate_custom(name: str) -> bool:
-            from OCRLLM.gui.model_validator import _validate_audio
-            from OCRLLM.core.llm_client import LLMClient
-            api_key = self._api_key_input.text().strip()
-            if not api_key:
-                QMessageBox.warning(self, "缺少 API Key", "请先填入 API Key 再测试自定义模型。")
-                return False
-            cfg = self._cfg.with_updates(api={"api_key": api_key,
-                                              "base_url": self._base_url_input.text().strip()
-                                              or self._cfg.api.base_url})
-            client = LLMClient(cfg=cfg)
-            return _validate_audio(self, client, name)
-
-        dlg = ModelPickerDialog(self, kind="audio",
-                                current_name=self._pending_audio_model,
-                                on_validate_custom=_validate_custom)
-        if dlg.exec_() == ModelPickerDialog.Accepted:
-            self._pending_audio_model = dlg.selected_model_name
-            self._refresh_model_labels()
-            self._schedule_persist_ui_settings()
-
-    def _current_vision_model_name(self) -> str:
-        if hasattr(self, "_vision_model_input"):
-            model = self._vision_model_input.text().strip()
-            if model:
-                return model
-        return self._pending_vision_model or self._cfg.models.vision_model
-
-    def _current_audio_model_name(self) -> str:
-        return self._pending_audio_model or self._cfg.models.asr_model
-
-    def _on_vision_provider_changed(self, *_args):
-        self._schedule_persist_ui_settings()
-        self._refresh_api_summary()
-
-    def _on_vision_model_changed(self, text: str):
-        self._pending_vision_model = text.strip()
-        self._schedule_persist_ui_settings()
-        self._refresh_api_summary()
-
-    def _connect_settings_autosave(self):
-        self._api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._api_key_input.textChanged.connect(self._refresh_api_summary)
-        self._base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_api_enabled_cb.toggled.connect(self._schedule_persist_ui_settings)
-        self._vision_api_enabled_cb.toggled.connect(self._refresh_model_labels)
-        self._vision_provider_input.textChanged.connect(self._on_vision_provider_changed)
-        self._vision_model_input.textChanged.connect(self._on_vision_model_changed)
-        self._vision_api_key_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_base_url_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_wire_api_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_reasoning_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._vision_network_cb.toggled.connect(self._schedule_persist_ui_settings)
-        self._vision_no_store_cb.toggled.connect(self._schedule_persist_ui_settings)
-        self._llm_parallel_input.valueChanged.connect(self._schedule_persist_ui_settings)
-        self._llm_stagger_input.valueChanged.connect(self._schedule_persist_ui_settings)
-        self._paid_mode_cb.toggled.connect(self._schedule_persist_ui_settings)
-        self._extra_keys_input.textChanged.connect(self._schedule_persist_ui_settings)
-        self._output_in_place.toggled.connect(self._schedule_persist_ui_settings)
-
-    def _schedule_persist_ui_settings(self, *_args):
-        if self._restoring_ui_settings:
-            return
-        self._settings_save_timer.start(250)
-
-    def _persist_ui_settings(self):
-        self._settings.setValue("ui/api_key", self._api_key_input.text())
-        self._settings.setValue("ui/base_url", self._base_url_input.text())
-        self._settings.setValue("ui/vision_api_enabled", self._vision_api_enabled_cb.isChecked())
-        self._settings.setValue("ui/vision_provider", self._vision_provider_input.text())
-        self._settings.setValue("ui/vision_api_key", self._vision_api_key_input.text())
-        self._settings.setValue("ui/vision_base_url", self._vision_base_url_input.text())
-        self._settings.setValue("ui/vision_wire_api", self._vision_wire_api_input.text())
-        self._settings.setValue("ui/vision_reasoning_effort", self._vision_reasoning_input.text())
-        self._settings.setValue("ui/vision_network_access", self._vision_network_cb.isChecked())
-        self._settings.setValue("ui/vision_disable_response_storage", self._vision_no_store_cb.isChecked())
-        self._settings.setValue("ui/vision_model", self._current_vision_model_name())
-        self._settings.setValue("ui/audio_model", self._current_audio_model_name())
-        self._settings.setValue("ui/llm_parallel_requests", self._llm_parallel_input.value())
-        self._settings.setValue("ui/llm_request_stagger_seconds", self._llm_stagger_input.value())
-        self._settings.setValue("ui/paid_mode", self._paid_mode_cb.isChecked())
-        self._settings.setValue("ui/extra_api_keys", self._extra_keys_input.text())
-        self._settings.setValue("ui/output_in_place", self._output_in_place.isChecked())
-        self._settings.sync()
-
-    def _restore_ui_settings(self):
-        self._restoring_ui_settings = True
-        try:
-            if self._settings.contains("ui/api_key"):
-                self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
-            if self._settings.contains("ui/base_url"):
-                self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
-            if self._settings.contains("ui/vision_api_enabled"):
-                self._vision_api_enabled_cb.setChecked(self._settings.value("ui/vision_api_enabled", type=bool))
-            if self._settings.contains("ui/vision_provider"):
-                self._vision_provider_input.setText(self._settings.value("ui/vision_provider", type=str) or "")
-            if self._settings.contains("ui/vision_api_key"):
-                self._vision_api_key_input.setText(self._settings.value("ui/vision_api_key", type=str) or "")
-            if self._settings.contains("ui/vision_base_url"):
-                self._vision_base_url_input.setText(self._settings.value("ui/vision_base_url", type=str) or "")
-            if self._settings.contains("ui/vision_wire_api"):
-                self._vision_wire_api_input.setText(self._settings.value("ui/vision_wire_api", type=str) or "")
-            if self._settings.contains("ui/vision_reasoning_effort"):
-                self._vision_reasoning_input.setText(self._settings.value("ui/vision_reasoning_effort", type=str) or "")
-            if self._settings.contains("ui/vision_network_access"):
-                self._vision_network_cb.setChecked(self._settings.value("ui/vision_network_access", type=bool))
-            if self._settings.contains("ui/vision_disable_response_storage"):
-                self._vision_no_store_cb.setChecked(self._settings.value("ui/vision_disable_response_storage", type=bool))
-            if self._settings.contains("ui/vision_model"):
-                saved_vision = self._settings.value("ui/vision_model", type=str) or ""
-                if saved_vision:
-                    self._pending_vision_model = saved_vision
-                    self._vision_model_input.setText(saved_vision)
-            if self._settings.contains("ui/audio_model"):
-                saved_audio = self._settings.value("ui/audio_model", type=str) or ""
-                if saved_audio:
-                    self._pending_audio_model = saved_audio
-            self._refresh_model_labels()
-            if self._settings.contains("ui/llm_parallel_requests"):
-                self._llm_parallel_input.setValue(int(self._settings.value("ui/llm_parallel_requests")))
-            if self._settings.contains("ui/llm_request_stagger_seconds"):
-                self._llm_stagger_input.setValue(float(self._settings.value("ui/llm_request_stagger_seconds")))
-            if self._settings.contains("ui/paid_mode"):
-                self._paid_mode_cb.setChecked(self._settings.value("ui/paid_mode", type=bool))
-            if self._settings.contains("ui/extra_api_keys"):
-                self._extra_keys_input.setText(self._settings.value("ui/extra_api_keys", type=str) or "")
-            if self._settings.contains("ui/output_in_place"):
-                self._output_in_place.setChecked(self._settings.value("ui/output_in_place", type=bool))
-            self._set_api_settings_visible(False)
-        finally:
-            self._restoring_ui_settings = False
+        s = self._settings
+        key = s.value("ui/api_key", type=str) or ""
+        key_state = "API Key 已填" if key else "API Key 未填"
+        vis_enabled = s.value("ui/vision_api_enabled", type=bool) if s.contains("ui/vision_api_enabled") else False
+        vis_provider = s.value("ui/vision_provider", type=str) or ""
+        vis_info = f" | 视觉Provider: {vis_provider}" if vis_enabled else ""
+        vision = s.value("ui/vision_model", type=str) or self._cfg.models.vision_model or "—"
+        audio = s.value("ui/audio_model", type=str) or self._cfg.models.asr_model or "—"
+        self._api_summary.setText(f"{key_state} | 视觉: {vision}{vis_info} | 音频: {audio}")
 
     def _read_api_overrides_from_ui(self) -> tuple[dict, dict]:
-        """从 UI 控件读取 API 设置并构建嵌套 updates 字典。
+        """从 QSettings 读取 API 设置并构建嵌套 updates 字典。
 
-        Returns:
-            (updates, info) — updates 传给 with_updates。
+        SettingsDialog 负责将用户输入持久化到 QSettings；
+        此处只从 QSettings 读取并构建 with_updates 所需的字典。
         """
-        new_key = self._api_key_input.text().strip()
-        new_url = self._base_url_input.text().strip()
-        vision_api_enabled = self._vision_api_enabled_cb.isChecked()
-        vision_provider = self._vision_provider_input.text().strip()
-        vision_api_key = self._vision_api_key_input.text().strip()
-        vision_base_url = self._vision_base_url_input.text().strip()
-        vision_wire_api = (self._vision_wire_api_input.text().strip() or "chat").lower()
-        vision_reasoning = self._vision_reasoning_input.text().strip()
-        vision_network = self._vision_network_cb.isChecked()
-        vision_no_store = self._vision_no_store_cb.isChecked()
-        vision_model = self._current_vision_model_name()
-        auto_vision_model = False
-        audio_model = self._current_audio_model_name()
-        new_parallel = self._llm_parallel_input.value()
-        new_stagger = self._llm_stagger_input.value()
-        paid_mode = self._paid_mode_cb.isChecked()
-        extra_keys_text = self._extra_keys_input.text().strip()
+        s = self._settings
+        def _str(key): return (s.value(key, type=str) or "").strip()
+        def _bool(key): return s.value(key, type=bool) if s.contains(key) else False
+        def _int(key): return int(s.value(key) or 0)
+
+        new_key = _str("ui/api_key")
+        new_url = _str("ui/base_url")
+        vis_enabled = _bool("ui/vision_api_enabled")
+        vis_provider = _str("ui/vision_provider")
+        vis_key = _str("ui/vision_api_key")
+        vis_url = _str("ui/vision_base_url")
+        vis_wire = (_str("ui/vision_wire_api") or "chat").lower()
+        vis_reasoning = _str("ui/vision_reasoning_effort")
+        vis_network = _bool("ui/vision_network_access")
+        vis_no_store = _bool("ui/vision_disable_response_storage")
+        vision_model = _str("ui/vision_model") or self._cfg.models.vision_model
+        audio_model = _str("ui/audio_model") or self._cfg.models.asr_model
+        new_parallel = _int("ui/llm_parallel_requests")
+        new_stagger = float(s.value("ui/llm_request_stagger_seconds") or 0)
+        processing_batch = _int("ui/processing_batch_size") or self._cfg.processing.batch_size
+        video_batch = _int("ui/video_batch_size") or self._cfg.video.batch_size
+        paid_mode = _bool("ui/paid_mode")
+        extra_keys_text = _str("ui/extra_api_keys")
 
         api_keys = [new_key] if new_key else []
         if extra_keys_text:
@@ -652,12 +346,10 @@ class QCRMainWindow(QMainWindow):
         models_update: dict = {}
         if vision_model:
             models_update["vision_model"] = vision_model
-            if not vision_api_enabled:
-                models_update["text_model"] = vision_model  # 默认路径沿用旧行为；独立视觉 Provider 不污染文本任务
+            if not vis_enabled:
+                models_update["text_model"] = vision_model
         if audio_model:
             models_update["asr_model"] = audio_model
-            # 短音频派生：若选了长 ASR (asr_long)，对应短音频用 qwen3-asr-flash 兜底；
-            # 若用户选了 omni 或 short 模型，短音频也用同一个。
             audio_meta = model_catalog.find_audio_model(audio_model)
             if audio_meta and audio_meta.kind == "asr_long":
                 models_update["asr_short_model"] = "qwen3-asr-flash"
@@ -671,18 +363,24 @@ class QCRMainWindow(QMainWindow):
                 "api_keys": api_keys if paid_mode else [],
             },
             "vision_api": {
-                "enabled": vision_api_enabled,
-                "provider": vision_provider,
-                "api_key": vision_api_key,
-                "base_url": vision_base_url,
-                "wire_api": vision_wire_api,
-                "model_reasoning_effort": vision_reasoning,
-                "network_access": vision_network,
-                "disable_response_storage": vision_no_store,
+                "enabled": vis_enabled,
+                "provider": vis_provider,
+                "api_key": vis_key,
+                "base_url": vis_url,
+                "wire_api": vis_wire,
+                "model_reasoning_effort": vis_reasoning,
+                "network_access": vis_network,
+                "disable_response_storage": vis_no_store,
             },
             "concurrency": {
-                "llm_parallel_requests": new_parallel,
+                "llm_parallel_requests": new_parallel if new_parallel > 0 else self._cfg.concurrency.llm_parallel_requests,
                 "llm_request_stagger_seconds": new_stagger,
+            },
+            "processing": {
+                "batch_size": processing_batch,
+            },
+            "video": {
+                "batch_size": video_batch,
             },
         }
         if new_url:
@@ -693,57 +391,36 @@ class QCRMainWindow(QMainWindow):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
-            "vision_api_enabled": vision_api_enabled,
-            "vision_provider": vision_provider,
-            "vision_api_key": vision_api_key,
-            "vision_base_url": vision_base_url,
-            "vision_wire_api": vision_wire_api,
-            "auto_vision_model": auto_vision_model,
+            "vision_api_enabled": vis_enabled,
+            "vision_provider": vis_provider,
+            "vision_api_key": vis_key,
+            "vision_base_url": vis_url,
+            "vision_wire_api": vis_wire,
+            "auto_vision_model": False,
             "new_parallel": new_parallel, "new_stagger": new_stagger,
             "paid_mode": paid_mode, "api_keys": api_keys,
         }
         return updates, info
 
-    def _apply_api_settings(self):
-        updates, info = self._read_api_overrides_from_ui()
+    def _connect_settings_autosave(self):
+        self._output_in_place.toggled.connect(self._schedule_persist_ui_settings)
 
-        if not info["new_key"]:
-            QMessageBox.warning(self, "提示", "API Key 不能为空")
+    def _schedule_persist_ui_settings(self, *_args):
+        if self._restoring_ui_settings:
             return
+        self._settings_save_timer.start(250)
 
-        if info["vision_api_enabled"]:
-            if info["vision_wire_api"] not in {"chat", "responses"}:
-                QMessageBox.warning(self, "提示", "视觉 Wire API 只能是 chat 或 responses")
-                return
-            if not info["vision_api_key"] or not info["vision_base_url"]:
-                QMessageBox.warning(self, "提示", "启用视觉独立 Provider 时，视觉 API Key 和视觉 Base URL 不能为空")
-                return
+    def _persist_ui_settings(self):
+        self._settings.setValue("ui/output_in_place", self._output_in_place.isChecked())
+        self._settings.sync()
 
-        # picker dialog 已经处理过自定义模型测试 & catalog 写入，这里只做配置同步。
-        if info["auto_vision_model"]:
-            self._pending_vision_model = info["vision_model"]
-        self._refresh_model_labels()
-
-        self._cfg = self._cfg.with_updates(**updates)
-        self._persist_ui_settings()
-
-        api_keys = info["api_keys"]
-        pool_msg = f", API 池={len(api_keys)} 个 key" if info["paid_mode"] else ""
-        provider_msg = f" | 视觉Provider={info['vision_provider'] or 'custom'}({info['vision_wire_api']})" if info["vision_api_enabled"] else ""
-        self._api_status.setText(
-            f"✅ 已切换: 视觉={info['vision_model']}{provider_msg} | 音频={info['audio_model']} | "
-            f"并发={info['new_parallel']}, 错峰={info['new_stagger']:.1f}s{pool_msg}"
-        )
-        logging.info(
-            "[设置] API 已更新: vision=%s, audio=%s, vision_provider=%s/%s, parallel=%s, stagger=%.1fs, paid=%s, keys=%d, key=…%s, url=%s",
-            info["vision_model"], info["audio_model"],
-            info["vision_provider"] if info["vision_api_enabled"] else "default",
-            info["vision_wire_api"] if info["vision_api_enabled"] else "chat",
-            info["new_parallel"], info["new_stagger"],
-            info["paid_mode"], len(api_keys),
-            info["new_key"][-6:] if len(info["new_key"]) > 6 else "***",
-            info["new_url"],
-        )
+    def _restore_ui_settings(self):
+        self._restoring_ui_settings = True
+        try:
+            if self._settings.contains("ui/output_in_place"):
+                self._output_in_place.setChecked(self._settings.value("ui/output_in_place", type=bool))
+        finally:
+            self._restoring_ui_settings = False
 
     # ---- Worker ----
 
@@ -756,11 +433,8 @@ class QCRMainWindow(QMainWindow):
         self._worker.progress_detail.connect(self._on_progress_detail)
 
     def _sync_api_from_ui(self):
-        """将 GUI 输入框中的 API 设置同步到 config（无需手动点击"应用设置"）。"""
-        updates, info = self._read_api_overrides_from_ui()
-        if info["auto_vision_model"]:
-            self._pending_vision_model = info["vision_model"]
-            self._refresh_model_labels()
+        """将 QSettings 中的 API 设置同步到 config。"""
+        updates, _info = self._read_api_overrides_from_ui()
         self._cfg = self._cfg.with_updates(**updates)
 
     def _start_worker_with_tracker(self, task_func):
