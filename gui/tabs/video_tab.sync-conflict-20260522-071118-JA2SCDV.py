@@ -8,12 +8,15 @@ import os
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QCheckBox, QMessageBox,
+    QCheckBox, QTextEdit, QMessageBox,
 )
+from PyQt5.QtGui import QFont
 
 from OCRLLM import prompts
 from OCRLLM.gui.batch_tasks import BatchFileTask, run_batch_tasks
-from OCRLLM.gui.widgets import FileInput, PromptButton, browse_files, join_paths_text, split_paths_text
+from OCRLLM.gui.widgets import FileInput, browse_files, join_paths_text, split_paths_text
+
+MONO_FONT = QFont("Consolas", 9)
 
 
 class VideoTab(QWidget):
@@ -53,12 +56,16 @@ class VideoTab(QWidget):
         phase_row.addStretch()
         vbox.addLayout(phase_row)
 
+        vbox.addWidget(QLabel("提示词 (录课板书/课件识别):"))
+        self._prompt = QTextEdit()
+        self._prompt.setFont(MONO_FONT)
+        self._prompt.setPlainText(prompts.BOARD_WITH_HOTWORDS)
+        vbox.addWidget(self._prompt, stretch=1)
+
         from OCRLLM.gui.app import make_action_buttons
-        self._prompt = PromptButton("录课板书/课件识别", "video_board", prompts.BOARD_WITH_HOTWORDS, self)
         vbox.addLayout(make_action_buttons(
             "▶ 开始处理视频", self._run,
-            self._prompt.reset_to_default,
-            extra_widgets=[self._prompt]))
+            lambda: self._prompt.setPlainText(prompts.BOARD_WITH_HOTWORDS)))
 
     def set_input_paths(self, paths: list[str] | tuple[str, ...]):
         """从外部设置视频文件路径（如拖放）。
@@ -81,7 +88,7 @@ class VideoTab(QWidget):
 
         phases = [p for p, cb in self._phases.items() if cb.isChecked()]
         skip_audio = 5 not in phases
-        prompt_text = self._prompt.prompt_text()
+        prompt_text = self._prompt.toPlainText().strip()
 
         # 在原位置输出：输出目录放在视频文件同级目录
         def _output_dir_for(video_path: str) -> str | None:
@@ -112,8 +119,7 @@ class VideoTab(QWidget):
                 n = len([f for f in os.listdir(frames_dir) if f.endswith(".jpg")]) if frames_dir and os.path.isdir(frames_dir) else 0
                 return f"视频处理完成!\n帧数: {n}\nMD: {md_size}\n输出: {result.get('output_dir', '')}"
 
-            if self._start_worker(task):
-                self._prompt.consume_temporary()
+            self._start_worker(task)
             return
 
         def task(reporter):
@@ -141,5 +147,4 @@ class VideoTab(QWidget):
                 ))
             return run_batch_tasks(task_kind="video", task_label="视频", cfg=cfg, reporter=reporter, tasks=tasks)
 
-        if self._start_worker(task):
-            self._prompt.consume_temporary()
+        self._start_worker(task)

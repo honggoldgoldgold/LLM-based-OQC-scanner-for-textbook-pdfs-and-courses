@@ -7,12 +7,15 @@ from __future__ import annotations
 import os
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QMessageBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QTextEdit, QMessageBox,
 )
+from PyQt5.QtGui import QFont
 
 from OCRLLM import prompts
 from OCRLLM.gui.batch_tasks import BatchFileTask, run_batch_tasks
-from OCRLLM.gui.widgets import FileInput, PromptButton, browse_files
+from OCRLLM.gui.widgets import FileInput, browse_files
+
+MONO_FONT = QFont("Consolas", 9)
 
 
 class BoardTab(QWidget):
@@ -46,12 +49,16 @@ class BoardTab(QWidget):
         opt.addStretch()
         vbox.addLayout(opt)
 
+        vbox.addWidget(QLabel("提示词 (板书识别):"))
+        self._prompt = QTextEdit()
+        self._prompt.setFont(MONO_FONT)
+        self._prompt.setPlainText(prompts.BOARD)
+        vbox.addWidget(self._prompt, stretch=1)
+
         from OCRLLM.gui.app import make_action_buttons
-        self._prompt = PromptButton("板书识别", "board", prompts.BOARD, self)
         vbox.addLayout(make_action_buttons(
             "▶ 开始识别板书", self._run,
-            self._prompt.reset_to_default,
-            extra_widgets=[self._prompt]))
+            lambda: self._prompt.setPlainText(prompts.BOARD)))
 
     def set_input_paths(self, paths: list[str] | tuple[str, ...]):
         """从外部设置图片文件路径列表。
@@ -73,7 +80,7 @@ class BoardTab(QWidget):
 
         skip = self._skip.isChecked()
         separate = self._separate.isChecked()
-        prompt_text = self._prompt.prompt_text()
+        prompt_text = self._prompt.toPlainText().strip()
 
         # 在原位置输出：结果文件放到第一张图片同级目录
         output_path = None
@@ -109,8 +116,7 @@ class BoardTab(QWidget):
                     ))
                 return run_batch_tasks(task_kind="board", task_label="图片", cfg=cfg, reporter=reporter, tasks=tasks)
 
-            if self._start_worker(task):
-                self._prompt.consume_temporary()
+            self._start_worker(task)
             return
 
         def task(reporter):
@@ -122,5 +128,4 @@ class BoardTab(QWidget):
                                   prompt_template=prompt_text or None)
             return f"板书识别完成: {result}"
 
-        if self._start_worker(task):
-            self._prompt.consume_temporary()
+        self._start_worker(task)

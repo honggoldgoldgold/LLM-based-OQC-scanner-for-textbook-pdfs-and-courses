@@ -8,12 +8,15 @@ import os
 import logging
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, QTextEdit, QMessageBox,
 )
+from PyQt5.QtGui import QFont
 
 from OCRLLM import prompts
 from OCRLLM.gui.batch_tasks import BatchFileTask, run_batch_tasks
-from OCRLLM.gui.widgets import FileInput, PromptButton, browse_file, browse_files, join_paths_text, split_paths_text
+from OCRLLM.gui.widgets import FileInput, browse_file, browse_files, join_paths_text, split_paths_text
+
+MONO_FONT = QFont("Consolas", 9)
 
 
 class AudioTab(QWidget):
@@ -56,12 +59,16 @@ class AudioTab(QWidget):
         row3.addWidget(btn_hw)
         vbox.addLayout(row3)
 
+        vbox.addWidget(QLabel("提示词 (语音识别):"))
+        self._prompt = QTextEdit()
+        self._prompt.setFont(MONO_FONT)
+        self._prompt.setPlainText(prompts.AUDIO_TRANSCRIBE)
+        vbox.addWidget(self._prompt, stretch=1)
+
         from OCRLLM.gui.app import make_action_buttons
-        self._prompt = PromptButton("语音识别", "audio_transcribe", prompts.AUDIO_TRANSCRIBE, self)
         vbox.addLayout(make_action_buttons(
             "▶ 开始识别语音", self._run,
-            self._prompt.reset_to_default,
-            extra_widgets=[self._prompt]))
+            lambda: self._prompt.setPlainText(prompts.AUDIO_TRANSCRIBE)))
 
     def set_input_paths(self, paths: list[str] | tuple[str, ...]):
         """从外部设置音频文件路径（如拖放）。
@@ -94,7 +101,7 @@ class AudioTab(QWidget):
                     if word:
                         hotwords.append(word)
 
-        prompt_override = self._prompt.prompt_text()
+        prompt_override = self._prompt.toPlainText().strip()
 
         # 在原位置输出：结果文件放到音频文件同级目录
         def _output_path_for(audio_path: str) -> str | None:
@@ -118,8 +125,7 @@ class AudioTab(QWidget):
                                       prompt_template=prompt_override or None)
                 return f"语音识别完成: {result}"
 
-            if self._start_worker(task):
-                self._prompt.consume_temporary()
+            self._start_worker(task)
             return
 
         def task(reporter):
@@ -146,5 +152,4 @@ class AudioTab(QWidget):
                 ))
             return run_batch_tasks(task_kind="audio", task_label="音频", cfg=cfg, reporter=reporter, tasks=tasks)
 
-        if self._start_worker(task):
-            self._prompt.consume_temporary()
+        self._start_worker(task)

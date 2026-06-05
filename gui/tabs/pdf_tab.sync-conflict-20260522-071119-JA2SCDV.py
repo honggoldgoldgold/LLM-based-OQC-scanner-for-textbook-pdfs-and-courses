@@ -7,12 +7,16 @@ from __future__ import annotations
 import os
 
 from PyQt5.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QMessageBox,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QCheckBox, QLineEdit, QTextEdit, QMessageBox,
 )
+from PyQt5.QtGui import QFont
 
+from OCRLLM.config import AppConfig
 from OCRLLM import prompts
 from OCRLLM.gui.batch_tasks import BatchFileTask, run_batch_tasks
-from OCRLLM.gui.widgets import FileInput, PromptButton, browse_files, join_paths_text, split_paths_text
+from OCRLLM.gui.widgets import FileInput, browse_files, join_paths_text, split_paths_text
+
+MONO_FONT = QFont("Consolas", 9)
 
 
 class PDFTab(QWidget):
@@ -47,12 +51,16 @@ class PDFTab(QWidget):
         opt.addStretch()
         vbox.addLayout(opt)
 
+        vbox.addWidget(QLabel("提示词 (PDF公式识别) — 修改后点击运行即生效:"))
+        self._prompt = QTextEdit()
+        self._prompt.setFont(MONO_FONT)
+        self._prompt.setPlainText(prompts.PDF_FORMULA)
+        vbox.addWidget(self._prompt, stretch=1)
+
         from OCRLLM.gui.app import make_action_buttons
-        self._prompt = PromptButton("PDF公式识别", "pdf_formula", prompts.PDF_FORMULA, self)
         vbox.addLayout(make_action_buttons(
             "▶ 开始处理 PDF", self._run,
-            self._prompt.reset_to_default,
-            extra_widgets=[self._prompt]))
+            lambda: self._prompt.setPlainText(prompts.PDF_FORMULA)))
 
     def set_input_paths(self, paths: list[str] | tuple[str, ...]):
         """从外部设置 PDF 文件路径。
@@ -74,7 +82,7 @@ class PDFTab(QWidget):
             QMessageBox.warning(self, "提示", "文件不存在:\n" + "\n".join(missing[:10])); return
 
         need_formula = self._formula.isChecked()
-        prompt_text = self._prompt.prompt_text()
+        prompt_text = self._prompt.toPlainText().strip()
         s, e = self._start.text().strip(), self._end.text().strip()
         page_range = None
         if s and e:
@@ -105,8 +113,7 @@ class PDFTab(QWidget):
                                       page_range=page_range, prompt_template=prompt_text or None)
                 return f"PDF 处理完成: {result}"
 
-            if self._start_worker(task):
-                self._prompt.consume_temporary()
+            self._start_worker(task)
             return
 
         def task(reporter):
@@ -133,8 +140,7 @@ class PDFTab(QWidget):
                 ))
             return run_batch_tasks(task_kind="pdf", task_label="PDF", cfg=cfg, reporter=reporter, tasks=tasks)
 
-        if self._start_worker(task):
-            self._prompt.consume_temporary()
+        self._start_worker(task)
 
 
 def _file_row(label_text, file_input, btn_text, btn_callback):

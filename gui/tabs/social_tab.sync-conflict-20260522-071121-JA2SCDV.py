@@ -14,20 +14,20 @@ from __future__ import annotations
 
 import os
 import logging
+from functools import partial
 from typing import Optional
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QCheckBox, QTextEdit, QMessageBox,
+    QCheckBox, QTextEdit, QLineEdit, QMessageBox,
     QPushButton, QRadioButton, QButtonGroup,
     QGroupBox, QTreeWidget, QTreeWidgetItem,
-    QSpinBox,
+    QSpinBox, QFrame,
 )
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 
 from OCRLLM import prompts
-from OCRLLM.gui.widgets import PromptButton
 
 logger = logging.getLogger(__name__)
 MONO_FONT = QFont("Consolas", 9)
@@ -128,13 +128,19 @@ class SocialTab(QWidget):
         opts_row.addStretch()
         vbox.addLayout(opts_row)
 
+        # ---- 提示词（短视频使用的识别提示词） ----
+        vbox.addWidget(QLabel("提示词 (短视频画面识别):"))
+        self._prompt = QTextEdit()
+        self._prompt.setFont(MONO_FONT)
+        self._prompt.setPlainText(prompts.SHORT_VIDEO_RECOGNIZE)
+        self._prompt.setMaximumHeight(150)
+        vbox.addWidget(self._prompt)
+
         # ---- 按钮 ----
         from OCRLLM.gui.app import make_action_buttons
-        self._prompt = PromptButton("社交视频画面识别", "social_short_video", prompts.SHORT_VIDEO_RECOGNIZE, self)
         vbox.addLayout(make_action_buttons(
             "▶ 开始处理", self._run,
-            self._prompt.reset_to_default,
-            extra_widgets=[self._prompt],
+            lambda: self._prompt.setPlainText(prompts.SHORT_VIDEO_RECOGNIZE),
         ))
 
     # ---- URL 解析 ----
@@ -290,7 +296,6 @@ class SocialTab(QWidget):
         fetch_danmaku = self._cb_danmaku.isChecked()
         fetch_comments = self._cb_comments.isChecked()
         bili_quality = self._quality_spin.value()
-        prompt_text = self._prompt.prompt_text()
 
         def task(reporter):
             from OCRLLM.processors.social.downloader import (
@@ -355,7 +360,6 @@ class SocialTab(QWidget):
                             title=dl.title,
                             danmaku_texts=dl.danmaku_texts,
                             comment_texts=dl.comment_texts,
-                            prompt_template=prompt_text or None,
                         )
                         results.append(f"✅ 短视频: {dl.title} → {md_path}")
                     else:
@@ -367,7 +371,6 @@ class SocialTab(QWidget):
                             url,
                             output_dir=output_dir,
                             part_indices=part_indices,
-                            prompt_template=prompt_text or None,
                         )
                         results.append(f"✅ 长视频: {url} → {out}")
 
@@ -377,5 +380,4 @@ class SocialTab(QWidget):
 
             return "\n".join(results) if results else "处理完成"
 
-        if self._start_worker(task):
-            self._prompt.consume_temporary()
+        self._start_worker(task)
