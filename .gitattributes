@@ -1,0 +1,41 @@
+# Default text normalization for cross-platform line endings.
+* text=auto
+
+# Keep common text file types with LF line endings.
+*.py        text eol=lf
+*.md        text eol=lf
+*.txt       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+*.json      text eol=lf
+*.toml      text eol=lf
+*.ini       text eol=lf
+*.bat       text eol=lf
+*.sh        text eol=lf
+*.ps1       text eol=lf
+*.toml      text eol=lf
+*.cfg       text eol=lf
+*.cfg.in    text eol=lf
+*.xml       text eol=lf
+*.rst       text eol=lf
+*.html      text eol=lf
+*.htm       text eol=lf
+*.css       text eol=lf
+*.js       text eol=lf
+*.ts       text eol=lf
+
+# Binary files should not be normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pdf binary
+*.mp3 binary
+*.mp4 binary
+*.zip binary
+*.gz binary
+*.ico binary
+*.exe binary
+*.dll binary
+*.so binary
+*.dylib binary
