@@ -17,6 +17,7 @@ from OCRLLM.config import AppConfig
 from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.core.incremental_writer import IncrementalMDWriter
 from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.response_validator import ensure_valid_ocr_response
 from OCRLLM.core.task_runner import CancelledError, ProgressReporter
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.utils import (
@@ -357,6 +358,9 @@ class PDFProcessor(BaseProcessor):
             writer.finalize()
             if successful_batches == 0:
                 raise RuntimeError(f"PDF 大模型识别全部 {len(batches)} 个批次失败，输出文件只包含错误信息: {output_path}")
+            if successful_batches < len(batches):
+                failed_batches = len(batches) - successful_batches
+                raise RuntimeError(f"PDF 大模型识别部分批次失败 ({failed_batches}/{len(batches)})，已保留 checkpoint 以便断点续传: {output_path}")
             self.checkpoint_mgr.remove("pdf", pdf_path)
 
             bottleneck = self.tracker.get_bottleneck_report()
@@ -414,6 +418,11 @@ class PDFProcessor(BaseProcessor):
         try:
             result = client.chat_with_images(prompt=prompt, image_paths=batch)
             result = strip_md_fence(result)
+            ensure_valid_ocr_response(
+                result,
+                self.cfg.response_validation,
+                f"PDF 第 {page_str} 页",
+            )
             result = sanitize_llm_markdown(result)
             result = normalize_page_headers(result, start_page, len(batch))
 
@@ -486,6 +495,11 @@ class PDFProcessor(BaseProcessor):
                 else:
                     result = self.llm.chat_with_images(prompt=prompt, image_paths=[img_path])
                 result = strip_md_fence(result)
+                ensure_valid_ocr_response(
+                    result,
+                    self.cfg.response_validation,
+                    f"PDF 第 {page_num} 页",
+                )
                 result = sanitize_llm_markdown(result)
                 result = normalize_single_page_markdown(result, page_num)
                 return idx, result, True

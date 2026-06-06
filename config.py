@@ -95,6 +95,13 @@ class ConcurrencyConfig:
 
 
 @dataclass
+class ResponseValidationConfig:
+    """LLM 响应质量验证配置。"""
+    enabled: bool = True
+    min_chars: int = 20
+
+
+@dataclass
 class PathConfig:
     """输出和临时文件路径配置。"""
     output_dir: str = ""
@@ -174,6 +181,7 @@ class AppConfig:
     models: ModelConfig = field(default_factory=ModelConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     concurrency: ConcurrencyConfig = field(default_factory=ConcurrencyConfig)
+    response_validation: ResponseValidationConfig = field(default_factory=ResponseValidationConfig)
     paths: PathConfig = field(default_factory=PathConfig)
     video: VideoConfig = field(default_factory=VideoConfig)
     imaging: ImagingConfig = field(default_factory=ImagingConfig)
@@ -233,11 +241,11 @@ _SECTION_NAMES = {
     "models",
     "processing",
     "concurrency",
+    "response_validation",
     "paths",
     "video",
     "imaging",
     "social",
     "shot_detection",
 }
-
 

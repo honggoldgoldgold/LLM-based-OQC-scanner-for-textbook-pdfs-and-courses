@@ -31,6 +31,7 @@ import numpy as np
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.response_validator import ensure_valid_ocr_response
 from OCRLLM.core.task_runner import ProgressReporter, CancelledError
 from OCRLLM.core.utils import (
     batch_list, ensure_dir, resize_image_if_needed, resolve_workers, strip_md_fence,
@@ -940,6 +941,9 @@ class VideoProcessor(BaseProcessor):
         self.tracker.update_phase("phase4", total_batches, "识别完成")
         if total_batches and successful_batches == 0:
             raise RuntimeError(f"视频板书识别全部 {total_batches} 个批次失败，输出文件只包含错误信息: {md_path}")
+        if successful_batches < total_batches:
+            failed_batches = total_batches - successful_batches
+            raise RuntimeError(f"视频板书识别部分批次失败 ({failed_batches}/{total_batches})，已保留 checkpoint 以便断点续传: {md_path}")
 
         # ---- 热词: 若没拿到，从文本中回退提取 ----
         if not hotwords:
@@ -996,7 +1000,7 @@ class VideoProcessor(BaseProcessor):
         prompt_template: str,
     ) -> tuple[str, list[str], bool]:
         parts: list[str] = []
-        success = False
+        success = bool(frames)
 
         for frame, path in zip(frames, paths):
             self._check_cancelled()
@@ -1008,8 +1012,13 @@ class VideoProcessor(BaseProcessor):
                         result = client.chat_with_images(prompt=prompt, image_paths=[path])
                 else:
                     result = self.llm.chat_with_images(prompt=prompt, image_paths=[path])
-                normalized = self._ensure_batch_frame_markers(strip_md_fence(result), (frame,))
-                success = True
+                result_text = strip_md_fence(result)
+                ensure_valid_ocr_response(
+                    result_text,
+                    self.cfg.response_validation,
+                    f"视频帧 {Path(frame['path']).stem}",
+                )
+                normalized = self._ensure_batch_frame_markers(result_text, (frame,))
             except CancelledError:
                 raise
             except Exception as e:
@@ -1019,6 +1028,7 @@ class VideoProcessor(BaseProcessor):
                     f"{self._build_frame_marker(frame)}\n\n"
                     f"<!-- 帧 {Path(frame['path']).stem} 识别失败: {safe_err} -->"
                 )
+                success = False
             parts.append(normalized)
 
         return "\n\n".join(part.strip() for part in parts if part.strip()), [], success
@@ -1052,6 +1062,11 @@ class VideoProcessor(BaseProcessor):
                 result = self.llm.chat_with_images(prompt=prompt, image_paths=list(paths))
 
             result_text = strip_md_fence(result)
+            ensure_valid_ocr_response(
+                result_text,
+                self.cfg.response_validation,
+                f"视频批次 {bi + 1}",
+            )
 
             if not self._has_expected_batch_frame_markers(result_text, frames):
                 if len(frames) > 1:

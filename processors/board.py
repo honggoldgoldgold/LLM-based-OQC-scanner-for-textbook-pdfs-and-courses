@@ -11,6 +11,7 @@ from typing import Optional
 
 from OCRLLM.processors.base import BaseProcessor
 from OCRLLM.core.document_model import SourceType
+from OCRLLM.core.response_validator import ensure_valid_ocr_response
 from OCRLLM.core.utils import (
     batch_list, concat_md_files, ensure_dir,
     sort_files_by_time, resize_image_if_needed, strip_md_fence,
@@ -132,6 +133,11 @@ class BoardProcessor(BaseProcessor):
                     prompt=prompt, image_paths=list(proc_paths), history=trimmed_history,
                 )
                 result = strip_md_fence(result)
+                ensure_valid_ocr_response(
+                    result,
+                    self.cfg.response_validation,
+                    f"板书第 {batch_idx + 1} 批",
+                )
                 md_parts.append(result)
                 successful_batches += 1
                 self._report_content(result, f"板书识别 — 第 {batch_idx + 1} 批")

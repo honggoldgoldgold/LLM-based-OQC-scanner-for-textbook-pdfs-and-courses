@@ -62,17 +62,17 @@ def resize_image_if_needed(
     Returns:
         实际写入的路径。
     """
-    img = Image.open(image_path)
-    w, h = img.size
     dest = output_path or image_path
-    if max(w, h) <= max_side:
-        if output_path and output_path != image_path:
-            shutil.copy2(image_path, output_path)
-        return dest
-    scale = max_side / max(w, h)
-    new_w, new_h = int(w * scale), int(h * scale)
-    img = img.resize((new_w, new_h), Image.LANCZOS)
-    img.save(dest, quality=quality)
+    with Image.open(image_path) as img:
+        w, h = img.size
+        if max(w, h) <= max_side:
+            if output_path and output_path != image_path:
+                shutil.copy2(image_path, output_path)
+            return dest
+        scale = max_side / max(w, h)
+        new_w, new_h = int(w * scale), int(h * scale)
+        resized = img.resize((new_w, new_h), Image.LANCZOS)
+        resized.save(dest, quality=quality)
     logger.info("[RESIZE] %s: %dx%d -> %dx%d -> %s", image_path, w, h, new_w, new_h, dest)
     return dest
 
