@@ -17,12 +17,18 @@ from OCRLLM.core.llm_client import LLMClient
 
 
 class CodexVisionRunnerTests(unittest.TestCase):
+    def test_default_codex_vision_model_is_image_capable_mini(self):
+        cfg = CodexVisionConfig()
+
+        self.assertEqual(cfg.model, "gpt-5.4-mini")
+        self.assertEqual(cfg.reasoning_effort, "medium")
+
     def test_runner_uses_read_only_ask_style_exec_without_tools(self):
         cfg = AppConfig(
             codex_vision=CodexVisionConfig(
                 enabled=True,
                 command="codex",
-                model="gpt-5.3-codex-spark",
+                model="gpt-5.4-mini",
                 reasoning_effort="medium",
             )
         )
@@ -52,8 +58,10 @@ class CodexVisionRunnerTests(unittest.TestCase):
         self.assertIn("--ask-for-approval", cmd)
         self.assertEqual(cmd[cmd.index("--ask-for-approval") + 1], "never")
         self.assertIn("-m", cmd)
-        self.assertEqual(cmd[cmd.index("-m") + 1], "gpt-5.3-codex-spark")
+        self.assertEqual(cmd[cmd.index("-m") + 1], "gpt-5.4-mini")
         self.assertIn('model_reasoning_effort="medium"', cmd)
+        self.assertEqual(cmd[-2], "--")
+        self.assertIn("用户原始提示:\nread", cmd[-1])
         for disabled in ["shell_tool", "browser_use", "computer_use", "apps", "multi_agent", "image_generation"]:
             disable_positions = [i for i, part in enumerate(cmd) if part == "--disable"]
             self.assertTrue(any(cmd[i + 1] == disabled for i in disable_positions))
@@ -81,6 +89,16 @@ class CodexVisionRunnerTests(unittest.TestCase):
         self.assertEqual(limited.concurrency.llm_parallel_requests, CODEX_VISION_MAX_PARALLEL)
         self.assertEqual(limited.processing.batch_size, CODEX_VISION_BATCH_SIZE)
         self.assertEqual(limited.video.batch_size, CODEX_VISION_BATCH_SIZE)
+
+    def test_env_codex_mode_applies_runtime_limits_for_cli_entrypoints(self):
+        with patch.dict(os.environ, {"OCRLLM_CODEX_VISION_ENABLED": "1"}, clear=True):
+            cfg = AppConfig.from_env()
+
+        self.assertTrue(cfg.codex_vision.enabled)
+        self.assertEqual(cfg.models.vision_model, "gpt-5.4-mini")
+        self.assertEqual(cfg.concurrency.llm_parallel_requests, CODEX_VISION_MAX_PARALLEL)
+        self.assertEqual(cfg.processing.batch_size, CODEX_VISION_BATCH_SIZE)
+        self.assertEqual(cfg.video.batch_size, CODEX_VISION_BATCH_SIZE)
 
 
 class CodexInspectionTests(unittest.TestCase):

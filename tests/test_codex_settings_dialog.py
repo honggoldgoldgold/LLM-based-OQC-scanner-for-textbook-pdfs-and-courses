@@ -33,7 +33,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
 
             dlg._codex_enabled_cb.setChecked(True)
 
-            self.assertEqual(dlg._pending_vision_model, "gpt-5.3-codex-spark")
+            self.assertEqual(dlg._pending_vision_model, "gpt-5.4-mini")
             self.assertEqual(dlg._vision_provider_input.text(), "ioasis")
             self.assertEqual(dlg._vision_url_input.text(), "https://vision.example/v1")
 
@@ -50,7 +50,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
             dlg = SettingsDialog(None, cfg)
             dlg._api_key_input.setText("")
             dlg._codex_enabled_cb.setChecked(True)
-            dlg._codex_model_combo.setCurrentText("gpt-5.3-codex-spark")
+            dlg._codex_model_combo.setCurrentText("gpt-5.4-mini")
             dlg._codex_reasoning_combo.setCurrentText("medium")
 
             with patch("OCRLLM.gui.settings_dialog.inspect_codex_cli") as inspect, \

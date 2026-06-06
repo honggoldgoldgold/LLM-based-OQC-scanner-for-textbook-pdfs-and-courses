@@ -23,6 +23,11 @@ def _legacy_vision_options() -> tuple[str, ...]:
 
 VISION_MODEL_OPTIONS = _legacy_vision_options()
 
+DEFAULT_CODEX_VISION_MODEL = "gpt-5.4-mini"
+DEFAULT_CODEX_VISION_REASONING_EFFORT = "medium"
+CODEX_VISION_RUNTIME_BATCH_SIZE = 5
+CODEX_VISION_RUNTIME_PARALLEL = 2
+
 
 @dataclass
 class APIConfig:
@@ -60,8 +65,8 @@ class CodexVisionConfig:
     """本机 Codex CLI 视觉识别配置。"""
     enabled: bool = False
     command: str = "codex"
-    model: str = "gpt-5.3-codex-spark"
-    reasoning_effort: str = "medium"
+    model: str = DEFAULT_CODEX_VISION_MODEL
+    reasoning_effort: str = DEFAULT_CODEX_VISION_REASONING_EFFORT
     timeout_seconds: int = 600
 
 
@@ -242,6 +247,12 @@ class AppConfig:
         codex_reasoning = os.environ.get("OCRLLM_CODEX_REASONING_EFFORT")
         if codex_reasoning:
             updates.setdefault("codex_vision", {})["reasoning_effort"] = codex_reasoning
+        if updates.get("codex_vision", {}).get("enabled"):
+            codex_model_value = updates["codex_vision"].get("model", cfg.codex_vision.model)
+            updates.setdefault("models", {})["vision_model"] = codex_model_value
+            updates.setdefault("concurrency", {})["llm_parallel_requests"] = CODEX_VISION_RUNTIME_PARALLEL
+            updates.setdefault("processing", {})["batch_size"] = CODEX_VISION_RUNTIME_BATCH_SIZE
+            updates.setdefault("video", {})["batch_size"] = CODEX_VISION_RUNTIME_BATCH_SIZE
         return cfg.with_updates(**updates) if updates else cfg
 
     def with_updates(self, **kwargs) -> AppConfig:
@@ -270,4 +281,3 @@ _SECTION_NAMES = {
     "social",
     "shot_detection",
 }
-

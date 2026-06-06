@@ -11,20 +11,27 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
-from OCRLLM.config import AppConfig, CodexVisionConfig
+from OCRLLM.config import (
+    AppConfig,
+    CodexVisionConfig,
+    CODEX_VISION_RUNTIME_BATCH_SIZE,
+    CODEX_VISION_RUNTIME_PARALLEL,
+    DEFAULT_CODEX_VISION_MODEL,
+    DEFAULT_CODEX_VISION_REASONING_EFFORT,
+)
 
 logger = logging.getLogger(__name__)
 
-CODEX_VISION_DEFAULT_MODEL = "gpt-5.3-codex-spark"
-CODEX_VISION_DEFAULT_REASONING = "medium"
-CODEX_VISION_BATCH_SIZE = 5
-CODEX_VISION_MAX_PARALLEL = 2
+CODEX_VISION_DEFAULT_MODEL = DEFAULT_CODEX_VISION_MODEL
+CODEX_VISION_DEFAULT_REASONING = DEFAULT_CODEX_VISION_REASONING_EFFORT
+CODEX_VISION_BATCH_SIZE = CODEX_VISION_RUNTIME_BATCH_SIZE
+CODEX_VISION_MAX_PARALLEL = CODEX_VISION_RUNTIME_PARALLEL
 CODEX_VISION_REASONING_LEVELS = ("low", "medium", "high", "xhigh")
 CODEX_VISION_MODEL_CHOICES = (
-    "gpt-5.3-codex-spark",
     "gpt-5.4-mini",
     "gpt-5.4",
     "gpt-5.5",
+    "gpt-5.3-codex-spark",
 )
 
 _DISABLED_CODEX_FEATURES = (
@@ -34,6 +41,10 @@ _DISABLED_CODEX_FEATURES = (
     "computer_use",
     "apps",
     "multi_agent",
+    "plugins",
+    "tool_suggest",
+    "hooks",
+    "memories",
     "image_generation",
     "standalone_web_search",
     "web_search_request",
@@ -201,6 +212,7 @@ class CodexVisionRunner:
                     cmd,
                     text=True,
                     capture_output=True,
+                    stdin=subprocess.DEVNULL,
                     timeout=max(30, int(self.cfg.timeout_seconds or 600)),
                     check=False,
                 )
@@ -254,6 +266,7 @@ class CodexVisionRunner:
             cmd.extend(["--disable", feature])
         for path in image_paths:
             cmd.extend(["-i", str(Path(path).resolve())])
+        cmd.append("--")
         cmd.append(prompt)
         return cmd
 
