@@ -19,6 +19,7 @@ import httpx
 from openai import OpenAI, APIConnectionError, APITimeoutError, APIStatusError
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.codex_vision import CodexVisionRunner
 from OCRLLM.core.task_runner import CancelledError
 
 logger = logging.getLogger(__name__)
@@ -143,17 +144,21 @@ class LLMClient:
         if not primary_key and self.cfg.vision_api.enabled:
             primary_key = self.cfg.vision_api.api_key
             primary_base_url = self._normalize_openai_base_url(self.cfg.vision_api.base_url)
-        if not primary_key:
+        self.codex_vision = CodexVisionRunner(self.cfg.codex_vision) if self.cfg.codex_vision.enabled else None
+        if not primary_key and not self.cfg.codex_vision.enabled:
             raise ValueError(
                 "未配置 API Key。请设置 DASHSCOPE_API_KEY 或视觉 Provider API Key"
             )
-        self.client = OpenAI(
-            api_key=primary_key,
-            base_url=primary_base_url,
-            timeout=httpx.Timeout(300, connect=60),
-            max_retries=0,
-        )
-        self.vision_client = self._build_vision_client()
+        self.client = None
+        self.vision_client = None
+        if primary_key:
+            self.client = OpenAI(
+                api_key=primary_key,
+                base_url=primary_base_url,
+                timeout=httpx.Timeout(300, connect=60),
+                max_retries=0,
+            )
+            self.vision_client = self._build_vision_client()
 
     @staticmethod
     def _normalize_openai_base_url(base_url: str) -> str:
@@ -181,7 +186,10 @@ class LLMClient:
         )
 
     def _active_vision_client(self) -> OpenAI:
-        return self.vision_client if self.cfg.vision_api.enabled else self.client
+        client = self.vision_client if self.cfg.vision_api.enabled else self.client
+        if client is None:
+            raise ValueError("当前没有可用的 API 视觉客户端")
+        return client
 
     def set_cancel_event(self, cancel_event: Optional[Event]):
         """设置取消事件，用于协作式中断正在进行的请求。
@@ -277,6 +285,8 @@ class LLMClient:
         extra_body: Optional[dict] = None,
     ) -> str:
         api_client = client or self.client
+        if api_client is None:
+            raise ValueError("当前没有可用的 API 客户端")
         self._check_cancelled()
         request_kwargs = {
             "model": model,
@@ -470,6 +480,9 @@ class LLMClient:
         Raises:
             EmptyResponseError: LLM 返回空响应。
         """
+        if self.codex_vision is not None:
+            return self.codex_vision.recognize(prompt, image_paths)
+
         primary_model = model or self.cfg.models.vision_model
         messages = self._chat_messages_for_images(prompt, image_paths)
 
@@ -504,6 +517,21 @@ class LLMClient:
         Returns:
             LLM 响应文本。
         """
+        if self.codex_vision is not None:
+            contextual_prompt = prompt
+            if history:
+                history_text = "\n".join(
+                    _content_text(_field(item, "content"))
+                    for item in history
+                    if _content_text(_field(item, "content"))
+                )
+                if history_text:
+                    contextual_prompt = (
+                        "以下历史上下文仅用于保持术语和编号一致，不要补充图片外内容。\n"
+                        f"{history_text}\n\n当前识别提示:\n{prompt}"
+                    )
+            return self.codex_vision.recognize(contextual_prompt, image_paths)
+
         primary_model = model or self.cfg.models.vision_model
         messages = list(history) if history else []
         content = []

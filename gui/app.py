@@ -30,6 +30,12 @@ from PyQt5.QtGui import QFont
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core import model_catalog
+from OCRLLM.core.codex_vision import (
+    CODEX_VISION_DEFAULT_MODEL,
+    CODEX_VISION_DEFAULT_REASONING,
+    CODEX_VISION_BATCH_SIZE,
+    CODEX_VISION_MAX_PARALLEL,
+)
 from OCRLLM.core.utils import ensure_dir, setup_logging
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.checkpoint import CheckpointManager
@@ -300,11 +306,18 @@ class QCRMainWindow(QMainWindow):
         key = s.value("ui/api_key", type=str) or ""
         key_state = "API Key 已填" if key else "API Key 未填"
         vis_enabled = s.value("ui/vision_api_enabled", type=bool) if s.contains("ui/vision_api_enabled") else False
+        codex_enabled = s.value("ui/codex_vision_enabled", type=bool) if s.contains("ui/codex_vision_enabled") else False
         vis_provider = s.value("ui/vision_provider", type=str) or ""
-        vis_info = f" | 视觉Provider: {vis_provider}" if vis_enabled else ""
-        vision = s.value("ui/vision_model", type=str) or self._cfg.models.vision_model or "—"
+        vis_info = f" | 视觉Provider: {vis_provider}" if vis_enabled and not codex_enabled else ""
+        codex_info = " | Codex ask模式" if codex_enabled else ""
+        vision = (
+            (s.value("ui/codex_model", type=str) if codex_enabled else "")
+            or s.value("ui/vision_model", type=str)
+            or self._cfg.models.vision_model
+            or "—"
+        )
         audio = s.value("ui/audio_model", type=str) or self._cfg.models.asr_model or "—"
-        self._api_summary.setText(f"{key_state} | 视觉: {vision}{vis_info} | 音频: {audio}")
+        self._api_summary.setText(f"{key_state} | 视觉: {vision}{codex_info}{vis_info} | 音频: {audio}")
 
     def _read_api_overrides_from_ui(self) -> tuple[dict, dict]:
         """从 QSettings 读取 API 设置并构建嵌套 updates 字典。
@@ -319,6 +332,11 @@ class QCRMainWindow(QMainWindow):
 
         new_key = _str("ui/api_key")
         new_url = _str("ui/base_url")
+        codex_enabled = _bool("ui/codex_vision_enabled")
+        codex_command = _str("ui/codex_command") or "codex"
+        codex_model = _str("ui/codex_model") or CODEX_VISION_DEFAULT_MODEL
+        codex_reasoning = _str("ui/codex_reasoning_effort") or CODEX_VISION_DEFAULT_REASONING
+        codex_timeout = _int("ui/codex_timeout_seconds") or 600
         vis_enabled = _bool("ui/vision_api_enabled")
         vis_provider = _str("ui/vision_provider")
         vis_key = _str("ui/vision_api_key")
@@ -327,7 +345,7 @@ class QCRMainWindow(QMainWindow):
         vis_reasoning = _str("ui/vision_reasoning_effort")
         vis_network = _bool("ui/vision_network_access")
         vis_no_store = _bool("ui/vision_disable_response_storage")
-        vision_model = _str("ui/vision_model") or self._cfg.models.vision_model
+        vision_model = codex_model if codex_enabled else (_str("ui/vision_model") or self._cfg.models.vision_model)
         audio_model = _str("ui/audio_model") or self._cfg.models.asr_model
         new_parallel = _int("ui/llm_parallel_requests")
         new_stagger = float(s.value("ui/llm_request_stagger_seconds") or 0)
@@ -346,7 +364,7 @@ class QCRMainWindow(QMainWindow):
         models_update: dict = {}
         if vision_model:
             models_update["vision_model"] = vision_model
-            if not vis_enabled:
+            if not vis_enabled and not codex_enabled:
                 models_update["text_model"] = vision_model
         if audio_model:
             models_update["asr_model"] = audio_model
@@ -362,6 +380,13 @@ class QCRMainWindow(QMainWindow):
                 "paid_mode": paid_mode,
                 "api_keys": api_keys if paid_mode else [],
             },
+            "codex_vision": {
+                "enabled": codex_enabled,
+                "command": codex_command,
+                "model": codex_model,
+                "reasoning_effort": codex_reasoning,
+                "timeout_seconds": codex_timeout,
+            },
             "vision_api": {
                 "enabled": vis_enabled,
                 "provider": vis_provider,
@@ -373,14 +398,19 @@ class QCRMainWindow(QMainWindow):
                 "disable_response_storage": vis_no_store,
             },
             "concurrency": {
-                "llm_parallel_requests": new_parallel if new_parallel > 0 else self._cfg.concurrency.llm_parallel_requests,
+                "llm_parallel_requests": (
+                    CODEX_VISION_MAX_PARALLEL
+                    if codex_enabled
+                    else new_parallel if new_parallel > 0
+                    else self._cfg.concurrency.llm_parallel_requests
+                ),
                 "llm_request_stagger_seconds": new_stagger,
             },
             "processing": {
-                "batch_size": processing_batch,
+                "batch_size": CODEX_VISION_BATCH_SIZE if codex_enabled else processing_batch,
             },
             "video": {
-                "batch_size": video_batch,
+                "batch_size": CODEX_VISION_BATCH_SIZE if codex_enabled else video_batch,
             },
         }
         if new_url:
@@ -391,6 +421,9 @@ class QCRMainWindow(QMainWindow):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
+            "codex_enabled": codex_enabled,
+            "codex_model": codex_model,
+            "codex_reasoning_effort": codex_reasoning,
             "vision_api_enabled": vis_enabled,
             "vision_provider": vis_provider,
             "vision_api_key": vis_key,
@@ -445,12 +478,16 @@ class QCRMainWindow(QMainWindow):
 
         # 启动前自动同步 GUI 输入框的 API 设置到 config
         self._sync_api_from_ui()
-        if not self._cfg.api.api_key and not (
+        if not self._cfg.api.api_key and not self._cfg.codex_vision.enabled and not (
             self._cfg.vision_api.enabled and self._cfg.vision_api.api_key
         ):
             QMessageBox.warning(self, "提示", "API Key 不能为空，请在 API 设置中填入 Key 或视觉 Provider Key")
             return False
-        if self._cfg.vision_api.enabled and (not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url):
+        if (
+            self._cfg.vision_api.enabled
+            and not self._cfg.codex_vision.enabled
+            and (not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url)
+        ):
             QMessageBox.warning(self, "提示", "视觉独立 Provider 已启用，但视觉 API Key 或 Base URL 为空")
             return False
 

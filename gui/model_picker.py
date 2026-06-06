@@ -74,8 +74,9 @@ class ModelPickerDialog(QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("选择视觉模型" if self._kind == "vision" else "选择音频模型")
-        self.setMinimumSize(820, 540)
-        self.resize(900, 600)
+        self.setMinimumSize(960, 640)
+        self.resize(1080, 720)
+        self.setSizeGripEnabled(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 8, 8, 8)

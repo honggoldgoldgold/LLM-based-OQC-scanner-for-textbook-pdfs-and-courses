@@ -14,7 +14,7 @@ from __future__ import annotations
 from typing import Optional
 
 from PyQt5.QtWidgets import (
-    QCheckBox, QDialog, QDoubleSpinBox, QGroupBox,
+    QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QGroupBox,
     QHBoxLayout, QLabel, QLineEdit, QMessageBox,
     QPushButton, QScrollArea, QSpinBox, QVBoxLayout,
     QWidget, QFrame,
@@ -22,6 +22,13 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import QSettings, Qt
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.codex_vision import (
+    CODEX_VISION_DEFAULT_MODEL,
+    CODEX_VISION_DEFAULT_REASONING,
+    CODEX_VISION_MODEL_CHOICES,
+    CODEX_VISION_REASONING_LEVELS,
+    inspect_codex_cli,
+)
 from OCRLLM.core import model_catalog
 
 SETTINGS_ORG = "OCRLLM"
@@ -38,6 +45,8 @@ class SettingsDialog(QDialog):
 
         self._pending_vision_model: str = cfg.models.vision_model
         self._pending_audio_model: str = cfg.models.asr_model
+        self._previous_non_codex_vision_model: str = cfg.models.vision_model
+        self._restoring_settings = False
 
         self._init_ui()
         self._restore_from_settings()
@@ -53,8 +62,9 @@ class SettingsDialog(QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("API / 模型设置")
-        self.setMinimumSize(700, 520)
-        self.resize(750, 580)
+        self.setMinimumSize(840, 640)
+        self.resize(980, 720)
+        self.setSizeGripEnabled(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -92,6 +102,52 @@ class SettingsDialog(QDialog):
         dash_layout.addLayout(row2)
 
         body_layout.addWidget(dash_group)
+
+        # ---- 本机 Codex 识图 ----
+        codex_group = QGroupBox("本机 Codex 识图（ask 模式）")
+        codex_layout = QVBoxLayout(codex_group)
+
+        codex_toggle_row = QHBoxLayout()
+        self._codex_enabled_cb = QCheckBox("启用本机 Codex 进行图片识别")
+        self._codex_enabled_cb.setToolTip("启用后视觉识别走本机 codex exec，只读、禁编辑；API Provider 配置会保留但识别时忽略。")
+        self._codex_enabled_cb.toggled.connect(self._on_codex_enabled_changed)
+        codex_toggle_row.addWidget(self._codex_enabled_cb)
+        codex_toggle_row.addStretch()
+        self._codex_check_btn = QPushButton("检测 Codex")
+        self._codex_check_btn.clicked.connect(self._on_codex_check_clicked)
+        codex_toggle_row.addWidget(self._codex_check_btn)
+        codex_layout.addLayout(codex_toggle_row)
+
+        codex_row = QHBoxLayout()
+        codex_row.addWidget(QLabel("模型:"))
+        self._codex_model_combo = QComboBox()
+        self._codex_model_combo.setEditable(True)
+        self._codex_model_combo.addItems(CODEX_VISION_MODEL_CHOICES)
+        self._codex_model_combo.setCurrentText(CODEX_VISION_DEFAULT_MODEL)
+        self._codex_model_combo.currentTextChanged.connect(self._on_codex_model_changed)
+        codex_row.addWidget(self._codex_model_combo, stretch=1)
+        codex_row.addWidget(QLabel("思考强度:"))
+        self._codex_reasoning_combo = QComboBox()
+        self._codex_reasoning_combo.addItems(CODEX_VISION_REASONING_LEVELS)
+        self._codex_reasoning_combo.setCurrentText(CODEX_VISION_DEFAULT_REASONING)
+        codex_row.addWidget(self._codex_reasoning_combo)
+        codex_layout.addLayout(codex_row)
+
+        codex_row2 = QHBoxLayout()
+        codex_row2.addWidget(QLabel("命令:"))
+        self._codex_command_input = QLineEdit("codex")
+        codex_row2.addWidget(self._codex_command_input, stretch=1)
+        codex_row2.addWidget(QLabel("超时(秒):"))
+        self._codex_timeout_input = QSpinBox()
+        self._codex_timeout_input.setRange(30, 3600)
+        self._codex_timeout_input.setValue(600)
+        codex_row2.addWidget(self._codex_timeout_input)
+        codex_layout.addLayout(codex_row2)
+
+        codex_hint = QLabel("Codex 模式运行时固定为每批 5 张图片、最多 2 个识别批次并行；切回 API 模式后恢复原视觉模型和原 Provider 设置。")
+        codex_hint.setWordWrap(True)
+        codex_layout.addWidget(codex_hint)
+        body_layout.addWidget(codex_group)
 
         # ---- 视觉 Provider ----
         vis_group = QGroupBox("视觉模型独立 Provider（OpenAI 兼容）")
@@ -150,9 +206,9 @@ class SettingsDialog(QDialog):
         self._vision_model_input = QLineEdit()
         self._vision_model_input.setPlaceholderText("如 kimi-k2.5 / qwen-vl-max")
         vis_model_row.addWidget(self._vision_model_input, stretch=1)
-        btn_pick_vision = QPushButton("选择模型...")
-        btn_pick_vision.clicked.connect(self._open_vision_picker)
-        vis_model_row.addWidget(btn_pick_vision)
+        self._btn_pick_vision = QPushButton("选择模型...")
+        self._btn_pick_vision.clicked.connect(self._open_vision_picker)
+        vis_model_row.addWidget(self._btn_pick_vision)
         model_layout.addLayout(vis_model_row)
 
         audio_model_row = QHBoxLayout()
@@ -241,10 +297,33 @@ class SettingsDialog(QDialog):
     # ---- QSettings 持久化 ----
 
     def _restore_from_settings(self):
+        self._restoring_settings = True
         if self._settings.contains("ui/api_key"):
             self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
         if self._settings.contains("ui/base_url"):
             self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
+        if self._settings.contains("ui/codex_vision_enabled"):
+            self._codex_enabled_cb.setChecked(self._settings.value("ui/codex_vision_enabled", type=bool))
+        else:
+            self._codex_enabled_cb.setChecked(self._cfg.codex_vision.enabled)
+        if self._settings.contains("ui/codex_command"):
+            self._codex_command_input.setText(self._settings.value("ui/codex_command", type=str) or "codex")
+        else:
+            self._codex_command_input.setText(self._cfg.codex_vision.command or "codex")
+        codex_model = self._cfg.codex_vision.model or CODEX_VISION_DEFAULT_MODEL
+        if self._settings.contains("ui/codex_model"):
+            codex_model = self._settings.value("ui/codex_model", type=str) or codex_model
+        self._codex_model_combo.setCurrentText(codex_model)
+        codex_reasoning = self._cfg.codex_vision.reasoning_effort or CODEX_VISION_DEFAULT_REASONING
+        if self._settings.contains("ui/codex_reasoning_effort"):
+            codex_reasoning = self._settings.value("ui/codex_reasoning_effort", type=str) or codex_reasoning
+        self._codex_reasoning_combo.setCurrentText(codex_reasoning)
+        if self._settings.contains("ui/codex_timeout_seconds"):
+            self._codex_timeout_input.setValue(int(self._settings.value("ui/codex_timeout_seconds")))
+        else:
+            self._codex_timeout_input.setValue(int(self._cfg.codex_vision.timeout_seconds or 600))
+        if self._settings.contains("ui/vision_model_before_codex"):
+            self._previous_non_codex_vision_model = self._settings.value("ui/vision_model_before_codex", type=str) or self._previous_non_codex_vision_model
         if self._settings.contains("ui/vision_api_enabled"):
             self._vision_enabled_cb.setChecked(self._settings.value("ui/vision_api_enabled", type=bool))
         if self._settings.contains("ui/vision_provider"):
@@ -281,10 +360,18 @@ class SettingsDialog(QDialog):
             self._processing_batch_input.setValue(int(self._settings.value("ui/processing_batch_size")))
         if self._settings.contains("ui/video_batch_size"):
             self._video_batch_input.setValue(int(self._settings.value("ui/video_batch_size")))
+        self._restoring_settings = False
+        self._apply_codex_ui_state()
 
     def _persist_to_settings(self):
         self._settings.setValue("ui/api_key", self._api_key_input.text())
         self._settings.setValue("ui/base_url", self._base_url_input.text())
+        self._settings.setValue("ui/codex_vision_enabled", self._codex_enabled_cb.isChecked())
+        self._settings.setValue("ui/codex_command", self._codex_command_input.text())
+        self._settings.setValue("ui/codex_model", self._codex_model_combo.currentText().strip())
+        self._settings.setValue("ui/codex_reasoning_effort", self._codex_reasoning_combo.currentText().strip())
+        self._settings.setValue("ui/codex_timeout_seconds", self._codex_timeout_input.value())
+        self._settings.setValue("ui/vision_model_before_codex", self._previous_non_codex_vision_model)
         self._settings.setValue("ui/vision_api_enabled", self._vision_enabled_cb.isChecked())
         self._settings.setValue("ui/vision_provider", self._vision_provider_input.text())
         self._settings.setValue("ui/vision_api_key", self._vision_key_input.text())
@@ -302,6 +389,73 @@ class SettingsDialog(QDialog):
         self._settings.setValue("ui/processing_batch_size", self._processing_batch_input.value())
         self._settings.setValue("ui/video_batch_size", self._video_batch_input.value())
         self._settings.sync()
+
+    # ---- Codex 本机识图 ----
+
+    def _codex_model(self) -> str:
+        return self._codex_model_combo.currentText().strip() or CODEX_VISION_DEFAULT_MODEL
+
+    def _on_codex_enabled_changed(self, checked: bool):
+        if not self._restoring_settings:
+            current = self._vision_model_input.text().strip() or self._pending_vision_model
+            if checked and current and current != self._codex_model():
+                self._previous_non_codex_vision_model = current
+        self._apply_codex_ui_state()
+
+    def _on_codex_model_changed(self, _text: str):
+        if self._codex_enabled_cb.isChecked():
+            self._pending_vision_model = self._codex_model()
+            self._vision_model_input.setText(self._pending_vision_model)
+
+    def _apply_codex_ui_state(self):
+        enabled = self._codex_enabled_cb.isChecked()
+        self._vision_model_input.setEnabled(not enabled)
+        self._btn_pick_vision.setEnabled(not enabled)
+        if enabled:
+            self._pending_vision_model = self._codex_model()
+            self._vision_model_input.setText(self._pending_vision_model)
+        else:
+            if self._previous_non_codex_vision_model and self._pending_vision_model == self._codex_model():
+                self._pending_vision_model = self._previous_non_codex_vision_model
+                self._vision_model_input.setText(self._pending_vision_model)
+        self._refresh_model_labels()
+
+    def _codex_config_from_ui(self):
+        from OCRLLM.config import CodexVisionConfig
+        return CodexVisionConfig(
+            enabled=self._codex_enabled_cb.isChecked(),
+            command=self._codex_command_input.text().strip() or "codex",
+            model=self._codex_model(),
+            reasoning_effort=self._codex_reasoning_combo.currentText().strip() or CODEX_VISION_DEFAULT_REASONING,
+            timeout_seconds=self._codex_timeout_input.value(),
+        )
+
+    def _codex_check_signature(self) -> str:
+        cfg = self._codex_config_from_ui()
+        return f"{cfg.command}|{cfg.model}|{cfg.reasoning_effort}|{cfg.timeout_seconds}"
+
+    def _validate_codex_environment_if_needed(self, *, force: bool = False) -> bool:
+        if not self._codex_enabled_cb.isChecked() and not force:
+            return True
+        signature = self._codex_check_signature()
+        if not force and self._settings.value("ui/codex_checked_signature", type=str) == signature:
+            return True
+        report = inspect_codex_cli(self._codex_config_from_ui())
+        if not report.ok:
+            QMessageBox.warning(self, "Codex 不可用", report.message)
+            return False
+        self._settings.setValue("ui/codex_checked_signature", signature)
+        self._settings.sync()
+        return True
+
+    def _on_codex_check_clicked(self):
+        report = inspect_codex_cli(self._codex_config_from_ui())
+        if report.ok:
+            self._settings.setValue("ui/codex_checked_signature", self._codex_check_signature())
+            self._settings.sync()
+            QMessageBox.information(self, "Codex 检测通过", report.message)
+        else:
+            QMessageBox.warning(self, "Codex 不可用", report.message)
 
     # ---- 模型选择 ----
 
@@ -362,6 +516,8 @@ class SettingsDialog(QDialog):
     def _read_overrides(self) -> tuple[dict, dict]:
         new_key = self._api_key_input.text().strip()
         new_url = self._base_url_input.text().strip()
+        codex_cfg = self._codex_config_from_ui()
+        codex_enabled = codex_cfg.enabled
         vis_enabled = self._vision_enabled_cb.isChecked()
         vis_provider = self._vision_provider_input.text().strip()
         vis_key = self._vision_key_input.text().strip()
@@ -370,7 +526,7 @@ class SettingsDialog(QDialog):
         vis_reasoning = self._vision_reasoning_input.text().strip()
         vis_network = self._vision_network_cb.isChecked()
         vis_no_store = self._vision_no_store_cb.isChecked()
-        vision_model = self._pending_vision_model
+        vision_model = codex_cfg.model if codex_enabled else self._pending_vision_model
         audio_model = self._pending_audio_model
         new_parallel = self._llm_parallel_input.value()
         new_stagger = self._llm_stagger_input.value()
@@ -389,7 +545,7 @@ class SettingsDialog(QDialog):
         models_update: dict = {}
         if vision_model:
             models_update["vision_model"] = vision_model
-            if not vis_enabled:
+            if not vis_enabled and not codex_enabled:
                 models_update["text_model"] = vision_model
         if audio_model:
             models_update["asr_model"] = audio_model
@@ -405,6 +561,13 @@ class SettingsDialog(QDialog):
                 "paid_mode": paid_mode,
                 "api_keys": api_keys if paid_mode else [],
             },
+            "codex_vision": {
+                "enabled": codex_enabled,
+                "command": codex_cfg.command,
+                "model": codex_cfg.model,
+                "reasoning_effort": codex_cfg.reasoning_effort,
+                "timeout_seconds": codex_cfg.timeout_seconds,
+            },
             "vision_api": {
                 "enabled": vis_enabled,
                 "provider": vis_provider,
@@ -416,14 +579,14 @@ class SettingsDialog(QDialog):
                 "disable_response_storage": vis_no_store,
             },
             "concurrency": {
-                "llm_parallel_requests": new_parallel,
+                "llm_parallel_requests": 2 if codex_enabled else new_parallel,
                 "llm_request_stagger_seconds": new_stagger,
             },
             "processing": {
-                "batch_size": processing_batch,
+                "batch_size": 5 if codex_enabled else processing_batch,
             },
             "video": {
-                "batch_size": video_batch,
+                "batch_size": 5 if codex_enabled else video_batch,
             },
         }
         if new_url:
@@ -434,6 +597,9 @@ class SettingsDialog(QDialog):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
+            "codex_enabled": codex_enabled,
+            "codex_model": codex_cfg.model,
+            "codex_reasoning_effort": codex_cfg.reasoning_effort,
             "vision_api_enabled": vis_enabled,
             "vision_api_key": vis_key,
             "vision_wire_api": vis_wire,
@@ -445,11 +611,14 @@ class SettingsDialog(QDialog):
     def _on_apply(self):
         _updates, info = self._read_overrides()
 
-        if not info["new_key"]:
+        if info["codex_enabled"] and not self._validate_codex_environment_if_needed():
+            return
+
+        if not info["new_key"] and not info["codex_enabled"]:
             QMessageBox.warning(self, "提示", "API Key 不能为空")
             return
 
-        if info["vision_api_enabled"]:
+        if info["vision_api_enabled"] and not info["codex_enabled"]:
             if info["vision_wire_api"] not in {"chat", "responses"}:
                 QMessageBox.warning(self, "提示", "视觉 Wire API 只能是 chat 或 responses")
                 return

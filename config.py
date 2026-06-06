@@ -56,6 +56,16 @@ class VisionAPIConfig:
 
 
 @dataclass
+class CodexVisionConfig:
+    """本机 Codex CLI 视觉识别配置。"""
+    enabled: bool = False
+    command: str = "codex"
+    model: str = "gpt-5.3-codex-spark"
+    reasoning_effort: str = "medium"
+    timeout_seconds: int = 600
+
+
+@dataclass
 class ModelConfig:
     """模型名称配置。
 
@@ -171,6 +181,7 @@ class AppConfig:
 
     api: APIConfig = field(default_factory=APIConfig)
     vision_api: VisionAPIConfig = field(default_factory=VisionAPIConfig)
+    codex_vision: CodexVisionConfig = field(default_factory=CodexVisionConfig)
     models: ModelConfig = field(default_factory=ModelConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     concurrency: ConcurrencyConfig = field(default_factory=ConcurrencyConfig)
@@ -192,6 +203,12 @@ class AppConfig:
         """从环境变量加载配置。"""
         cfg = cls()
         updates = {}
+        def _env_bool(name: str) -> bool | None:
+            raw = os.environ.get(name)
+            if raw is None:
+                return None
+            return raw.strip().lower() in {"1", "true", "yes", "on"}
+
         key = os.environ.get("DASHSCOPE_API_KEY")
         if key:
             updates.setdefault("api", {})["api_key"] = key
@@ -212,6 +229,19 @@ class AppConfig:
         vision_model = os.environ.get("OCRLLM_VISION_MODEL")
         if vision_model:
             updates.setdefault("models", {})["vision_model"] = vision_model
+        codex_enabled = _env_bool("OCRLLM_CODEX_VISION_ENABLED")
+        if codex_enabled is not None:
+            updates.setdefault("codex_vision", {})["enabled"] = codex_enabled
+        codex_command = os.environ.get("OCRLLM_CODEX_COMMAND")
+        if codex_command:
+            updates.setdefault("codex_vision", {})["command"] = codex_command
+        codex_model = os.environ.get("OCRLLM_CODEX_MODEL")
+        if codex_model:
+            updates.setdefault("codex_vision", {})["model"] = codex_model
+            updates.setdefault("models", {})["vision_model"] = codex_model
+        codex_reasoning = os.environ.get("OCRLLM_CODEX_REASONING_EFFORT")
+        if codex_reasoning:
+            updates.setdefault("codex_vision", {})["reasoning_effort"] = codex_reasoning
         return cfg.with_updates(**updates) if updates else cfg
 
     def with_updates(self, **kwargs) -> AppConfig:
@@ -230,6 +260,7 @@ class AppConfig:
 _SECTION_NAMES = {
     "api",
     "vision_api",
+    "codex_vision",
     "models",
     "processing",
     "concurrency",
@@ -239,5 +270,4 @@ _SECTION_NAMES = {
     "social",
     "shot_detection",
 }
-
 
