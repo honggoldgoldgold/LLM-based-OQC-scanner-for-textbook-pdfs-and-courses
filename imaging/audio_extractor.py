@@ -36,7 +36,7 @@ def extract_audio(
     cmd = [
         ffmpeg, "-i", video_path,
         "-vn", "-ac", "1", "-acodec", "libmp3lame",
-        "-ab", "64k", "-ar", "16000", "-y",
+        "-ab", "32k", "-ar", "16000", "-y",
         output_path,
     ]
 

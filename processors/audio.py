@@ -295,8 +295,12 @@ class AudioProcessor(BaseProcessor):
             logger.error("[ASR] 长音频异步处理失败: %s", e)
             if _is_remote(actual_path):
                 raise
-            if self.cfg.models.allow_asr_short_fallback:
-                logger.warning("[ASR] 长音频异步失败，回退分段短 ASR: %s", e)
+            force_fallback = "NO_VALID_FRAGMENT" in str(e) or "未检测到有效语音" in str(e)
+            if force_fallback or self.cfg.models.allow_asr_short_fallback:
+                if force_fallback:
+                    logger.warning("[ASR] 文件转写未检测到语音，自动回退分段短 ASR")
+                else:
+                    logger.warning("[ASR] 长音频异步失败，回退分段短 ASR（已开启允许回退）: %s", e)
                 return self._short_asr(actual_path, hotwords, output_path, prompt_template, duration=duration)
             raise RuntimeError(
                 f"长音频异步识别失败，且已禁止自动回退短音频。原始错误: {e}"
@@ -407,7 +411,7 @@ class AudioProcessor(BaseProcessor):
             "-ar",
             "16000",
             "-ab",
-            "64k",
+            "32k",
             "-acodec",
             "libmp3lame",
             "-y",
@@ -565,7 +569,7 @@ class AudioProcessor(BaseProcessor):
         payload = {
             "model": self.cfg.models.asr_model,
             "input": {"file_url": file_url},
-            "parameters": {"channel_id": [0, 1], "enable_itn": False, "enable_words": True},
+            "parameters": {"channel_id": [0], "enable_itn": False, "enable_words": True},
         }
         corpus = self._build_corpus(hotwords)
         if corpus:
@@ -638,21 +642,19 @@ class AudioProcessor(BaseProcessor):
             if status == "SUCCEEDED":
                 logger.info("[ASR] 任务完成，耗时 %.1fs", elapsed)
                 return data
-            if status == "SUCCESS_WITH_NO_VALID_FRAGMENT":
-                # 任务完成但未检测到有效语音片段（静音/噪音/格式不兼容）
-                logger.warning("[ASR] 任务完成但无有效语音片段，耗时 %.1fs", elapsed)
-                return data
             if status == "FAILED":
                 code = data.get("output", {}).get("code", "")
                 msg = data.get("output", {}).get("message", "未知错误")
                 if code and "NO_VALID_FRAGMENT" in str(code):
-                    # 阿里云把无有效语音片段放在 FAILED 状态里，实际是软失败
-                    logger.warning("[ASR] 任务完成但无有效语音片段 (code=%s)，耗时 %.1fs", code, elapsed)
-                    return data
+                    logger.warning("[ASR] 文件转写未检测到有效语音 (NO_VALID_FRAGMENT)，耗时 %.1fs", elapsed)
+                    raise RuntimeError("ASR 未检测到有效语音片段，将尝试分段短音频识别")
                 if code:
                     msg = f"{code}: {msg}"
                 logger.error("[ASR] 任务失败: %s", msg)
                 raise RuntimeError(f"ASR 失败: {msg}")
+            if status == "SUCCESS_WITH_NO_VALID_FRAGMENT":
+                logger.warning("[ASR] 文件转写未检测到有效语音，耗时 %.1fs", elapsed)
+                raise RuntimeError("ASR 未检测到有效语音片段，将尝试分段短音频识别")
             if status == "UNKNOWN":
                 logger.error("[ASR] 异常状态: UNKNOWN, response=%s", json.dumps(data, ensure_ascii=False)[:500])
                 raise RuntimeError("ASR 状态异常: UNKNOWN")
@@ -666,16 +668,6 @@ class AudioProcessor(BaseProcessor):
         raise TimeoutError(f"ASR 超时 ({max_wait}s)")
 
     def _result_to_md(self, result: dict, title: str) -> str:
-        output = result.get("output", {})
-        task_status = output.get("task_status", "")
-        task_code = output.get("code", "")
-        no_fragment = (
-            task_status == "SUCCESS_WITH_NO_VALID_FRAGMENT"
-            or "NO_VALID_FRAGMENT" in str(task_code)
-        )
-        if no_fragment:
-            logger.warning("[ASR] 任务完成但无有效语音片段，生成空结果")
-            return f"# {title} 语音识别\n\n> 未检测到有效语音片段（音频可能为静音、纯噪音或格式不兼容）。\n"
         transcripts = self._extract_transcripts(result)
         if not transcripts:
             logger.error("[ASR] 任务成功但无转写结果: %s, result=%s",
