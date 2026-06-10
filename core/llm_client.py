@@ -395,6 +395,11 @@ class LLMClient:
 
     def _vision_fallback_chain(self) -> list[str]:
         if self.cfg.vision_api.enabled:
+            # 视觉独立 Provider 的模型降级队列（用户配置的优先级顺序）
+            q = self.cfg.vision_api.vision_model_queue
+            if q:
+                primary = self.cfg.models.vision_model
+                return [m for m in q if m != primary]
             return []
         from OCRLLM.core import model_catalog
         return model_catalog.free_vision_chain()

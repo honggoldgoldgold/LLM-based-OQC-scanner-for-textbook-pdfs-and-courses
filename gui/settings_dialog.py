@@ -3,7 +3,7 @@ API / 模型设置独立弹窗 — 替代原主窗口内嵌的可展开设置面
 
 包含:
   · DashScope API Key / Base URL
-  · 视觉独立 Provider（OpenAI 兼容）
+  · 视觉独立 Provider（OpenAI 兼容）+ 扫描模型
   · 视觉模型 / 音频模型选择
   · LLM 并发 / 错峰参数
   · 付费模式 / API 池
@@ -11,28 +11,82 @@ API / 模型设置独立弹窗 — 替代原主窗口内嵌的可展开设置面
 
 from __future__ import annotations
 
+import json
+import logging
+import urllib.request
 from typing import Optional
 
 from PyQt5.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QGroupBox,
-    QHBoxLayout, QLabel, QLineEdit, QMessageBox,
+    QHBoxLayout, QLabel, QLineEdit, QListWidget, QMessageBox,
     QPushButton, QScrollArea, QSpinBox, QVBoxLayout,
-    QWidget, QFrame,
+    QWidget, QFrame, QAbstractItemView,
 )
 from PyQt5.QtCore import QSettings, Qt
 
 from OCRLLM.config import AppConfig
-from OCRLLM.core.codex_vision import (
-    CODEX_VISION_DEFAULT_MODEL,
-    CODEX_VISION_DEFAULT_REASONING,
-    CODEX_VISION_MODEL_CHOICES,
-    CODEX_VISION_REASONING_LEVELS,
-    inspect_codex_cli,
-)
 from OCRLLM.core import model_catalog
+
+try:
+    from OCRLLM.core.codex_vision import (
+        CODEX_VISION_DEFAULT_MODEL,
+        CODEX_VISION_DEFAULT_REASONING,
+        CODEX_VISION_MODEL_CHOICES,
+        CODEX_VISION_REASONING_LEVELS,
+        inspect_codex_cli,
+    )
+    _HAS_CODEX = True
+except ImportError:
+    CODEX_VISION_DEFAULT_MODEL = "codex"
+    CODEX_VISION_DEFAULT_REASONING = ""
+    CODEX_VISION_MODEL_CHOICES = ["codex"]
+    CODEX_VISION_REASONING_LEVELS = ["", "low", "medium", "high"]
+    _HAS_CODEX = False
+
+    def inspect_codex_cli(cfg):  # type: ignore[no-redef]
+        from dataclasses import dataclass
+        @dataclass
+        class _R:
+            ok: bool = False
+            message: str = "codex_vision 模块未安装"
+        return _R()
 
 SETTINGS_ORG = "OCRLLM"
 SETTINGS_APP = "QCR"
+logger = logging.getLogger(__name__)
+
+
+def _scan_models_from_api(base_url: str, api_key: str) -> list[str]:
+    """从 OpenAI 兼容 API 的 /models 端点扫描可用模型列表。
+
+    Args:
+        base_url: API base URL（如 https://ai-api.mozheyu.fun/v1）
+        api_key: API key
+
+    Returns:
+        模型 ID 列表；失败时返回空列表。
+    """
+    url = base_url.rstrip("/") + "/models"
+    req = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+    try:
+        resp = urllib.request.urlopen(req, timeout=15)
+        body = json.loads(resp.read().decode())
+        if isinstance(body, dict) and "data" in body:
+            models = [m.get("id", "") for m in body["data"] if m.get("id")]
+        elif isinstance(body, dict) and "models" in body:
+            models = [m.get("name", "") for m in body["models"] if m.get("name")]
+        else:
+            models = []
+        return sorted(models)
+    except Exception as e:
+        logger.warning("扫描模型失败 (%s): %s", url, e)
+        return []
 
 
 class SettingsDialog(QDialog):
@@ -42,11 +96,12 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self._cfg = cfg
         self._settings = QSettings(SETTINGS_ORG, SETTINGS_APP)
+        self._restoring_settings = False
 
         self._pending_vision_model: str = cfg.models.vision_model
         self._pending_audio_model: str = cfg.models.asr_model
-        self._previous_non_codex_vision_model: str = cfg.models.vision_model
-        self._restoring_settings = False
+        self._scanned_models: list[str] = []
+        self._previous_non_codex_vision_model: str = ""
 
         self._init_ui()
         self._restore_from_settings()
@@ -62,9 +117,8 @@ class SettingsDialog(QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("API / 模型设置")
-        self.setMinimumSize(840, 640)
-        self.resize(980, 720)
-        self.setSizeGripEnabled(True)
+        self.setMinimumSize(700, 560)
+        self.resize(760, 620)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -109,7 +163,7 @@ class SettingsDialog(QDialog):
 
         codex_toggle_row = QHBoxLayout()
         self._codex_enabled_cb = QCheckBox("启用本机 Codex 进行图片识别")
-        self._codex_enabled_cb.setToolTip("启用后视觉识别走本机 codex exec，只读、禁编辑；API Provider 配置会保留但识别时忽略。")
+        self._codex_enabled_cb.setToolTip("启用后视觉识别走本机 codex exec，只读、禁编辑；API Provider 配置保留但识别时忽略。")
         self._codex_enabled_cb.toggled.connect(self._on_codex_enabled_changed)
         codex_toggle_row.addWidget(self._codex_enabled_cb)
         codex_toggle_row.addStretch()
@@ -162,7 +216,7 @@ class SettingsDialog(QDialog):
         vis_row1 = QHBoxLayout()
         vis_row1.addWidget(QLabel("Provider 名称:"))
         self._vision_provider_input = QLineEdit()
-        self._vision_provider_input.setPlaceholderText("如 ioasis / mozheyu")
+        self._vision_provider_input.setPlaceholderText("如 ioasis / mozheyu / google")
         vis_row1.addWidget(self._vision_provider_input)
         vis_row1.addWidget(QLabel("Wire API:"))
         self._vision_wire_input = QLineEdit("chat")
@@ -180,8 +234,12 @@ class SettingsDialog(QDialog):
         vis_row3 = QHBoxLayout()
         vis_row3.addWidget(QLabel("Base URL:"))
         self._vision_url_input = QLineEdit()
-        self._vision_url_input.setPlaceholderText("https://ai-api.mozheyu.fun/v1")
+        self._vision_url_input.setPlaceholderText("https://generativelanguage.googleapis.com/v1beta/openai")
         vis_row3.addWidget(self._vision_url_input, stretch=1)
+        self._scan_models_btn = QPushButton("扫描模型")
+        self._scan_models_btn.setToolTip("从视觉 Provider 的 /models 端点获取可用模型列表")
+        self._scan_models_btn.clicked.connect(self._on_scan_models)
+        vis_row3.addWidget(self._scan_models_btn)
         vis_layout.addLayout(vis_row3)
 
         vis_row4 = QHBoxLayout()
@@ -201,16 +259,55 @@ class SettingsDialog(QDialog):
         model_group = QGroupBox("模型选择")
         model_layout = QVBoxLayout(model_group)
 
+        # 主模型行
         vis_model_row = QHBoxLayout()
-        vis_model_row.addWidget(QLabel("视觉模型 ID:"))
-        self._vision_model_input = QLineEdit()
-        self._vision_model_input.setPlaceholderText("如 kimi-k2.5 / qwen-vl-max")
-        vis_model_row.addWidget(self._vision_model_input, stretch=1)
+        vis_model_row.addWidget(QLabel("主视觉模型:"))
+        self._vision_model_combo = QComboBox()
+        self._vision_model_combo.setEditable(True)
+        self._vision_model_combo.setMinimumWidth(280)
+        self._vision_model_combo.setToolTip("主模型 ID；可直接输入或从扫描列表/内置清单选择")
+        self._vision_model_combo.currentTextChanged.connect(self._on_vision_model_text_changed)
+        vis_model_row.addWidget(self._vision_model_combo, stretch=1)
         self._btn_pick_vision = QPushButton("选择模型...")
         self._btn_pick_vision.clicked.connect(self._open_vision_picker)
         vis_model_row.addWidget(self._btn_pick_vision)
         model_layout.addLayout(vis_model_row)
 
+        # 模型降级队列
+        queue_group = QGroupBox("模型降级队列（主模型额度耗尽时自动按顺序切换）")
+        queue_outer = QVBoxLayout(queue_group)
+
+        self._model_queue_list = QListWidget()
+        self._model_queue_list.setAlternatingRowColors(True)
+        self._model_queue_list.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self._model_queue_list.setToolTip("优先级从上到下递减；主模型耗尽后依次尝试队列中的模型。\n留空则不启用降级切换。")
+        self._model_queue_list.setMaximumHeight(140)
+        queue_outer.addWidget(self._model_queue_list)
+
+        queue_btn_row = QHBoxLayout()
+        btn_add_scanned = QPushButton("添加扫描模型")
+        btn_add_scanned.setToolTip("从扫描结果下拉框中选择模型添加到队列")
+        btn_add_scanned.clicked.connect(self._on_queue_add_scanned)
+        queue_btn_row.addWidget(btn_add_scanned)
+        btn_add_all = QPushButton("全选扫描模型")
+        btn_add_all.setToolTip("将所有扫描到的模型全部加入降级队列（免费 API 适用）")
+        btn_add_all.clicked.connect(self._on_queue_select_all)
+        queue_btn_row.addWidget(btn_add_all)
+        btn_remove = QPushButton("移除选中")
+        btn_remove.clicked.connect(self._on_queue_remove)
+        queue_btn_row.addWidget(btn_remove)
+        btn_up = QPushButton("↑ 上移")
+        btn_up.clicked.connect(self._on_queue_move_up)
+        queue_btn_row.addWidget(btn_up)
+        btn_down = QPushButton("↓ 下移")
+        btn_down.clicked.connect(self._on_queue_move_down)
+        queue_btn_row.addWidget(btn_down)
+        queue_btn_row.addStretch()
+        queue_outer.addLayout(queue_btn_row)
+
+        model_layout.addWidget(queue_group)
+
+        # 音频模型
         audio_model_row = QHBoxLayout()
         audio_model_row.addWidget(QLabel("音频模型:"))
         self._audio_model_label = QLabel()
@@ -294,101 +391,48 @@ class SettingsDialog(QDialog):
         bottom_row.addWidget(cancel_btn)
         layout.addLayout(bottom_row)
 
-    # ---- QSettings 持久化 ----
+    # ---- 扫描模型 ----
 
-    def _restore_from_settings(self):
-        self._restoring_settings = True
-        if self._settings.contains("ui/api_key"):
-            self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
-        if self._settings.contains("ui/base_url"):
-            self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
-        if self._settings.contains("ui/codex_vision_enabled"):
-            self._codex_enabled_cb.setChecked(self._settings.value("ui/codex_vision_enabled", type=bool))
-        else:
-            self._codex_enabled_cb.setChecked(self._cfg.codex_vision.enabled)
-        if self._settings.contains("ui/codex_command"):
-            self._codex_command_input.setText(self._settings.value("ui/codex_command", type=str) or "codex")
-        else:
-            self._codex_command_input.setText(self._cfg.codex_vision.command or "codex")
-        codex_model = self._cfg.codex_vision.model or CODEX_VISION_DEFAULT_MODEL
-        if self._settings.contains("ui/codex_model"):
-            codex_model = self._settings.value("ui/codex_model", type=str) or codex_model
-        self._codex_model_combo.setCurrentText(codex_model)
-        codex_reasoning = self._cfg.codex_vision.reasoning_effort or CODEX_VISION_DEFAULT_REASONING
-        if self._settings.contains("ui/codex_reasoning_effort"):
-            codex_reasoning = self._settings.value("ui/codex_reasoning_effort", type=str) or codex_reasoning
-        self._codex_reasoning_combo.setCurrentText(codex_reasoning)
-        if self._settings.contains("ui/codex_timeout_seconds"):
-            self._codex_timeout_input.setValue(int(self._settings.value("ui/codex_timeout_seconds")))
-        else:
-            self._codex_timeout_input.setValue(int(self._cfg.codex_vision.timeout_seconds or 600))
-        if self._settings.contains("ui/vision_model_before_codex"):
-            self._previous_non_codex_vision_model = self._settings.value("ui/vision_model_before_codex", type=str) or self._previous_non_codex_vision_model
-        if self._settings.contains("ui/vision_api_enabled"):
-            self._vision_enabled_cb.setChecked(self._settings.value("ui/vision_api_enabled", type=bool))
-        if self._settings.contains("ui/vision_provider"):
-            self._vision_provider_input.setText(self._settings.value("ui/vision_provider", type=str) or "")
-        if self._settings.contains("ui/vision_api_key"):
-            self._vision_key_input.setText(self._settings.value("ui/vision_api_key", type=str) or "")
-        if self._settings.contains("ui/vision_base_url"):
-            self._vision_url_input.setText(self._settings.value("ui/vision_base_url", type=str) or "")
-        if self._settings.contains("ui/vision_wire_api"):
-            self._vision_wire_input.setText(self._settings.value("ui/vision_wire_api", type=str) or "")
-        if self._settings.contains("ui/vision_reasoning_effort"):
-            self._vision_reasoning_input.setText(self._settings.value("ui/vision_reasoning_effort", type=str) or "")
-        if self._settings.contains("ui/vision_network_access"):
-            self._vision_network_cb.setChecked(self._settings.value("ui/vision_network_access", type=bool))
-        if self._settings.contains("ui/vision_disable_response_storage"):
-            self._vision_no_store_cb.setChecked(self._settings.value("ui/vision_disable_response_storage", type=bool))
-        if self._settings.contains("ui/vision_model"):
-            saved = self._settings.value("ui/vision_model", type=str) or ""
-            if saved:
-                self._pending_vision_model = saved
-                self._vision_model_input.setText(saved)
-        if self._settings.contains("ui/audio_model"):
-            self._pending_audio_model = self._settings.value("ui/audio_model", type=str) or ""
-        self._refresh_model_labels()
-        if self._settings.contains("ui/llm_parallel_requests"):
-            self._llm_parallel_input.setValue(int(self._settings.value("ui/llm_parallel_requests")))
-        if self._settings.contains("ui/llm_request_stagger_seconds"):
-            self._llm_stagger_input.setValue(float(self._settings.value("ui/llm_request_stagger_seconds")))
-        if self._settings.contains("ui/paid_mode"):
-            self._paid_mode_cb.setChecked(self._settings.value("ui/paid_mode", type=bool))
-        if self._settings.contains("ui/extra_api_keys"):
-            self._extra_keys_input.setText(self._settings.value("ui/extra_api_keys", type=str) or "")
-        if self._settings.contains("ui/processing_batch_size"):
-            self._processing_batch_input.setValue(int(self._settings.value("ui/processing_batch_size")))
-        if self._settings.contains("ui/video_batch_size"):
-            self._video_batch_input.setValue(int(self._settings.value("ui/video_batch_size")))
-        self._restoring_settings = False
-        self._apply_codex_ui_state()
+    def _on_scan_models(self):
+        base_url = self._vision_url_input.text().strip()
+        api_key = self._vision_key_input.text().strip()
+        if not base_url:
+            QMessageBox.warning(self, "缺少 Base URL", "请先填入视觉 Provider 的 Base URL。")
+            return
+        if not api_key:
+            QMessageBox.warning(self, "缺少 API Key", "请先填入视觉 Provider 的 API Key。")
+            return
 
-    def _persist_to_settings(self):
-        self._settings.setValue("ui/api_key", self._api_key_input.text())
-        self._settings.setValue("ui/base_url", self._base_url_input.text())
-        self._settings.setValue("ui/codex_vision_enabled", self._codex_enabled_cb.isChecked())
-        self._settings.setValue("ui/codex_command", self._codex_command_input.text())
-        self._settings.setValue("ui/codex_model", self._codex_model_combo.currentText().strip())
-        self._settings.setValue("ui/codex_reasoning_effort", self._codex_reasoning_combo.currentText().strip())
-        self._settings.setValue("ui/codex_timeout_seconds", self._codex_timeout_input.value())
-        self._settings.setValue("ui/vision_model_before_codex", self._previous_non_codex_vision_model)
-        self._settings.setValue("ui/vision_api_enabled", self._vision_enabled_cb.isChecked())
-        self._settings.setValue("ui/vision_provider", self._vision_provider_input.text())
-        self._settings.setValue("ui/vision_api_key", self._vision_key_input.text())
-        self._settings.setValue("ui/vision_base_url", self._vision_url_input.text())
-        self._settings.setValue("ui/vision_wire_api", self._vision_wire_input.text())
-        self._settings.setValue("ui/vision_reasoning_effort", self._vision_reasoning_input.text())
-        self._settings.setValue("ui/vision_network_access", self._vision_network_cb.isChecked())
-        self._settings.setValue("ui/vision_disable_response_storage", self._vision_no_store_cb.isChecked())
-        self._settings.setValue("ui/vision_model", self._pending_vision_model)
-        self._settings.setValue("ui/audio_model", self._pending_audio_model)
-        self._settings.setValue("ui/llm_parallel_requests", self._llm_parallel_input.value())
-        self._settings.setValue("ui/llm_request_stagger_seconds", self._llm_stagger_input.value())
-        self._settings.setValue("ui/paid_mode", self._paid_mode_cb.isChecked())
-        self._settings.setValue("ui/extra_api_keys", self._extra_keys_input.text())
-        self._settings.setValue("ui/processing_batch_size", self._processing_batch_input.value())
-        self._settings.setValue("ui/video_batch_size", self._video_batch_input.value())
-        self._settings.sync()
+        self._scan_models_btn.setEnabled(False)
+        self._scan_models_btn.setText("扫描中...")
+        self.repaint()
+
+        try:
+            models = _scan_models_from_api(base_url, api_key)
+        finally:
+            self._scan_models_btn.setEnabled(True)
+            self._scan_models_btn.setText("扫描模型")
+
+        if not models:
+            QMessageBox.warning(self, "扫描失败",
+                                f"未能从 {base_url}/models 获取模型列表。\n"
+                                "请检查 Base URL 和 API Key 是否正确，或手动输入模型 ID。")
+            return
+
+        self._scanned_models = models
+        current = self._vision_model_combo.currentText().strip()
+        self._vision_model_combo.clear()
+        self._vision_model_combo.addItems(models)
+        if current and current in models:
+            self._vision_model_combo.setCurrentText(current)
+        elif models:
+            self._vision_model_combo.setCurrentIndex(0)
+        QMessageBox.information(self, "扫描完成",
+                                f"从视觉 Provider 获取到 {len(models)} 个模型。\n"
+                                "请从下拉菜单中选择模型。")
+
+    def _on_vision_model_text_changed(self, text: str):
+        self._pending_vision_model = text.strip()
 
     # ---- Codex 本机识图 ----
 
@@ -397,7 +441,7 @@ class SettingsDialog(QDialog):
 
     def _on_codex_enabled_changed(self, checked: bool):
         if not self._restoring_settings:
-            current = self._vision_model_input.text().strip() or self._pending_vision_model
+            current = self._vision_model_combo.currentText().strip() or self._pending_vision_model
             if checked and current and current != self._codex_model():
                 self._previous_non_codex_vision_model = current
         self._apply_codex_ui_state()
@@ -405,20 +449,16 @@ class SettingsDialog(QDialog):
     def _on_codex_model_changed(self, _text: str):
         if self._codex_enabled_cb.isChecked():
             self._pending_vision_model = self._codex_model()
-            self._vision_model_input.setText(self._pending_vision_model)
+            self._vision_model_combo.setCurrentText(self._pending_vision_model)
 
     def _apply_codex_ui_state(self):
         enabled = self._codex_enabled_cb.isChecked()
-        self._vision_model_input.setEnabled(not enabled)
+        self._vision_model_combo.setEnabled(not enabled)
         self._btn_pick_vision.setEnabled(not enabled)
+        self._model_queue_list.setEnabled(not enabled)
         if enabled:
             self._pending_vision_model = self._codex_model()
-            self._vision_model_input.setText(self._pending_vision_model)
-        else:
-            if self._previous_non_codex_vision_model and self._pending_vision_model == self._codex_model():
-                self._pending_vision_model = self._previous_non_codex_vision_model
-                self._vision_model_input.setText(self._pending_vision_model)
-        self._refresh_model_labels()
+            self._vision_model_combo.setCurrentText(self._pending_vision_model)
 
     def _codex_config_from_ui(self):
         from OCRLLM.config import CodexVisionConfig
@@ -457,6 +497,175 @@ class SettingsDialog(QDialog):
         else:
             QMessageBox.warning(self, "Codex 不可用", report.message)
 
+    # ---- 模型降级队列操作 ----
+
+    def _get_queue_items(self) -> list[str]:
+        """获取当前队列中的所有模型名（按显示顺序）。"""
+        items = []
+        for i in range(self._model_queue_list.count()):
+            items.append(self._model_queue_list.item(i).text())
+        return items
+
+    def _set_queue_items(self, items: list[str]):
+        """设置队列内容。"""
+        self._model_queue_list.clear()
+        for item in items:
+            self._model_queue_list.addItem(item)
+
+    def _on_queue_add_scanned(self):
+        """从扫描模型下拉框中选择模型添加到队列末尾。"""
+        current = self._vision_model_combo.currentText().strip()
+        if not current:
+            QMessageBox.warning(self, "未选择模型", "请先从主模型下拉框中选择或输入一个模型 ID。")
+            return
+        existing = set(self._get_queue_items())
+        if current in existing:
+            QMessageBox.information(self, "已存在", f"模型 \"{current}\" 已在队列中。")
+            return
+        self._model_queue_list.addItem(current)
+
+    def _on_queue_select_all(self):
+        """将扫描到的所有模型全部加入队列（按扫描顺序）。"""
+        if not self._scanned_models:
+            QMessageBox.warning(self, "无扫描结果", '请先点击「扫描模型」获取可用模型列表。')
+            return
+        existing = set(self._get_queue_items())
+        added = 0
+        for m in self._scanned_models:
+            if m not in existing:
+                self._model_queue_list.addItem(m)
+                existing.add(m)
+                added += 1
+        if added == 0:
+            QMessageBox.information(self, "提示", "所有扫描模型已在队列中。")
+        else:
+            QMessageBox.information(self, "已添加", f"已将 {added} 个模型加入降级队列。")
+
+    def _on_queue_remove(self):
+        """移除队列中选中的模型。"""
+        for item in self._model_queue_list.selectedItems():
+            self._model_queue_list.takeItem(self._model_queue_list.row(item))
+
+    def _on_queue_move_up(self):
+        """将选中模型上移一位。"""
+        row = self._model_queue_list.currentRow()
+        if row <= 0:
+            return
+        item = self._model_queue_list.takeItem(row)
+        self._model_queue_list.insertItem(row - 1, item)
+        self._model_queue_list.setCurrentRow(row - 1)
+
+    def _on_queue_move_down(self):
+        """将选中模型下移一位。"""
+        row = self._model_queue_list.currentRow()
+        if row < 0 or row >= self._model_queue_list.count() - 1:
+            return
+        item = self._model_queue_list.takeItem(row)
+        self._model_queue_list.insertItem(row + 1, item)
+        self._model_queue_list.setCurrentRow(row + 1)
+
+    # ---- QSettings 持久化 ----
+
+    def _restore_from_settings(self):
+        self._restoring_settings = True
+        if self._settings.contains("ui/api_key"):
+            self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
+        if self._settings.contains("ui/base_url"):
+            self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
+        # Codex 本机识图
+        if self._settings.contains("ui/codex_vision_enabled"):
+            self._codex_enabled_cb.setChecked(self._settings.value("ui/codex_vision_enabled", type=bool))
+        if self._settings.contains("ui/codex_command"):
+            self._codex_command_input.setText(self._settings.value("ui/codex_command", type=str) or "codex")
+        codex_model = CODEX_VISION_DEFAULT_MODEL
+        if self._settings.contains("ui/codex_model"):
+            codex_model = self._settings.value("ui/codex_model", type=str) or codex_model
+        self._codex_model_combo.setCurrentText(codex_model)
+        if self._settings.contains("ui/codex_reasoning_effort"):
+            self._codex_reasoning_combo.setCurrentText(self._settings.value("ui/codex_reasoning_effort", type=str) or CODEX_VISION_DEFAULT_REASONING)
+        if self._settings.contains("ui/codex_timeout_seconds"):
+            self._codex_timeout_input.setValue(int(self._settings.value("ui/codex_timeout_seconds")))
+        if self._settings.contains("ui/vision_model_before_codex"):
+            self._previous_non_codex_vision_model = self._settings.value("ui/vision_model_before_codex", type=str) or ""
+        # 视觉 Provider
+        if self._settings.contains("ui/vision_api_enabled"):
+            self._vision_enabled_cb.setChecked(self._settings.value("ui/vision_api_enabled", type=bool))
+        if self._settings.contains("ui/vision_provider"):
+            self._vision_provider_input.setText(self._settings.value("ui/vision_provider", type=str) or "")
+        if self._settings.contains("ui/vision_api_key"):
+            self._vision_key_input.setText(self._settings.value("ui/vision_api_key", type=str) or "")
+        if self._settings.contains("ui/vision_base_url"):
+            self._vision_url_input.setText(self._settings.value("ui/vision_base_url", type=str) or "")
+        if self._settings.contains("ui/vision_wire_api"):
+            self._vision_wire_input.setText(self._settings.value("ui/vision_wire_api", type=str) or "")
+        if self._settings.contains("ui/vision_reasoning_effort"):
+            self._vision_reasoning_input.setText(self._settings.value("ui/vision_reasoning_effort", type=str) or "")
+        if self._settings.contains("ui/vision_network_access"):
+            self._vision_network_cb.setChecked(self._settings.value("ui/vision_network_access", type=bool))
+        if self._settings.contains("ui/vision_disable_response_storage"):
+            self._vision_no_store_cb.setChecked(self._settings.value("ui/vision_disable_response_storage", type=bool))
+        if self._settings.contains("ui/vision_model"):
+            saved = self._settings.value("ui/vision_model", type=str) or ""
+            if saved:
+                self._pending_vision_model = saved
+                self._vision_model_combo.setCurrentText(saved)
+        if self._settings.contains("ui/audio_model"):
+            self._pending_audio_model = self._settings.value("ui/audio_model", type=str) or ""
+        self._refresh_model_labels()
+        if self._settings.contains("ui/llm_parallel_requests"):
+            self._llm_parallel_input.setValue(int(self._settings.value("ui/llm_parallel_requests")))
+        if self._settings.contains("ui/llm_request_stagger_seconds"):
+            self._llm_stagger_input.setValue(float(self._settings.value("ui/llm_request_stagger_seconds")))
+        if self._settings.contains("ui/paid_mode"):
+            self._paid_mode_cb.setChecked(self._settings.value("ui/paid_mode", type=bool))
+        if self._settings.contains("ui/extra_api_keys"):
+            self._extra_keys_input.setText(self._settings.value("ui/extra_api_keys", type=str) or "")
+        if self._settings.contains("ui/processing_batch_size"):
+            self._processing_batch_input.setValue(int(self._settings.value("ui/processing_batch_size")))
+        if self._settings.contains("ui/video_batch_size"):
+            self._video_batch_input.setValue(int(self._settings.value("ui/video_batch_size")))
+        # 模型降级队列
+        if self._settings.contains("ui/vision_model_queue"):
+            try:
+                queue = json.loads(self._settings.value("ui/vision_model_queue", type=str) or "[]")
+                self._set_queue_items(queue)
+            except (json.JSONDecodeError, TypeError):
+                self._set_queue_items([])
+        else:
+            self._set_queue_items(self._cfg.vision_api.vision_model_queue)
+        self._restoring_settings = False
+        self._apply_codex_ui_state()
+
+    def _persist_to_settings(self):
+        self._settings.setValue("ui/api_key", self._api_key_input.text())
+        self._settings.setValue("ui/base_url", self._base_url_input.text())
+        self._settings.setValue("ui/codex_vision_enabled", self._codex_enabled_cb.isChecked())
+        self._settings.setValue("ui/codex_command", self._codex_command_input.text())
+        self._settings.setValue("ui/codex_model", self._codex_model_combo.currentText().strip())
+        self._settings.setValue("ui/codex_reasoning_effort", self._codex_reasoning_combo.currentText().strip())
+        self._settings.setValue("ui/codex_timeout_seconds", self._codex_timeout_input.value())
+        self._settings.setValue("ui/vision_model_before_codex", self._previous_non_codex_vision_model)
+        self._settings.setValue("ui/vision_api_enabled", self._vision_enabled_cb.isChecked())
+        self._settings.setValue("ui/vision_provider", self._vision_provider_input.text())
+        self._settings.setValue("ui/vision_api_key", self._vision_key_input.text())
+        self._settings.setValue("ui/vision_base_url", self._vision_url_input.text())
+        self._settings.setValue("ui/vision_wire_api", self._vision_wire_input.text())
+        self._settings.setValue("ui/vision_reasoning_effort", self._vision_reasoning_input.text())
+        self._settings.setValue("ui/vision_network_access", self._vision_network_cb.isChecked())
+        self._settings.setValue("ui/vision_disable_response_storage", self._vision_no_store_cb.isChecked())
+        self._settings.setValue("ui/vision_model", self._pending_vision_model)
+        self._settings.setValue("ui/audio_model", self._pending_audio_model)
+        self._settings.setValue("ui/llm_parallel_requests", self._llm_parallel_input.value())
+        self._settings.setValue("ui/llm_request_stagger_seconds", self._llm_stagger_input.value())
+        self._settings.setValue("ui/paid_mode", self._paid_mode_cb.isChecked())
+        self._settings.setValue("ui/extra_api_keys", self._extra_keys_input.text())
+        self._settings.setValue("ui/processing_batch_size", self._processing_batch_input.value())
+        self._settings.setValue("ui/video_batch_size", self._video_batch_input.value())
+        # 模型降级队列
+        queue = self._get_queue_items()
+        self._settings.setValue("ui/vision_model_queue", json.dumps(queue, ensure_ascii=False))
+        self._settings.sync()
+
     # ---- 模型选择 ----
 
     def _open_vision_picker(self):
@@ -478,7 +687,7 @@ class SettingsDialog(QDialog):
                                 on_validate_custom=_validate_custom)
         if dlg.exec_() == ModelPickerDialog.Accepted:
             self._pending_vision_model = dlg.selected_model_name
-            self._vision_model_input.setText(dlg.selected_model_name)
+            self._vision_model_combo.setCurrentText(dlg.selected_model_name)
             self._refresh_model_labels()
 
     def _open_audio_picker(self):
@@ -514,11 +723,10 @@ class SettingsDialog(QDialog):
     # ---- 读取 / 应用 ----
 
     def _read_overrides(self) -> tuple[dict, dict]:
+        codex_enabled = self._codex_enabled_cb.isChecked()
         new_key = self._api_key_input.text().strip()
         new_url = self._base_url_input.text().strip()
-        codex_cfg = self._codex_config_from_ui()
-        codex_enabled = codex_cfg.enabled
-        vis_enabled = self._vision_enabled_cb.isChecked()
+        vis_enabled = self._vision_enabled_cb.isChecked() and not codex_enabled
         vis_provider = self._vision_provider_input.text().strip()
         vis_key = self._vision_key_input.text().strip()
         vis_url = self._vision_url_input.text().strip()
@@ -526,7 +734,7 @@ class SettingsDialog(QDialog):
         vis_reasoning = self._vision_reasoning_input.text().strip()
         vis_network = self._vision_network_cb.isChecked()
         vis_no_store = self._vision_no_store_cb.isChecked()
-        vision_model = codex_cfg.model if codex_enabled else self._pending_vision_model
+        vision_model = self._pending_vision_model
         audio_model = self._pending_audio_model
         new_parallel = self._llm_parallel_input.value()
         new_stagger = self._llm_stagger_input.value()
@@ -545,7 +753,7 @@ class SettingsDialog(QDialog):
         models_update: dict = {}
         if vision_model:
             models_update["vision_model"] = vision_model
-            if not vis_enabled and not codex_enabled:
+            if not vis_enabled:
                 models_update["text_model"] = vision_model
         if audio_model:
             models_update["asr_model"] = audio_model
@@ -563,10 +771,10 @@ class SettingsDialog(QDialog):
             },
             "codex_vision": {
                 "enabled": codex_enabled,
-                "command": codex_cfg.command,
-                "model": codex_cfg.model,
-                "reasoning_effort": codex_cfg.reasoning_effort,
-                "timeout_seconds": codex_cfg.timeout_seconds,
+                "command": self._codex_command_input.text().strip() or "codex",
+                "model": self._codex_model(),
+                "reasoning_effort": self._codex_reasoning_combo.currentText().strip() or CODEX_VISION_DEFAULT_REASONING,
+                "timeout_seconds": self._codex_timeout_input.value(),
             },
             "vision_api": {
                 "enabled": vis_enabled,
@@ -577,16 +785,17 @@ class SettingsDialog(QDialog):
                 "model_reasoning_effort": vis_reasoning,
                 "network_access": vis_network,
                 "disable_response_storage": vis_no_store,
+                "vision_model_queue": self._get_queue_items(),
             },
             "concurrency": {
-                "llm_parallel_requests": 2 if codex_enabled else new_parallel,
+                "llm_parallel_requests": new_parallel,
                 "llm_request_stagger_seconds": new_stagger,
             },
             "processing": {
-                "batch_size": 5 if codex_enabled else processing_batch,
+                "batch_size": processing_batch,
             },
             "video": {
-                "batch_size": 5 if codex_enabled else video_batch,
+                "batch_size": video_batch,
             },
         }
         if new_url:
@@ -597,12 +806,12 @@ class SettingsDialog(QDialog):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
-            "codex_enabled": codex_enabled,
-            "codex_model": codex_cfg.model,
-            "codex_reasoning_effort": codex_cfg.reasoning_effort,
             "vision_api_enabled": vis_enabled,
+            "vision_provider": vis_provider,
             "vision_api_key": vis_key,
+            "vision_base_url": vis_url,
             "vision_wire_api": vis_wire,
+            "auto_vision_model": False,
             "new_parallel": new_parallel, "new_stagger": new_stagger,
             "paid_mode": paid_mode, "api_keys": api_keys,
         }
@@ -611,14 +820,11 @@ class SettingsDialog(QDialog):
     def _on_apply(self):
         _updates, info = self._read_overrides()
 
-        if info["codex_enabled"] and not self._validate_codex_environment_if_needed():
-            return
-
-        if not info["new_key"] and not info["codex_enabled"]:
+        if not info["new_key"]:
             QMessageBox.warning(self, "提示", "API Key 不能为空")
             return
 
-        if info["vision_api_enabled"] and not info["codex_enabled"]:
+        if info["vision_api_enabled"]:
             if info["vision_wire_api"] not in {"chat", "responses"}:
                 QMessageBox.warning(self, "提示", "视觉 Wire API 只能是 chat 或 responses")
                 return

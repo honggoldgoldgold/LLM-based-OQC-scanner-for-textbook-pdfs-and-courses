@@ -49,6 +49,9 @@ class VisionAPIConfig:
 
     留空/禁用时，图片、PDF、视频帧识别沿用 api 段；启用后仅视觉请求切到这里，
     长音频 filetrans 仍使用 DashScope api 段。
+
+    vision_model_queue: 模型降级队列，当主模型（models.vision_model）额度耗尽时，
+    按队列顺序依次尝试下一个模型。仅用于 OpenAI 兼容视觉 Provider。
     """
     enabled: bool = False
     provider: str = ""
@@ -58,6 +61,7 @@ class VisionAPIConfig:
     model_reasoning_effort: str = ""
     network_access: bool = False
     disable_response_storage: bool = True
+    vision_model_queue: list[str] = field(default_factory=list)
 
 
 @dataclass

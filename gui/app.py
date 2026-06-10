@@ -30,12 +30,18 @@ from PyQt5.QtGui import QFont
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core import model_catalog
-from OCRLLM.core.codex_vision import (
-    CODEX_VISION_DEFAULT_MODEL,
-    CODEX_VISION_DEFAULT_REASONING,
-    CODEX_VISION_BATCH_SIZE,
-    CODEX_VISION_MAX_PARALLEL,
-)
+try:
+    from OCRLLM.core.codex_vision import (
+        CODEX_VISION_DEFAULT_MODEL,
+        CODEX_VISION_DEFAULT_REASONING,
+        CODEX_VISION_BATCH_SIZE,
+        CODEX_VISION_MAX_PARALLEL,
+    )
+except ImportError:
+    CODEX_VISION_DEFAULT_MODEL = "codex"
+    CODEX_VISION_DEFAULT_REASONING = ""
+    CODEX_VISION_BATCH_SIZE = 5
+    CODEX_VISION_MAX_PARALLEL = 2
 from OCRLLM.core.utils import ensure_dir, setup_logging
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.checkpoint import CheckpointManager
@@ -329,6 +335,12 @@ class QCRMainWindow(QMainWindow):
         def _str(key): return (s.value(key, type=str) or "").strip()
         def _bool(key): return s.value(key, type=bool) if s.contains(key) else False
         def _int(key): return int(s.value(key) or 0)
+        def _queue(key):
+            try:
+                import json
+                return json.loads(s.value(key, type=str) or "[]")
+            except Exception:
+                return []
 
         new_key = _str("ui/api_key")
         new_url = _str("ui/base_url")
@@ -396,6 +408,7 @@ class QCRMainWindow(QMainWindow):
                 "model_reasoning_effort": vis_reasoning,
                 "network_access": vis_network,
                 "disable_response_storage": vis_no_store,
+                "vision_model_queue": _queue("ui/vision_model_queue"),
             },
             "concurrency": {
                 "llm_parallel_requests": (
