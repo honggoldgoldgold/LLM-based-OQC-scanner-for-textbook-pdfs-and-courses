@@ -645,6 +645,10 @@ class AudioProcessor(BaseProcessor):
             if status == "FAILED":
                 code = data.get("output", {}).get("code", "")
                 msg = data.get("output", {}).get("message", "未知错误")
+                if code and "NO_VALID_FRAGMENT" in str(code):
+                    # 阿里云把无有效语音片段放在 FAILED 状态里，实际是软失败
+                    logger.warning("[ASR] 任务完成但无有效语音片段 (code=%s)，耗时 %.1fs", code, elapsed)
+                    return data
                 if code:
                     msg = f"{code}: {msg}"
                 logger.error("[ASR] 任务失败: %s", msg)
@@ -662,8 +666,14 @@ class AudioProcessor(BaseProcessor):
         raise TimeoutError(f"ASR 超时 ({max_wait}s)")
 
     def _result_to_md(self, result: dict, title: str) -> str:
-        task_status = result.get("output", {}).get("task_status", "")
-        if task_status == "SUCCESS_WITH_NO_VALID_FRAGMENT":
+        output = result.get("output", {})
+        task_status = output.get("task_status", "")
+        task_code = output.get("code", "")
+        no_fragment = (
+            task_status == "SUCCESS_WITH_NO_VALID_FRAGMENT"
+            or "NO_VALID_FRAGMENT" in str(task_code)
+        )
+        if no_fragment:
             logger.warning("[ASR] 任务完成但无有效语音片段，生成空结果")
             return f"# {title} 语音识别\n\n> 未检测到有效语音片段（音频可能为静音、纯噪音或格式不兼容）。\n"
         transcripts = self._extract_transcripts(result)
