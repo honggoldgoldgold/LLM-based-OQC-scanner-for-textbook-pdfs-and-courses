@@ -407,7 +407,7 @@ class AudioProcessor(BaseProcessor):
             "-ar",
             "16000",
             "-ab",
-            "32k",
+            "64k",
             "-acodec",
             "libmp3lame",
             "-y",
