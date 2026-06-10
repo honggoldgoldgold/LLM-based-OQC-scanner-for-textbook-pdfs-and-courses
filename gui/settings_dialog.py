@@ -209,6 +209,7 @@ class SettingsDialog(QDialog):
 
         vis_toggle_row = QHBoxLayout()
         self._vision_enabled_cb = QCheckBox("启用独立视觉 Provider")
+        self._vision_enabled_cb.toggled.connect(self._on_vision_enabled_changed)
         vis_toggle_row.addWidget(self._vision_enabled_cb)
         vis_toggle_row.addStretch()
         vis_layout.addLayout(vis_toggle_row)
@@ -441,9 +442,18 @@ class SettingsDialog(QDialog):
 
     def _on_codex_enabled_changed(self, checked: bool):
         if not self._restoring_settings:
+            if checked and self._vision_enabled_cb.isChecked():
+                self._vision_enabled_cb.setChecked(False)
             current = self._vision_model_combo.currentText().strip() or self._pending_vision_model
             if checked and current and current != self._codex_model():
                 self._previous_non_codex_vision_model = current
+        self._apply_codex_ui_state()
+
+    def _on_vision_enabled_changed(self, checked: bool):
+        """视觉独立 Provider 与 Codex 互斥：开启视觉 Provider 时关闭 Codex。"""
+        if not self._restoring_settings:
+            if checked and self._codex_enabled_cb.isChecked():
+                self._codex_enabled_cb.setChecked(False)
         self._apply_codex_ui_state()
 
     def _on_codex_model_changed(self, _text: str):
@@ -452,11 +462,33 @@ class SettingsDialog(QDialog):
             self._vision_model_combo.setCurrentText(self._pending_vision_model)
 
     def _apply_codex_ui_state(self):
-        enabled = self._codex_enabled_cb.isChecked()
-        self._vision_model_combo.setEnabled(not enabled)
-        self._btn_pick_vision.setEnabled(not enabled)
-        self._model_queue_list.setEnabled(not enabled)
-        if enabled:
+        codex = self._codex_enabled_cb.isChecked()
+        vision = self._vision_enabled_cb.isChecked()
+
+        # 互斥：Codex 开启时禁用视觉 Provider 组；视觉 Provider 开启时禁用 Codex 组
+        # 两个都不开启时全部可用
+        codex_disabled = vision and not codex
+        vision_disabled = codex and not vision
+
+        self._codex_model_combo.setEnabled(not codex_disabled)
+        self._codex_reasoning_combo.setEnabled(not codex_disabled)
+        self._codex_command_input.setEnabled(not codex_disabled)
+        self._codex_timeout_input.setEnabled(not codex_disabled)
+        self._codex_check_btn.setEnabled(not codex_disabled)
+
+        self._vision_provider_input.setEnabled(not vision_disabled)
+        self._vision_wire_input.setEnabled(not vision_disabled)
+        self._vision_key_input.setEnabled(not vision_disabled)
+        self._vision_url_input.setEnabled(not vision_disabled)
+        self._vision_reasoning_input.setEnabled(not vision_disabled)
+        self._vision_network_cb.setEnabled(not vision_disabled)
+        self._vision_no_store_cb.setEnabled(not vision_disabled)
+        self._scan_models_btn.setEnabled(not vision_disabled)
+
+        self._vision_model_combo.setEnabled(not codex)
+        self._btn_pick_vision.setEnabled(not codex)
+        self._model_queue_list.setEnabled(not codex)
+        if codex:
             self._pending_vision_model = self._codex_model()
             self._vision_model_combo.setCurrentText(self._pending_vision_model)
 
