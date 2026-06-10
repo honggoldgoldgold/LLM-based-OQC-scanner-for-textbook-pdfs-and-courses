@@ -565,7 +565,7 @@ class AudioProcessor(BaseProcessor):
         payload = {
             "model": self.cfg.models.asr_model,
             "input": {"file_url": file_url},
-            "parameters": {"channel_id": [0], "enable_itn": False, "enable_words": True},
+            "parameters": {"channel_id": [0, 1], "enable_itn": False, "enable_words": True},
         }
         corpus = self._build_corpus(hotwords)
         if corpus:
@@ -638,6 +638,10 @@ class AudioProcessor(BaseProcessor):
             if status == "SUCCEEDED":
                 logger.info("[ASR] 任务完成，耗时 %.1fs", elapsed)
                 return data
+            if status == "SUCCESS_WITH_NO_VALID_FRAGMENT":
+                # 任务完成但未检测到有效语音片段（静音/噪音/格式不兼容）
+                logger.warning("[ASR] 任务完成但无有效语音片段，耗时 %.1fs", elapsed)
+                return data
             if status == "FAILED":
                 code = data.get("output", {}).get("code", "")
                 msg = data.get("output", {}).get("message", "未知错误")
@@ -658,9 +662,13 @@ class AudioProcessor(BaseProcessor):
         raise TimeoutError(f"ASR 超时 ({max_wait}s)")
 
     def _result_to_md(self, result: dict, title: str) -> str:
+        task_status = result.get("output", {}).get("task_status", "")
+        if task_status == "SUCCESS_WITH_NO_VALID_FRAGMENT":
+            logger.warning("[ASR] 任务完成但无有效语音片段，生成空结果")
+            return f"# {title} 语音识别\n\n> 未检测到有效语音片段（音频可能为静音、纯噪音或格式不兼容）。\n"
         transcripts = self._extract_transcripts(result)
         if not transcripts:
-            logger.error("[ASR] 任务成功但无转写结果: %s, result=%s", 
+            logger.error("[ASR] 任务成功但无转写结果: %s, result=%s",
                         title, json.dumps(result, ensure_ascii=False)[:500])
             raise RuntimeError("ASR 任务成功，但未返回任何转写结果")
         logger.info("[ASR] 提取到 %d 条转写结果", len(transcripts))

@@ -737,7 +737,7 @@ class LLMClient:
                 json={
                     "model": model,
                     "input": {"file_urls": [audio_url]},
-                    "parameters": {"channel_id": [0]},
+                    "parameters": {"channel_id": [0, 1]},
                 },
                 timeout=30,
             )
