@@ -723,9 +723,12 @@ class LLMClient:
         api_key = self.cfg.api.api_key
         if not api_key:
             return False, "未配置 API Key"
+        from OCRLLM.processors.audio import _derive_asr_api_root
+        api_root = _derive_asr_api_root(self.cfg.api.base_url)
+        submit_url = f"{api_root}/api/v1/services/audio/asr/transcription"
         try:
             submit = requests.post(
-                "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription",
+                submit_url,
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -747,7 +750,7 @@ class LLMClient:
             return False, f"提交异常 {type(e).__name__}: {str(e)[:200]}"
 
         deadline = time.monotonic() + max_wait
-        url = f"https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
+        url = f"{api_root}/api/v1/tasks/{task_id}"
         while time.monotonic() < deadline:
             try:
                 resp = requests.get(url, headers={"Authorization": f"Bearer {api_key}"}, timeout=30)

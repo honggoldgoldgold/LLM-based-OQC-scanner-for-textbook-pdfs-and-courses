@@ -27,36 +27,58 @@ from OCRLLM import prompts
 
 logger = logging.getLogger(__name__)
 
-SUBMIT_URL = "https://dashscope.aliyuncs.com/api/v1/services/audio/asr/transcription"
-TASK_URL_TEMPLATE = "https://dashscope.aliyuncs.com/api/v1/tasks/{task_id}"
-FILES_URL = "https://dashscope.aliyuncs.com/api/v1/files"
-
 _DASHSCOPE_NATIVE_FORMATS = {".wav", ".mp3", ".m4a", ".flac", ".opus", ".aac", ".amr"}
 
-_TRUSTED_ASR_HOSTS = {
-    "dashscope.aliyuncs.com",
+_DASHSCOPE_RESULT_HOSTS = {
     "dashscope-result-bj.oss-cn-beijing.aliyuncs.com",
     "dashscope-file-mgr.oss-cn-beijing.aliyuncs.com",
 }
 
 
-def _normalize_trusted_url(url: str) -> str | None:
+def _derive_asr_api_root(base_url: str) -> str:
+    """从主 API Base URL 派生出 DashScope 原生 API 根路径。
+
+    base_url 可能是 https://dashscope.aliyuncs.com/compatible-mode/v1
+    → 提取 scheme + host，去掉 /compatible-mode 部分，得到
+    https://dashscope.aliyuncs.com
+    """
+    from urllib.parse import urlparse, urlunparse
+    parsed = urlparse(base_url)
+    path = parsed.path.rstrip("/")
+    # 去掉 /compatible-mode/v1 （或 /compatible-mode）后缀
+    if "/compatible-mode" in path:
+        path = path.split("/compatible-mode")[0]
+    return urlunparse((parsed.scheme, parsed.netloc, path, "", "", ""))
+
+
+def _get_trusted_hosts(base_url: str) -> set[str]:
+    """返回可信的主机名集合（包含配置的 API 主机 + OSS 结果存储主机）。"""
+    from urllib.parse import urlparse
+    host = urlparse(base_url).hostname
+    hosts = set(_DASHSCOPE_RESULT_HOSTS)
+    if host:
+        hosts.add(host)
+    return hosts
+
+
+def _is_trusted_url(url: str, trusted_hosts: set[str]) -> bool:
+    """仅允许白名单 host，下载链接可由 HTTP 自动升级为 HTTPS。"""
+    from urllib.parse import urlparse
+    parsed = urlparse(url)
+    return parsed.hostname in trusted_hosts and parsed.scheme in {"https", "http"}
+
+
+def _normalize_trusted_url(url: str, trusted_hosts: set[str]) -> str | None:
     """校验并标准化可访问 URL。结果下载 URL 允许 HTTP，统一升级为 HTTPS。"""
     from urllib.parse import urlparse, urlunparse
-
     parsed = urlparse(url)
-    if parsed.hostname not in _TRUSTED_ASR_HOSTS:
+    if parsed.hostname not in trusted_hosts:
         return None
     if parsed.scheme not in {"https", "http"}:
         return None
     if parsed.scheme == "http":
         parsed = parsed._replace(scheme="https")
     return urlunparse(parsed)
-
-
-def _is_trusted_url(url: str) -> bool:
-    """仅允许白名单 host，下载链接可由 HTTP 自动升级为 HTTPS。"""
-    return _normalize_trusted_url(url) is not None
 
 
 def _retry_on_ssl(fn, max_retries=3, base_delay=5, sleep_fn=None):
@@ -110,6 +132,29 @@ class AudioProcessor(BaseProcessor):
 
     processor_key = "audio"
     display_name = "语音识别"
+
+    # ---- URL 构建（从主 API base_url 派生） ----
+
+    @property
+    def _asr_api_root(self) -> str:
+        """DashScope 原生 API 根路径（从主 API base_url 派生）。"""
+        return _derive_asr_api_root(self.cfg.api.base_url)
+
+    @property
+    def _submit_url(self) -> str:
+        return f"{self._asr_api_root}/api/v1/services/audio/asr/transcription"
+
+    @property
+    def _task_url_template(self) -> str:
+        return f"{self._asr_api_root}/api/v1/tasks/{{task_id}}"
+
+    @property
+    def _files_url(self) -> str:
+        return f"{self._asr_api_root}/api/v1/files"
+
+    @property
+    def _trusted_hosts(self) -> set[str]:
+        return _get_trusted_hosts(self._asr_api_root)
     supported_extensions = (".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg", ".opus", ".wma")
     source_type = SourceType.AUDIO
 
@@ -489,7 +534,7 @@ class AudioProcessor(BaseProcessor):
             session = self._get_http_session()
             with open(file_path, "rb") as f:
                 response = session.post(
-                    FILES_URL,
+                    self._files_url,
                     headers=headers,
                     files={"files": (Path(file_path).name, f, content_type)},
                     data={"purpose": "file-extract"},
@@ -505,7 +550,7 @@ class AudioProcessor(BaseProcessor):
             raise RuntimeError(f"上传失败: {json.dumps(data, ensure_ascii=False)[:500]}")
 
         def _info():
-            response = self._get_http_session().get(f"{FILES_URL}/{file_id}", headers=headers, timeout=30)
+            response = self._get_http_session().get(f"{self._files_url}/{file_id}", headers=headers, timeout=30)
             response.raise_for_status()
             return response.json()
 
@@ -528,7 +573,7 @@ class AudioProcessor(BaseProcessor):
 
         response = _retry_on_ssl(
             lambda: self._get_http_session().post(
-                SUBMIT_URL,
+                self._submit_url,
                 headers=self._submit_headers(),
                 json=payload,
                 timeout=30,
@@ -545,7 +590,7 @@ class AudioProcessor(BaseProcessor):
         return task_id
 
     def _wait_result(self, task_id: str, poll_interval: float, max_wait: float) -> dict:
-        url = TASK_URL_TEMPLATE.format(task_id=task_id)
+        url = self._task_url_template.format(task_id=task_id)
         headers = self._poll_headers()
         start = time.time()
         consecutive_errors = 0
@@ -675,7 +720,7 @@ class AudioProcessor(BaseProcessor):
                     transcript_urls.append(value)
 
             for transcription_url in transcript_urls:
-                normalized_url = _normalize_trusted_url(transcription_url)
+                normalized_url = _normalize_trusted_url(transcription_url, self._trusted_hosts)
                 if not normalized_url:
                     logger.warning("[ASR] 拒绝不受信任的 transcription_url: %s", transcription_url)
                     continue
