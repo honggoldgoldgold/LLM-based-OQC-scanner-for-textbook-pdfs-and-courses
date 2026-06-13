@@ -1,5 +1,7 @@
 import unittest
 
+import httpx
+
 from OCRLLM.core.providers.google_provider import (
     ClassifiedGoogleError,
     GoogleErrorKind,
@@ -42,6 +44,15 @@ class GoogleProviderErrorTests(unittest.TestCase):
 
     def test_network_error_retries_same_model(self):
         classified = classify_google_error(TimeoutError("timed out while connecting"))
+
+        self.assertEqual(classified.kind, GoogleErrorKind.NETWORK)
+        self.assertFalse(classified.should_switch_model)
+        self.assertTrue(classified.should_retry_same_model)
+
+    def test_remote_protocol_disconnect_is_retryable_network_error(self):
+        classified = classify_google_error(httpx.RemoteProtocolError(
+            "Server disconnected without sending a response."
+        ))
 
         self.assertEqual(classified.kind, GoogleErrorKind.NETWORK)
         self.assertFalse(classified.should_switch_model)

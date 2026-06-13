@@ -33,6 +33,7 @@
 - 实验、预览、快照模型通常更容易有严格限流。OCRLLM 将它们放在图片识别优先队列前段，是为了优先消耗免费/不稳定模型；但限流错误仍按同模型重试处理，不直接误判为额度耗尽。
 - `RESOURCE_EXHAUSTED` 既可能是 quota，也可能是 rate limit。OCRLLM 分类时先看是否包含 rate limit/RPM/TPM/RPD 等字样；否则才进入“切换下一个免费候选模型”。
 - 分钟级 `RATE_LIMIT` 不能按普通网络错误快速重试。OCRLLM 会优先读取 Google `RetryInfo.retryDelay`；没有服务端建议时，rate limit 第一次重试至少等待 65 秒，避免一分钟窗口未刷新就失败。
+- `httpx.RemoteProtocolError: Server disconnected without sending a response` 属于长音频/大文件请求常见网络断连，应按网络错误重试同一模型，而不是当作未知错误直接失败。
 - 有些异常会以 JSON 文本形式出现在返回内容里。OCRLLM 会把形如 `{"error": ...}` 的模型文本视为假成功，并重新进入错误分类。
 - 长音频转写不是单独 ASR API，而是 Gemini 多模态模型加 Files API 和提示词。当前 Google 模式不做短音频盲切回退。
 
