@@ -75,6 +75,36 @@ class CodexVisionConfig:
 
 
 @dataclass
+class GoogleAPIConfig:
+    """Google AI Studio / Gemini SDK 模式配置。
+
+    该模式独立于 DashScope / OpenAI-compatible 视觉 Provider。启用后，
+    PDF/图片/视频帧和音频识别优先走 Google SDK；DashScope 主 API 保留但不参与
+    本次管线。并发和批大小独立配置，避免 Google 多模态能力被 Qwen 默认上限限制。
+    """
+    enabled: bool = False
+    api_key: str = field(
+        default_factory=lambda: os.environ.get(
+            "GOOGLE_API_KEY",
+            os.environ.get("GEMINI_API_KEY", ""),
+        )
+    )
+    text_model: str = "gemini-3.5-flash"
+    vision_model: str = "gemini-2.5-flash-image-preview"
+    audio_model: str = "gemini-3.5-flash"
+    vision_model_queue: list[str] = field(default_factory=list)
+    audio_model_queue: list[str] = field(default_factory=list)
+    api_keys: list[str] = field(default_factory=list)
+    parallel_requests: int = 16
+    request_stagger_seconds: float = 1.0
+    vision_batch_size: int = 20
+    video_frame_batch_size: int = 20
+    network_check_timeout_seconds: float = 8.0
+    model_fetch_timeout_seconds: float = 20.0
+    allow_force_continue_after_network_warning: bool = False
+
+
+@dataclass
 class ModelConfig:
     """模型名称配置。
 
@@ -193,6 +223,7 @@ class AppConfig:
     api: APIConfig = field(default_factory=APIConfig)
     vision_api: VisionAPIConfig = field(default_factory=VisionAPIConfig)
     codex_vision: CodexVisionConfig = field(default_factory=CodexVisionConfig)
+    google_api: GoogleAPIConfig = field(default_factory=GoogleAPIConfig)
     models: ModelConfig = field(default_factory=ModelConfig)
     processing: ProcessingConfig = field(default_factory=ProcessingConfig)
     concurrency: ConcurrencyConfig = field(default_factory=ConcurrencyConfig)
@@ -253,6 +284,21 @@ class AppConfig:
         codex_reasoning = os.environ.get("OCRLLM_CODEX_REASONING_EFFORT")
         if codex_reasoning:
             updates.setdefault("codex_vision", {})["reasoning_effort"] = codex_reasoning
+        google_enabled = _env_bool("OCRLLM_GOOGLE_MODE_ENABLED")
+        if google_enabled is not None:
+            updates.setdefault("google_api", {})["enabled"] = google_enabled
+        google_key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        if google_key:
+            updates.setdefault("google_api", {})["api_key"] = google_key
+        google_vision = os.environ.get("OCRLLM_GOOGLE_VISION_MODEL")
+        if google_vision:
+            updates.setdefault("google_api", {})["vision_model"] = google_vision
+        google_audio = os.environ.get("OCRLLM_GOOGLE_AUDIO_MODEL")
+        if google_audio:
+            updates.setdefault("google_api", {})["audio_model"] = google_audio
+        google_text = os.environ.get("OCRLLM_GOOGLE_TEXT_MODEL")
+        if google_text:
+            updates.setdefault("google_api", {})["text_model"] = google_text
         if updates.get("codex_vision", {}).get("enabled"):
             codex_model_value = updates["codex_vision"].get("model", cfg.codex_vision.model)
             updates.setdefault("models", {})["vision_model"] = codex_model_value
@@ -278,6 +324,7 @@ _SECTION_NAMES = {
     "api",
     "vision_api",
     "codex_vision",
+    "google_api",
     "models",
     "processing",
     "concurrency",

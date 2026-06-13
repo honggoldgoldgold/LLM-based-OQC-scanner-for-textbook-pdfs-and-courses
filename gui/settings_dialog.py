@@ -100,6 +100,8 @@ class SettingsDialog(QDialog):
 
         self._pending_vision_model: str = cfg.models.vision_model
         self._pending_audio_model: str = cfg.models.asr_model
+        self._pending_google_vision_model: str = cfg.google_api.vision_model
+        self._pending_google_audio_model: str = cfg.google_api.audio_model
         self._scanned_models: list[str] = []
         self._previous_non_codex_vision_model: str = ""
 
@@ -117,8 +119,9 @@ class SettingsDialog(QDialog):
 
     def _init_ui(self):
         self.setWindowTitle("API / 模型设置")
-        self.setMinimumSize(700, 560)
-        self.resize(760, 620)
+        self.setMinimumSize(840, 640)
+        self.resize(920, 760)
+        self.setSizeGripEnabled(True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
@@ -132,6 +135,7 @@ class SettingsDialog(QDialog):
 
         # ---- DashScope ----
         dash_group = QGroupBox("DashScope 主 API")
+        self._dash_group = dash_group
         dash_layout = QVBoxLayout(dash_group)
 
         row1 = QHBoxLayout()
@@ -160,6 +164,83 @@ class SettingsDialog(QDialog):
         dash_layout.addLayout(row2)
 
         body_layout.addWidget(dash_group)
+
+        # ---- Google Gemini ----
+        google_group = QGroupBox("谷歌模式（Google AI Studio / Gemini SDK）")
+        self._google_group = google_group
+        google_layout = QVBoxLayout(google_group)
+
+        google_toggle_row = QHBoxLayout()
+        self._google_enabled_cb = QCheckBox("启用谷歌模式（视觉/视频帧/长音频走 Gemini SDK，千问主链路停用）")
+        self._google_enabled_cb.toggled.connect(self._on_google_enabled_changed)
+        google_toggle_row.addWidget(self._google_enabled_cb)
+        google_toggle_row.addStretch()
+        self._refresh_google_models_btn = QPushButton("测试网络并拉取模型")
+        self._refresh_google_models_btn.setToolTip("先访问 google.com，再用 Google Models API 实时拉取当前账号可用模型")
+        self._refresh_google_models_btn.clicked.connect(lambda: self._refresh_google_models(force=True, notify=True))
+        google_toggle_row.addWidget(self._refresh_google_models_btn)
+        google_layout.addLayout(google_toggle_row)
+
+        google_key_row = QHBoxLayout()
+        google_key_row.addWidget(QLabel("Google API Key:"))
+        self._google_key_input = QLineEdit()
+        self._google_key_input.setEchoMode(QLineEdit.Password)
+        self._google_key_input.setPlaceholderText("Google AI Studio / Gemini API Key")
+        google_key_row.addWidget(self._google_key_input, stretch=1)
+        self._google_key_toggle = QPushButton("显示")
+        self._google_key_toggle.setFixedWidth(50)
+        self._google_key_toggle.setCheckable(True)
+        self._google_key_toggle.toggled.connect(
+            lambda c: self._google_key_input.setEchoMode(QLineEdit.Normal if c else QLineEdit.Password))
+        google_key_row.addWidget(self._google_key_toggle)
+        google_layout.addLayout(google_key_row)
+
+        google_model_row = QHBoxLayout()
+        google_model_row.addWidget(QLabel("图片/视频帧模型:"))
+        self._google_vision_model_combo = QComboBox()
+        self._google_vision_model_combo.setEditable(True)
+        self._google_vision_model_combo.currentTextChanged.connect(
+            lambda text: setattr(self, "_pending_google_vision_model", text.strip()))
+        google_model_row.addWidget(self._google_vision_model_combo, stretch=1)
+        google_model_row.addWidget(QLabel("长音频模型:"))
+        self._google_audio_model_combo = QComboBox()
+        self._google_audio_model_combo.setEditable(True)
+        self._google_audio_model_combo.currentTextChanged.connect(
+            lambda text: setattr(self, "_pending_google_audio_model", text.strip()))
+        google_model_row.addWidget(self._google_audio_model_combo, stretch=1)
+        google_layout.addLayout(google_model_row)
+
+        google_perf_row = QHBoxLayout()
+        google_perf_row.addWidget(QLabel("Google 并行线程:"))
+        self._google_parallel_input = QSpinBox()
+        self._google_parallel_input.setRange(1, 256)
+        self._google_parallel_input.setToolTip("Google 模式独立并发；实际上限仍受 Google 项目级限流影响")
+        google_perf_row.addWidget(self._google_parallel_input)
+        google_perf_row.addWidget(QLabel("Google 错峰间隔(秒):"))
+        self._google_stagger_input = QDoubleSpinBox()
+        self._google_stagger_input.setRange(0.0, 3600.0)
+        self._google_stagger_input.setDecimals(1)
+        self._google_stagger_input.setSingleStep(0.5)
+        google_perf_row.addWidget(self._google_stagger_input)
+        google_perf_row.addWidget(QLabel("图片批大小:"))
+        self._google_vision_batch_input = QSpinBox()
+        self._google_vision_batch_input.setRange(1, 200)
+        google_perf_row.addWidget(self._google_vision_batch_input)
+        google_perf_row.addWidget(QLabel("视频帧批大小:"))
+        self._google_video_batch_input = QSpinBox()
+        self._google_video_batch_input.setRange(1, 200)
+        google_perf_row.addWidget(self._google_video_batch_input)
+        google_layout.addLayout(google_perf_row)
+
+        google_hint = QLabel(
+            "说明：Google 模式使用官方 google-genai SDK 和 Files API；短音频盲切回退暂不开放。"
+            "OpenAI-compatible 视觉 Provider 配置会保留，但 Google 模式运行时不走千问主链路。"
+        )
+        google_hint.setWordWrap(True)
+        google_layout.addWidget(google_hint)
+
+        self._populate_google_model_combos()
+        body_layout.addWidget(google_group)
 
         # ---- 本机 Codex 识图 ----
         codex_group = QGroupBox("本机 Codex 识图（ask 模式）")
@@ -436,6 +517,94 @@ class SettingsDialog(QDialog):
                                 f"从视觉 Provider 获取到 {len(models)} 个模型。\n"
                                 "请从下拉菜单中选择模型。")
 
+    def _populate_google_model_combos(self):
+        vision_models = [m.name for m in model_catalog.load_google_vision_models()]
+        audio_models = [m.name for m in model_catalog.load_google_audio_models()]
+        if not vision_models:
+            vision_models = [self._cfg.google_api.vision_model, "gemini-3.5-flash", "gemini-3.1-pro"]
+        if not audio_models:
+            audio_models = [self._cfg.google_api.audio_model, "gemini-3.5-flash", "gemini-3.1-pro"]
+
+        current_v = self._pending_google_vision_model or self._cfg.google_api.vision_model
+        current_a = self._pending_google_audio_model or self._cfg.google_api.audio_model
+        self._google_vision_model_combo.blockSignals(True)
+        self._google_audio_model_combo.blockSignals(True)
+        try:
+            self._google_vision_model_combo.clear()
+            self._google_audio_model_combo.clear()
+            self._google_vision_model_combo.addItems(list(dict.fromkeys(m for m in vision_models if m)))
+            self._google_audio_model_combo.addItems(list(dict.fromkeys(m for m in audio_models if m)))
+            self._google_vision_model_combo.setCurrentText(current_v)
+            self._google_audio_model_combo.setCurrentText(current_a)
+        finally:
+            self._google_vision_model_combo.blockSignals(False)
+            self._google_audio_model_combo.blockSignals(False)
+        self._pending_google_vision_model = self._google_vision_model_combo.currentText().strip()
+        self._pending_google_audio_model = self._google_audio_model_combo.currentText().strip()
+
+    def _test_google_reachable(self, timeout: float) -> None:
+        req = urllib.request.Request("https://www.google.com/generate_204", headers={"User-Agent": "OCRLLM"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            if resp.status >= 500:
+                raise RuntimeError(f"google.com 返回 HTTP {resp.status}")
+
+    def _refresh_google_models(self, *, force: bool = False, notify: bool = False) -> bool:
+        api_key = self._google_key_input.text().strip()
+        if not api_key:
+            if notify:
+                QMessageBox.warning(self, "缺少 Google API Key", "请先填入 Google AI Studio API Key。")
+            return False
+        if not force and not model_catalog.google_model_cache_is_stale():
+            self._populate_google_model_combos()
+            return True
+
+        self._refresh_google_models_btn.setEnabled(False)
+        self._refresh_google_models_btn.setText("测试中...")
+        self.repaint()
+        try:
+            timeout = float(self._cfg.google_api.network_check_timeout_seconds)
+            self._test_google_reachable(timeout)
+            summary = model_catalog.refresh_google_models(
+                api_key,
+                timeout=float(self._cfg.google_api.model_fetch_timeout_seconds),
+            )
+            self._populate_google_model_combos()
+        except Exception as exc:
+            logger.warning("Google 模型刷新失败: %s", exc)
+            if notify:
+                QMessageBox.warning(
+                    self,
+                    "Google 网络或模型拉取失败",
+                    f"未能完成 google.com 连通性测试或实时模型拉取：\n{exc}",
+                )
+            return False
+        finally:
+            self._refresh_google_models_btn.setEnabled(True)
+            self._refresh_google_models_btn.setText("测试网络并拉取模型")
+
+        if notify:
+            QMessageBox.information(
+                self,
+                "Google 模型刷新完成",
+                f"获取到 {summary.raw_count} 个模型；已识别视觉 {len(summary.vision)} 个、长音频 {len(summary.audio)} 个。",
+            )
+        return True
+
+    def _validate_google_environment_if_needed(self, *, force: bool = False) -> bool:
+        if not self._google_enabled_cb.isChecked() and not force:
+            return True
+        if self._refresh_google_models(force=force, notify=False):
+            return True
+        answer = QMessageBox.question(
+            self,
+            "Google 网络测试失败",
+            "当前网络环境未能访问 google.com 或未能实时拉取 Gemini 模型。\n\n"
+            "建议先配置网络环境，然后重新测试。是否仍然强行继续保存谷歌模式？",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No,
+        )
+        return answer == QMessageBox.Yes
+
     def _refresh_bailian_models(self, *, force: bool = False, notify: bool = False) -> bool:
         api_key = self._api_key_input.text().strip()
         base_url = self._base_url_input.text().strip() or self._cfg.api.base_url
@@ -484,6 +653,8 @@ class SettingsDialog(QDialog):
         if not self._restoring_settings:
             if checked and self._vision_enabled_cb.isChecked():
                 self._vision_enabled_cb.setChecked(False)
+            if checked and self._google_enabled_cb.isChecked():
+                self._google_enabled_cb.setChecked(False)
             current = self._vision_model_combo.currentText().strip() or self._pending_vision_model
             if checked and current and current != self._codex_model():
                 self._previous_non_codex_vision_model = current
@@ -496,6 +667,12 @@ class SettingsDialog(QDialog):
                 self._codex_enabled_cb.setChecked(False)
         self._apply_codex_ui_state()
 
+    def _on_google_enabled_changed(self, checked: bool):
+        """Google 模式与 Codex/Qwen 主链路互斥，但保留 OpenAI-compatible Provider 配置。"""
+        if not self._restoring_settings and checked and self._codex_enabled_cb.isChecked():
+            self._codex_enabled_cb.setChecked(False)
+        self._apply_codex_ui_state()
+
     def _on_codex_model_changed(self, _text: str):
         if self._codex_enabled_cb.isChecked():
             self._pending_vision_model = self._codex_model()
@@ -504,10 +681,11 @@ class SettingsDialog(QDialog):
     def _apply_codex_ui_state(self):
         codex = self._codex_enabled_cb.isChecked()
         vision = self._vision_enabled_cb.isChecked()
+        google = self._google_enabled_cb.isChecked()
 
         # 互斥：Codex 开启时禁用视觉 Provider 组；视觉 Provider 开启时禁用 Codex 组
         # 两个都不开启时全部可用
-        codex_disabled = vision and not codex
+        codex_disabled = (vision or google) and not codex
         vision_disabled = codex and not vision
 
         self._codex_model_combo.setEnabled(not codex_disabled)
@@ -515,6 +693,11 @@ class SettingsDialog(QDialog):
         self._codex_command_input.setEnabled(not codex_disabled)
         self._codex_timeout_input.setEnabled(not codex_disabled)
         self._codex_check_btn.setEnabled(not codex_disabled)
+
+        self._api_key_input.setEnabled(not google)
+        self._api_key_toggle.setEnabled(not google)
+        self._base_url_input.setEnabled(not google)
+        self._refresh_dashscope_models_btn.setEnabled(not google)
 
         self._vision_provider_input.setEnabled(not vision_disabled)
         self._vision_wire_input.setEnabled(not vision_disabled)
@@ -644,6 +827,36 @@ class SettingsDialog(QDialog):
             self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
         if self._settings.contains("ui/base_url"):
             self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
+        # Google Gemini
+        if self._settings.contains("ui/google_api_enabled"):
+            self._google_enabled_cb.setChecked(self._settings.value("ui/google_api_enabled", type=bool))
+        else:
+            self._google_enabled_cb.setChecked(self._cfg.google_api.enabled)
+        if self._settings.contains("ui/google_api_key"):
+            self._google_key_input.setText(self._settings.value("ui/google_api_key", type=str) or "")
+        else:
+            self._google_key_input.setText(self._cfg.google_api.api_key)
+        if self._settings.contains("ui/google_vision_model"):
+            self._pending_google_vision_model = self._settings.value("ui/google_vision_model", type=str) or self._pending_google_vision_model
+        if self._settings.contains("ui/google_audio_model"):
+            self._pending_google_audio_model = self._settings.value("ui/google_audio_model", type=str) or self._pending_google_audio_model
+        self._populate_google_model_combos()
+        if self._settings.contains("ui/google_parallel_requests"):
+            self._google_parallel_input.setValue(int(self._settings.value("ui/google_parallel_requests")))
+        else:
+            self._google_parallel_input.setValue(self._cfg.google_api.parallel_requests)
+        if self._settings.contains("ui/google_request_stagger_seconds"):
+            self._google_stagger_input.setValue(float(self._settings.value("ui/google_request_stagger_seconds")))
+        else:
+            self._google_stagger_input.setValue(self._cfg.google_api.request_stagger_seconds)
+        if self._settings.contains("ui/google_vision_batch_size"):
+            self._google_vision_batch_input.setValue(int(self._settings.value("ui/google_vision_batch_size")))
+        else:
+            self._google_vision_batch_input.setValue(self._cfg.google_api.vision_batch_size)
+        if self._settings.contains("ui/google_video_frame_batch_size"):
+            self._google_video_batch_input.setValue(int(self._settings.value("ui/google_video_frame_batch_size")))
+        else:
+            self._google_video_batch_input.setValue(self._cfg.google_api.video_frame_batch_size)
         # Codex 本机识图
         if self._settings.contains("ui/codex_vision_enabled"):
             self._codex_enabled_cb.setChecked(self._settings.value("ui/codex_vision_enabled", type=bool))
@@ -707,11 +920,20 @@ class SettingsDialog(QDialog):
             self._set_queue_items(self._cfg.vision_api.vision_model_queue)
         self._restoring_settings = False
         self._apply_codex_ui_state()
-        self._refresh_bailian_models(force=False, notify=False)
+        if not self._google_enabled_cb.isChecked():
+            self._refresh_bailian_models(force=False, notify=False)
 
     def _persist_to_settings(self):
         self._settings.setValue("ui/api_key", self._api_key_input.text())
         self._settings.setValue("ui/base_url", self._base_url_input.text())
+        self._settings.setValue("ui/google_api_enabled", self._google_enabled_cb.isChecked())
+        self._settings.setValue("ui/google_api_key", self._google_key_input.text())
+        self._settings.setValue("ui/google_vision_model", self._pending_google_vision_model)
+        self._settings.setValue("ui/google_audio_model", self._pending_google_audio_model)
+        self._settings.setValue("ui/google_parallel_requests", self._google_parallel_input.value())
+        self._settings.setValue("ui/google_request_stagger_seconds", self._google_stagger_input.value())
+        self._settings.setValue("ui/google_vision_batch_size", self._google_vision_batch_input.value())
+        self._settings.setValue("ui/google_video_frame_batch_size", self._google_video_batch_input.value())
         self._settings.setValue("ui/codex_vision_enabled", self._codex_enabled_cb.isChecked())
         self._settings.setValue("ui/codex_command", self._codex_command_input.text())
         self._settings.setValue("ui/codex_model", self._codex_model_combo.currentText().strip())
@@ -797,6 +1019,7 @@ class SettingsDialog(QDialog):
 
     def _read_overrides(self) -> tuple[dict, dict]:
         codex_enabled = self._codex_enabled_cb.isChecked()
+        google_enabled = self._google_enabled_cb.isChecked()
         new_key = self._api_key_input.text().strip()
         new_url = self._base_url_input.text().strip()
         vis_enabled = self._vision_enabled_cb.isChecked() and not codex_enabled
@@ -815,6 +1038,9 @@ class SettingsDialog(QDialog):
         video_batch = self._video_batch_input.value()
         paid_mode = self._paid_mode_cb.isChecked()
         extra_keys_text = self._extra_keys_input.text().strip()
+        google_key = self._google_key_input.text().strip()
+        google_vision_model = self._google_vision_model_combo.currentText().strip() or self._pending_google_vision_model
+        google_audio_model = self._google_audio_model_combo.currentText().strip() or self._pending_google_audio_model
 
         api_keys = [new_key] if new_key else []
         if extra_keys_text:
@@ -841,6 +1067,18 @@ class SettingsDialog(QDialog):
                 "api_key": new_key,
                 "paid_mode": paid_mode,
                 "api_keys": api_keys if paid_mode else [],
+            },
+            "google_api": {
+                "enabled": google_enabled,
+                "api_key": google_key,
+                "vision_model": google_vision_model,
+                "audio_model": google_audio_model,
+                "text_model": google_vision_model or self._cfg.google_api.text_model,
+                "parallel_requests": self._google_parallel_input.value(),
+                "request_stagger_seconds": self._google_stagger_input.value(),
+                "vision_batch_size": self._google_vision_batch_input.value(),
+                "video_frame_batch_size": self._google_video_batch_input.value(),
+                "api_keys": [google_key] if google_key else [],
             },
             "codex_vision": {
                 "enabled": codex_enabled,
@@ -879,6 +1117,10 @@ class SettingsDialog(QDialog):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
+            "google_api_enabled": google_enabled,
+            "google_api_key": google_key,
+            "google_vision_model": google_vision_model,
+            "google_audio_model": google_audio_model,
             "vision_api_enabled": vis_enabled,
             "vision_provider": vis_provider,
             "vision_api_key": vis_key,
@@ -893,11 +1135,20 @@ class SettingsDialog(QDialog):
     def _on_apply(self):
         _updates, info = self._read_overrides()
 
-        if not info["new_key"]:
+        if info["google_api_enabled"]:
+            if not info["google_api_key"]:
+                QMessageBox.warning(self, "提示", "启用谷歌模式时，Google API Key 不能为空")
+                return
+            if not self._validate_google_environment_if_needed(force=True):
+                return
+        elif self._codex_enabled_cb.isChecked():
+            if not self._validate_codex_environment_if_needed(force=True):
+                return
+        elif not info["new_key"] and not info["vision_api_enabled"]:
             QMessageBox.warning(self, "提示", "API Key 不能为空")
             return
 
-        if info["vision_api_enabled"]:
+        if info["vision_api_enabled"] and not info["google_api_enabled"]:
             if info["vision_wire_api"] not in {"chat", "responses"}:
                 QMessageBox.warning(self, "提示", "视觉 Wire API 只能是 chat 或 responses")
                 return
@@ -905,6 +1156,7 @@ class SettingsDialog(QDialog):
                 QMessageBox.warning(self, "提示", "启用视觉独立 Provider 时，视觉 API Key 和 Base URL 不能为空")
                 return
 
-        self._refresh_bailian_models(force=False, notify=False)
+        if not info["google_api_enabled"]:
+            self._refresh_bailian_models(force=False, notify=False)
         self._persist_to_settings()
         self.accept()

@@ -279,6 +279,14 @@ class AudioProcessor(BaseProcessor):
         Returns:
             输出文件路径。
         """
+        if self.cfg.google_api.enabled:
+            return self._process_google_long_audio(
+                audio_path,
+                hotwords=hotwords,
+                output_path=output_path,
+                prompt_template=prompt_template,
+            )
+
         if not self.cfg.api.api_key:
             raise ValueError(
                 "未配置 API Key。请设置环境变量 DASHSCOPE_API_KEY 或在配置中提供 api_key"
@@ -333,27 +341,55 @@ class AudioProcessor(BaseProcessor):
             return output_path
         except Exception as e:
             logger.error("[ASR] 长音频异步处理失败: %s", e)
-            if _is_remote(actual_path):
-                raise
-            force_fallback = "NO_VALID_FRAGMENT" in str(e) or "未检测到有效语音" in str(e)
-            if force_fallback or self.cfg.models.allow_asr_short_fallback:
-                if force_fallback:
-                    logger.warning("[ASR] 文件转写未检测到语音，自动回退分段短 ASR")
-                else:
-                    logger.warning("[ASR] 长音频异步失败，回退分段短 ASR（已开启允许回退）: %s", e)
-                return self._short_asr(
-                    actual_path,
-                    hotwords,
-                    output_path,
-                    prompt_template,
-                    duration=duration,
-                    fallback_mode=True,
-                )
             raise RuntimeError(
                 f"长音频异步识别失败，且已禁止自动回退短音频。原始错误: {e}"
             ) from e
         finally:
             self._close_http_session()
+
+    def _process_google_long_audio(
+        self,
+        audio_path: str,
+        hotwords: Optional[list[str]] = None,
+        output_path: str = None,
+        prompt_template: str = None,
+    ) -> str:
+        """Google 模式只走长音频 Files API，不做本地盲切短音频回退。"""
+        if not self.cfg.google_api.api_key:
+            raise ValueError("未配置 Google API Key。请在谷歌模式中填入 Google AI Studio API Key")
+        if _is_remote(audio_path):
+            raise ValueError("Google 模式当前只支持本地音频文件上传到 Files API，不支持远程音频 URL")
+
+        stem = Path(audio_path).stem
+        if output_path is None:
+            output_path = os.path.join(ensure_dir(self.cfg.paths.output_dir), f"{stem}_录音识别.md")
+
+        self._report(1, 4, f"Google 长音频模式: {self.cfg.google_api.audio_model}")
+        system_prompt = self._build_system_prompt(hotwords, prompt_template)
+        self._report(2, 4, "上传音频并请求 Gemini 识别...")
+        text = self.llm.transcribe_long_audio(
+            audio_path=audio_path,
+            system_prompt=system_prompt,
+            model=self.cfg.google_api.audio_model,
+        )
+        text = strip_md_fence(text)
+        if not text.strip():
+            raise RuntimeError("Google 长音频识别返回空内容")
+
+        md_lines = [f"<!-- meta:audio title={stem} -->\n"]
+        md_lines.append(f"> Provider: Google Gemini SDK\n")
+        md_lines.append(f"> 模型: {self.cfg.google_api.audio_model}\n")
+        if hotwords:
+            md_lines.append(f"> 热词: {', '.join(hotwords)}\n")
+        md_lines.extend(["", text.strip(), ""])
+
+        self._report(3, 4, "写入 Markdown...")
+        ensure_dir(os.path.dirname(output_path))
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write("\n".join(md_lines).strip() + "\n")
+        self._report_content(text.strip(), "Google 长音频识别完成")
+        self._report(4, 4, f"完成: {output_path}")
+        return output_path
 
     def _short_asr(self, audio_path: str, hotwords, output_path: str,
                    prompt_template: str = None, duration: float = None,

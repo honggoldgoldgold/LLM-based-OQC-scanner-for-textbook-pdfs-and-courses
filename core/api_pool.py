@@ -14,7 +14,7 @@ from threading import Event
 from typing import Optional
 
 from OCRLLM.config import AppConfig
-from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.providers.router import build_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 class APISlot:
     """单个 API 槽位的状态。"""
 
-    def __init__(self, key: str, client: LLMClient):
+    def __init__(self, key: str, client):
         self.key = key
         self.client = client
         self.active_requests: int = 0
@@ -91,18 +91,27 @@ class APIPool:
                 key = key.strip()
                 if not key:
                     continue
-                slot_cfg = cfg.with_updates(api={"api_key": key})
-                client = LLMClient(slot_cfg)
+                if cfg.google_api.enabled:
+                    # Google Gemini 限流按 project 而不是单个 API key 计算；
+                    # 这里保留多 key 槽位接口，供后续接入项目级 API 池管理。
+                    slot_cfg = cfg.with_updates(google_api={"api_key": key})
+                else:
+                    slot_cfg = cfg.with_updates(api={"api_key": key})
+                client = build_llm_client(slot_cfg)
                 self._slots.append(APISlot(key=key, client=client))
             logger.info("[API池] 付费模式: %d 个 API key", len(self._slots))
         else:
             # 免费模式或只有一个 key: 单客户端
-            client = LLMClient(cfg)
-            self._slots = [APISlot(key=cfg.api.api_key, client=client)]
+            client = build_llm_client(cfg)
+            slot_key = cfg.google_api.api_key if cfg.google_api.enabled else cfg.api.api_key
+            self._slots = [APISlot(key=slot_key, client=client)]
             logger.info("[API池] 免费/单 key 模式")
 
         # 并发上限: 每个 slot 最多 llm_parallel_requests 个并发
-        self._max_per_slot = max(1, cfg.concurrency.llm_parallel_requests)
+        self._max_per_slot = max(
+            1,
+            cfg.google_api.parallel_requests if cfg.google_api.enabled else cfg.concurrency.llm_parallel_requests,
+        )
 
     @property
     def pool_size(self) -> int:
@@ -116,7 +125,7 @@ class APIPool:
             return self._max_per_slot * len(self._slots)
         return self._max_per_slot
 
-    def acquire(self) -> LLMClient:
+    def acquire(self):
         """获取负载最低的客户端。若所有 slot 均达到并发上限则阻塞等待。
 
         Raises:
@@ -135,7 +144,7 @@ class APIPool:
                 # 所有 slot 满载，等待释放通知
                 self._cond.wait(timeout=1.0)
 
-    def release(self, client: LLMClient, error: bool = False):
+    def release(self, client, error: bool = False):
         """释放客户端并通知等待中的 acquire。"""
         with self._cond:
             for slot in self._slots:
@@ -166,7 +175,7 @@ class APIPool:
                 "total_active": sum(s.active_requests for s in self._slots),
             }
 
-    def get_single_client(self) -> LLMClient:
+    def get_single_client(self):
         """获取单个客户端（不做负载均衡，用于需要上下文连续的场景）。"""
         return self._slots[0].client
 
@@ -186,9 +195,9 @@ class _PoolContext:
 
     def __init__(self, pool: APIPool):
         self._pool = pool
-        self._client: Optional[LLMClient] = None
+        self._client = None
 
-    def __enter__(self) -> LLMClient:
+    def __enter__(self):
         self._client = self._pool.acquire()
         return self._client
 

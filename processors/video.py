@@ -229,6 +229,30 @@ class VideoProcessor(BaseProcessor):
             weights["phase5"] = 2.0
         return weights
 
+    def _phase4_batch_size(self) -> int:
+        return (
+            max(1, self.cfg.google_api.video_frame_batch_size)
+            if self.cfg.google_api.enabled
+            else self.cfg.video.batch_size
+        )
+
+    def _llm_parallel_requests(self) -> int:
+        return (
+            max(1, self.cfg.google_api.parallel_requests)
+            if self.cfg.google_api.enabled
+            else self.cfg.concurrency.llm_parallel_requests
+        )
+
+    def _llm_request_stagger_seconds(self) -> float:
+        return (
+            max(0.0, self.cfg.google_api.request_stagger_seconds)
+            if self.cfg.google_api.enabled
+            else self.cfg.concurrency.llm_request_stagger_seconds
+        )
+
+    def _use_api_pool_for_llm(self) -> bool:
+        return (not self.cfg.google_api.enabled) and self.cfg.api.paid_mode and self.api_pool.pool_size > 1
+
     @staticmethod
     def _phase1_audio_path(output_dir: str, stem: str) -> str:
         return os.path.join(output_dir, f"{stem}.mp3")
@@ -867,7 +891,8 @@ class VideoProcessor(BaseProcessor):
         prompt_template = prompt_template or prompts.BOARD_WITH_HOTWORDS
 
         data = list(zip(frame_results, processed_paths))
-        batches = batch_list(data, self.cfg.video.batch_size)
+        batch_size = self._phase4_batch_size()
+        batches = batch_list(data, batch_size)
         total_batches = len(batches)
 
         # 增量写入器
@@ -879,8 +904,8 @@ class VideoProcessor(BaseProcessor):
         last_batch_idx = total_batches - 1
 
         # 计算并行度（与 PDF 统一策略）
-        base_workers = resolve_workers(self.cfg.concurrency.llm_parallel_requests, total_batches, hard_cap=8)
-        if self.cfg.api.paid_mode and self.api_pool.pool_size > 1 and total_batches > base_workers:
+        base_workers = resolve_workers(self._llm_parallel_requests(), total_batches, hard_cap=64 if self.cfg.google_api.enabled else 8)
+        if self._use_api_pool_for_llm() and total_batches > base_workers:
             workers = min(self.api_pool.max_parallel, total_batches, base_workers * self.api_pool.pool_size)
             logger.info("[VIDEO] 付费模式: 并行度提升 %d → %d (API 池 %d 个 key)",
                         base_workers, workers, self.api_pool.pool_size)
@@ -888,9 +913,9 @@ class VideoProcessor(BaseProcessor):
             workers = base_workers
 
         logger.info("[VIDEO] Phase 4: %d 张帧, %d 个批次 (每批 %d 张), workers=%d",
-                    len(frame_results), total_batches, self.cfg.video.batch_size, workers)
+                    len(frame_results), total_batches, batch_size, workers)
 
-        stagger = self.cfg.concurrency.llm_request_stagger_seconds if total_batches > 4 else 0
+        stagger = self._llm_request_stagger_seconds() if total_batches > 4 else 0
         self.tracker.update_queue(max(0, total_batches - workers), min(workers, total_batches))
 
         executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="video-llm")
@@ -1003,7 +1028,7 @@ class VideoProcessor(BaseProcessor):
             image_name = f"{Path(frame['path']).stem} [{self._format_frame_time(frame['timestamp'])}]"
             prompt = prompt_template.format(image_names=image_name, extra_instruction="")
             try:
-                if self.cfg.api.paid_mode and self.api_pool.pool_size > 1:
+                if self._use_api_pool_for_llm():
                     with self.api_pool.get_client() as client:
                         result = client.chat_with_images(prompt=prompt, image_paths=[path])
                 else:
@@ -1045,7 +1070,7 @@ class VideoProcessor(BaseProcessor):
 
         hotwords = []
         try:
-            if self.cfg.api.paid_mode and self.api_pool.pool_size > 1:
+            if self._use_api_pool_for_llm():
                 with self.api_pool.get_client() as client:
                     result = client.chat_with_images(prompt=prompt, image_paths=list(paths))
             else:

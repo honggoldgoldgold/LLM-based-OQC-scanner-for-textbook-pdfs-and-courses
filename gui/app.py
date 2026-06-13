@@ -310,20 +310,29 @@ class QCRMainWindow(QMainWindow):
             return
         s = self._settings
         key = s.value("ui/api_key", type=str) or ""
-        key_state = "API Key 已填" if key else "API Key 未填"
+        google_enabled = s.value("ui/google_api_enabled", type=bool) if s.contains("ui/google_api_enabled") else False
+        google_key = s.value("ui/google_api_key", type=str) or ""
+        key_state = "Google Key 已填" if google_enabled and google_key else ("API Key 已填" if key else "API Key 未填")
         vis_enabled = s.value("ui/vision_api_enabled", type=bool) if s.contains("ui/vision_api_enabled") else False
         codex_enabled = s.value("ui/codex_vision_enabled", type=bool) if s.contains("ui/codex_vision_enabled") else False
         vis_provider = s.value("ui/vision_provider", type=str) or ""
         vis_info = f" | 视觉Provider: {vis_provider}" if vis_enabled and not codex_enabled else ""
         codex_info = " | Codex ask模式" if codex_enabled else ""
+        google_info = " | 谷歌模式" if google_enabled else ""
         vision = (
-            (s.value("ui/codex_model", type=str) if codex_enabled else "")
+            (s.value("ui/google_vision_model", type=str) if google_enabled else "")
+            or (s.value("ui/codex_model", type=str) if codex_enabled else "")
             or s.value("ui/vision_model", type=str)
             or self._cfg.models.vision_model
             or "—"
         )
-        audio = s.value("ui/audio_model", type=str) or self._cfg.models.asr_model or "—"
-        self._api_summary.setText(f"{key_state} | 视觉: {vision}{codex_info}{vis_info} | 音频: {audio}")
+        audio = (
+            (s.value("ui/google_audio_model", type=str) if google_enabled else "")
+            or s.value("ui/audio_model", type=str)
+            or self._cfg.models.asr_model
+            or "—"
+        )
+        self._api_summary.setText(f"{key_state} | 视觉: {vision}{google_info}{codex_info}{vis_info} | 音频: {audio}")
 
     def _read_api_overrides_from_ui(self) -> tuple[dict, dict]:
         """从 QSettings 读取 API 设置并构建嵌套 updates 字典。
@@ -335,6 +344,7 @@ class QCRMainWindow(QMainWindow):
         def _str(key): return (s.value(key, type=str) or "").strip()
         def _bool(key): return s.value(key, type=bool) if s.contains(key) else False
         def _int(key): return int(s.value(key) or 0)
+        def _float(key): return float(s.value(key) or 0)
         def _queue(key):
             try:
                 import json
@@ -344,6 +354,14 @@ class QCRMainWindow(QMainWindow):
 
         new_key = _str("ui/api_key")
         new_url = _str("ui/base_url")
+        google_enabled = _bool("ui/google_api_enabled")
+        google_key = _str("ui/google_api_key")
+        google_vision_model = _str("ui/google_vision_model") or self._cfg.google_api.vision_model
+        google_audio_model = _str("ui/google_audio_model") or self._cfg.google_api.audio_model
+        google_parallel = _int("ui/google_parallel_requests") or self._cfg.google_api.parallel_requests
+        google_stagger = _float("ui/google_request_stagger_seconds") or self._cfg.google_api.request_stagger_seconds
+        google_vision_batch = _int("ui/google_vision_batch_size") or self._cfg.google_api.vision_batch_size
+        google_video_batch = _int("ui/google_video_frame_batch_size") or self._cfg.google_api.video_frame_batch_size
         codex_enabled = _bool("ui/codex_vision_enabled")
         codex_command = _str("ui/codex_command") or "codex"
         codex_model = _str("ui/codex_model") or CODEX_VISION_DEFAULT_MODEL
@@ -392,6 +410,18 @@ class QCRMainWindow(QMainWindow):
                 "paid_mode": paid_mode,
                 "api_keys": api_keys if paid_mode else [],
             },
+            "google_api": {
+                "enabled": google_enabled,
+                "api_key": google_key,
+                "vision_model": google_vision_model,
+                "audio_model": google_audio_model,
+                "text_model": google_vision_model or self._cfg.google_api.text_model,
+                "parallel_requests": google_parallel,
+                "request_stagger_seconds": google_stagger,
+                "vision_batch_size": google_vision_batch,
+                "video_frame_batch_size": google_video_batch,
+                "api_keys": [google_key] if google_key else [],
+            },
             "codex_vision": {
                 "enabled": codex_enabled,
                 "command": codex_command,
@@ -434,6 +464,10 @@ class QCRMainWindow(QMainWindow):
         info = {
             "new_key": new_key, "new_url": new_url,
             "vision_model": vision_model, "audio_model": audio_model,
+            "google_api_enabled": google_enabled,
+            "google_api_key": google_key,
+            "google_vision_model": google_vision_model,
+            "google_audio_model": google_audio_model,
             "codex_enabled": codex_enabled,
             "codex_model": codex_model,
             "codex_reasoning_effort": codex_reasoning,
@@ -491,12 +525,17 @@ class QCRMainWindow(QMainWindow):
 
         # 启动前自动同步 GUI 输入框的 API 设置到 config
         self._sync_api_from_ui()
-        if not self._cfg.api.api_key and not self._cfg.codex_vision.enabled and not (
+        if self._cfg.google_api.enabled and not self._cfg.google_api.api_key:
+            QMessageBox.warning(self, "提示", "谷歌模式已启用，但 Google API Key 为空")
+            return False
+        if not self._cfg.google_api.enabled and not self._cfg.api.api_key and not self._cfg.codex_vision.enabled and not (
             self._cfg.vision_api.enabled and self._cfg.vision_api.api_key
         ):
             QMessageBox.warning(self, "提示", "API Key 不能为空，请在 API 设置中填入 Key 或视觉 Provider Key")
             return False
         if (
+            not self._cfg.google_api.enabled
+            and
             self._cfg.vision_api.enabled
             and not self._cfg.codex_vision.enabled
             and (not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url)

@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 
 VisionKind = Literal["vlm", "ocr", "omni", "general"]
 AudioKind = Literal["asr_long", "asr_short", "omni_audio"]
+GoogleKind = Literal["image_preview", "snapshot", "experimental", "vision_general", "audio_long", "general"]
 
 
 @dataclass(frozen=True)
@@ -75,6 +76,28 @@ class BailianModelDiscovery:
     raw_count: int
     vision: tuple[VisionModel, ...]
     audio: tuple[AudioModel, ...]
+    raw_model_ids: tuple[str, ...]
+    fetched_at: float
+
+
+@dataclass(frozen=True)
+class GoogleModel:
+    """Google Gemini model entry fetched from the live Models API."""
+    name: str
+    label: str
+    kind: GoogleKind
+    free_quota: bool = True
+    input_token_limit: Optional[int] = None
+    note: str = ""
+
+
+@dataclass(frozen=True)
+class GoogleModelDiscovery:
+    """Result of a real Google Gemini model list fetch."""
+
+    raw_count: int
+    vision: tuple[GoogleModel, ...]
+    audio: tuple[GoogleModel, ...]
     raw_model_ids: tuple[str, ...]
     fetched_at: float
 
@@ -173,6 +196,10 @@ def user_models_path() -> Path:
 
 def bailian_models_path() -> Path:
     return Path.home() / ".OCRLLM" / "bailian_models.json"
+
+
+def google_models_path() -> Path:
+    return Path.home() / ".OCRLLM" / "google_models.json"
 
 
 def is_dashscope_base_url(base_url: str) -> bool:
@@ -312,6 +339,255 @@ def _load_bailian_models_raw() -> dict:
     except (json.JSONDecodeError, OSError) as exc:
         logger.warning("[MODELS] 百炼模型缓存读取失败 (%s)，按空处理", exc)
         return {}
+
+
+def _save_google_models_raw(data: dict) -> None:
+    path = google_models_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _load_google_models_raw() -> dict:
+    path = google_models_path()
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) or {}
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("[MODELS] Google 模型缓存读取失败 (%s)，按空处理", exc)
+        return {}
+
+
+def _google_field(value, *names, default=None):
+    for name in names:
+        if isinstance(value, dict) and name in value:
+            return value.get(name)
+        if hasattr(value, name):
+            return getattr(value, name)
+    return default
+
+
+def _normalize_google_model_id(name: str) -> str:
+    name = (name or "").strip()
+    if name.startswith("models/"):
+        return name.split("/", 1)[1]
+    return name
+
+
+def _google_supported_methods(item) -> set[str]:
+    raw = (
+        _google_field(item, "supported_generation_methods", "supportedGenerationMethods")
+        or _google_field(item, "supported_actions", "supportedActions")
+        or []
+    )
+    return {str(method) for method in raw}
+
+
+def _google_version_score(model_id: str) -> float:
+    match = __import__("re").search(r"gemini-(\d+(?:\.\d+)?)", model_id.lower())
+    if not match:
+        return 0.0
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return 0.0
+
+
+def _is_google_audio_long_candidate(model_id: str) -> bool:
+    lowered = model_id.lower()
+    if not lowered.startswith("gemini-"):
+        return False
+    if _google_version_score(lowered) < 2.0:
+        return False
+    if not ("flash" in lowered or "pro" in lowered):
+        return False
+    blocked = ("image", "imagen", "veo", "lyria", "tts", "embedding", "embed")
+    return not any(token in lowered for token in blocked)
+
+
+def _classify_google_kind(model_id: str, display_name: str = "", description: str = "") -> GoogleKind | None:
+    lowered = " ".join([model_id, display_name, description]).lower()
+    if not model_id:
+        return None
+    if any(token in lowered for token in ("embedding", "embedcontent", "tts", "lyria", "veo")):
+        return None
+    if "image" in lowered or "imagen" in lowered or "nano-banana" in lowered or "nano banana" in lowered:
+        return "image_preview"
+    if "snapshot" in lowered or "latest" in lowered:
+        return "snapshot"
+    if "preview" in lowered or "experimental" in lowered or "-exp" in lowered or " exp" in lowered:
+        return "experimental"
+    if _is_google_audio_long_candidate(model_id):
+        return "audio_long"
+    if model_id.lower().startswith("gemini-"):
+        return "vision_general"
+    return None
+
+
+def _google_priority(model: GoogleModel, *, purpose: str) -> tuple[int, int, str]:
+    lowered = model.name.lower()
+    version_rank = -int(_google_version_score(lowered) * 100)
+    if purpose == "audio":
+        if model.kind == "audio_long":
+            model_class = 0 if "flash" in lowered else 1
+            return (model_class, version_rank, model.name)
+        return (9, version_rank, model.name)
+    if model.kind == "image_preview":
+        return (0, version_rank, model.name)
+    if model.kind == "snapshot":
+        return (1, version_rank, model.name)
+    if model.kind == "experimental":
+        return (2, version_rank, model.name)
+    if model.kind == "vision_general":
+        return (3, version_rank, model.name)
+    if model.kind == "audio_long":
+        return (4, version_rank, model.name)
+    return (8, version_rank, model.name)
+
+
+def _google_model_from_item(item) -> GoogleModel | None:
+    methods = _google_supported_methods(item)
+    if "generateContent" not in methods:
+        return None
+    name = _normalize_google_model_id(str(_google_field(item, "name", default="") or ""))
+    display_name = str(_google_field(item, "display_name", "displayName", default="") or "")
+    description = str(_google_field(item, "description", default="") or "")
+    kind = _classify_google_kind(name, display_name, description)
+    if kind is None:
+        return None
+    input_limit = _google_field(item, "input_token_limit", "inputTokenLimit")
+    try:
+        input_limit = int(input_limit) if input_limit is not None else None
+    except (TypeError, ValueError):
+        input_limit = None
+    label = display_name or f"{name} — Google 实时获取"
+    return GoogleModel(
+        name=name,
+        label=label,
+        kind=kind,
+        free_quota=True,
+        input_token_limit=input_limit,
+        note="Google Models API 实时获取；免费额度以 AI Studio 当前项目限额为准",
+    )
+
+
+def _google_model_to_raw(model: GoogleModel) -> dict:
+    return {
+        "name": model.name,
+        "label": model.label,
+        "kind": model.kind,
+        "free_quota": model.free_quota,
+        "input_token_limit": model.input_token_limit,
+        "note": model.note,
+    }
+
+
+def _google_from_raw_items(items: list[dict]) -> tuple[GoogleModel, ...]:
+    out: list[GoogleModel] = []
+    for item in items:
+        try:
+            out.append(GoogleModel(
+                name=item["name"],
+                label=item.get("label") or f"{item['name']} — Google 实时获取",
+                kind=item.get("kind", "vision_general"),
+                free_quota=bool(item.get("free_quota", True)),
+                input_token_limit=item.get("input_token_limit"),
+                note=item.get("note", "Google Models API 实时获取"),
+            ))
+        except KeyError:
+            continue
+    return tuple(out)
+
+
+def _build_google_client(api_key: str, timeout: float = 20.0):
+    if not api_key:
+        raise ValueError("Google API Key 为空，无法获取模型列表")
+    try:
+        from google import genai
+    except Exception as exc:
+        raise RuntimeError("缺少 google-genai SDK，请安装 requirements.txt 中的 google-genai") from exc
+    return genai.Client(api_key=api_key)
+
+
+def _fetch_google_models_via_rest(api_key: str, timeout: float = 20.0) -> list[dict]:
+    if not api_key:
+        raise ValueError("Google API Key 为空，无法获取模型列表")
+    models: list[dict] = []
+    page_token = ""
+    while True:
+        url = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000"
+        if page_token:
+            from urllib.parse import quote
+            url += "&pageToken=" + quote(page_token)
+        req = urllib.request.Request(url, headers={"x-goog-api-key": api_key})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = json.loads(resp.read().decode("utf-8"))
+        models.extend(body.get("models", []) if isinstance(body, dict) else [])
+        page_token = body.get("nextPageToken", "") if isinstance(body, dict) else ""
+        if not page_token:
+            break
+    return models
+
+
+def refresh_google_models(api_key: str, timeout: float = 20.0, client_factory=None) -> GoogleModelDiscovery:
+    """Fetch the live Google Gemini model list and cache prioritized OCRLLM entries."""
+    if not api_key:
+        raise ValueError("Google API Key 为空，无法获取模型列表")
+    raw_items = []
+    try:
+        client = client_factory(api_key, timeout) if client_factory else _build_google_client(api_key, timeout)
+        raw_items = list(client.models.list())
+    except Exception as exc:
+        if client_factory is not None:
+            raise
+        logger.warning("[MODELS] Google SDK 获取模型列表失败，尝试 REST /models: %s", exc)
+        raw_items = _fetch_google_models_via_rest(api_key, timeout=timeout)
+
+    raw_ids = tuple(
+        _normalize_google_model_id(str(_google_field(item, "name", default="") or ""))
+        for item in raw_items
+        if _google_field(item, "name", default="")
+    )
+    classified = [model for item in raw_items if (model := _google_model_from_item(item)) is not None]
+    vision = tuple(sorted(classified, key=lambda m: _google_priority(m, purpose="vision")))
+    audio = tuple(sorted(
+        (model for model in classified if _is_google_audio_long_candidate(model.name)),
+        key=lambda m: _google_priority(m, purpose="audio"),
+    ))
+    fetched_at = time.time()
+    _save_google_models_raw({
+        "source": "google-gemini-models",
+        "fetched_at": fetched_at,
+        "raw_model_ids": list(raw_ids),
+        "vision": [_google_model_to_raw(m) for m in vision],
+        "audio": [_google_model_to_raw(m) for m in audio],
+    })
+    logger.info("[MODELS] Google 模型刷新完成: raw=%d, vision=%d, audio=%d", len(raw_items), len(vision), len(audio))
+    return GoogleModelDiscovery(
+        raw_count=len(raw_items),
+        vision=vision,
+        audio=audio,
+        raw_model_ids=raw_ids,
+        fetched_at=fetched_at,
+    )
+
+
+def load_google_vision_models() -> tuple[GoogleModel, ...]:
+    return _google_from_raw_items(_load_google_models_raw().get("vision", []))
+
+
+def load_google_audio_models() -> tuple[GoogleModel, ...]:
+    return _google_from_raw_items(_load_google_models_raw().get("audio", []))
+
+
+def google_model_cache_is_stale(max_age_seconds: float = 24 * 3600) -> bool:
+    raw = _load_google_models_raw()
+    fetched_at = raw.get("fetched_at")
+    if not isinstance(fetched_at, (int, float)):
+        return True
+    return time.time() - float(fetched_at) > max_age_seconds
 
 
 def _vision_from_raw_items(items: list[dict]) -> tuple[VisionModel, ...]:
@@ -567,6 +843,16 @@ def free_vision_chain() -> list[str]:
 def free_audio_chain(kind: AudioKind | None = None) -> list[str]:
     """免费额度音频模型链。kind 可指定 asr_long / asr_short / omni_audio。"""
     return [m.name for m in list_audio_models() if m.free_quota and (kind is None or m.kind == kind)]
+
+
+def google_free_vision_chain() -> list[str]:
+    """Google 视觉免费优先链：image/preview/snapshot/experimental 在前，长音频模型最后兜底。"""
+    return [m.name for m in load_google_vision_models() if m.free_quota]
+
+
+def google_free_audio_chain() -> list[str]:
+    """Google 长音频免费优先链：Gemini 2+ Pro/Flash 多模态模型。"""
+    return [m.name for m in load_google_audio_models() if m.free_quota]
 
 
 # ====================================================================

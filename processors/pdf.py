@@ -68,9 +68,33 @@ class PDFProcessor(BaseProcessor):
         return {
             "page_range": self._serialize_page_range(page_range),
             "page_offset": page_offset,
-            "batch_size": self.cfg.processing.batch_size,
+            "batch_size": self._llm_batch_size(),
             "prompt_template": prompt_template,
         }
+
+    def _llm_batch_size(self) -> int:
+        return (
+            max(1, self.cfg.google_api.vision_batch_size)
+            if self.cfg.google_api.enabled
+            else self.cfg.processing.batch_size
+        )
+
+    def _llm_parallel_requests(self) -> int:
+        return (
+            max(1, self.cfg.google_api.parallel_requests)
+            if self.cfg.google_api.enabled
+            else self.cfg.concurrency.llm_parallel_requests
+        )
+
+    def _llm_request_stagger_seconds(self) -> float:
+        return (
+            max(0.0, self.cfg.google_api.request_stagger_seconds)
+            if self.cfg.google_api.enabled
+            else self.cfg.concurrency.llm_request_stagger_seconds
+        )
+
+    def _use_api_pool_for_llm(self) -> bool:
+        return (not self.cfg.google_api.enabled) and self.cfg.api.paid_mode and self.api_pool.pool_size > 1
 
     @classmethod
     def resume_options_from_checkpoint(cls, checkpoint: Checkpoint) -> dict:
@@ -214,7 +238,8 @@ class PDFProcessor(BaseProcessor):
 
         cancelled = False
         try:
-            batches = batch_list(image_paths, self.cfg.processing.batch_size)
+            batch_size = self._llm_batch_size()
+            batches = batch_list(image_paths, batch_size)
             page_offset = (page_range[0] - 1) if page_range else 0
 
             if not batches:
@@ -272,7 +297,7 @@ class PDFProcessor(BaseProcessor):
                 "[PDF] 识别队列: %d 批次待处理, %d 批次已完成 (每批 %d 页)",
                 pending_count,
                 len(skip_batches),
-                self.cfg.processing.batch_size,
+                batch_size,
             )
 
             writer = IncrementalMDWriter(
@@ -293,8 +318,8 @@ class PDFProcessor(BaseProcessor):
                 logger.info("[PDF] 断点续传直接恢复完成 -> %s", output_path)
                 return output_path
 
-            base_workers = resolve_workers(self.cfg.concurrency.llm_parallel_requests, pending_count, hard_cap=8)
-            if self.cfg.api.paid_mode and self.api_pool.pool_size > 1 and pending_count > base_workers:
+            base_workers = resolve_workers(self._llm_parallel_requests(), pending_count, hard_cap=64 if self.cfg.google_api.enabled else 8)
+            if self._use_api_pool_for_llm() and pending_count > base_workers:
                 workers = min(self.api_pool.max_parallel, pending_count, base_workers * self.api_pool.pool_size)
                 logger.info("[PDF] 付费模式: 并行度提升 %d → %d (API 池 %d 个 key)", base_workers, workers, self.api_pool.pool_size)
             else:
@@ -302,7 +327,7 @@ class PDFProcessor(BaseProcessor):
 
             logger.info("[PDF] 并行识别批次: 批次数=%d, workers=%d, 待处理=%d", len(batches), workers, pending_count)
 
-            stagger = self.cfg.concurrency.llm_request_stagger_seconds if pending_count > 4 else 0
+            stagger = self._llm_request_stagger_seconds() if pending_count > 4 else 0
             self.tracker.update_queue(max(0, pending_count - workers), min(workers, pending_count))
 
             executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="pdf-llm")
@@ -383,12 +408,12 @@ class PDFProcessor(BaseProcessor):
         checkpoint: Checkpoint,
     ) -> tuple[int, str, str, bool]:
         self._check_cancelled()
-        start_page = page_offset + batch_idx * self.cfg.processing.batch_size + 1
+        start_page = page_offset + batch_idx * self._llm_batch_size() + 1
         end_page = start_page + len(batch) - 1
         page_str = f"{start_page}-{end_page}"
         prompt = prompt_template.format(page_range=page_str)
 
-        if self.cfg.api.paid_mode and self.api_pool.pool_size > 1:
+        if self._use_api_pool_for_llm():
             with self.api_pool.get_client() as client:
                 result, success = self._do_batch_llm(client, prompt, batch, page_str, start_page, prompt_template)
         else:
@@ -453,7 +478,7 @@ class PDFProcessor(BaseProcessor):
                     page_map[int(m.group(1))] = section.strip()
 
             for batch_idx in sorted(completed_batches):
-                start_page = page_offset + batch_idx * self.cfg.processing.batch_size + 1
+                start_page = page_offset + batch_idx * self._llm_batch_size() + 1
                 end_page = start_page + len(batches[batch_idx]) - 1
                 parts = []
                 for page_num in range(start_page, end_page + 1):
@@ -472,7 +497,7 @@ class PDFProcessor(BaseProcessor):
             return {}
 
     def _rerun_per_page(self, batch: list[str], start_page: int, prompt_template: str) -> tuple[str, bool]:
-        workers = resolve_workers(self.cfg.concurrency.llm_parallel_requests, len(batch), hard_cap=8)
+        workers = resolve_workers(self._llm_parallel_requests(), len(batch), hard_cap=64 if self.cfg.google_api.enabled else 8)
         parts = [""] * len(batch)
         success = True
 
@@ -480,7 +505,7 @@ class PDFProcessor(BaseProcessor):
             page_num = start_page + idx
             try:
                 prompt = prompt_template.format(page_range=f"{page_num}-{page_num}")
-                if self.cfg.api.paid_mode and self.api_pool.pool_size > 1:
+                if self._use_api_pool_for_llm():
                     with self.api_pool.get_client() as client:
                         result = client.chat_with_images(prompt=prompt, image_paths=[img_path])
                 else:

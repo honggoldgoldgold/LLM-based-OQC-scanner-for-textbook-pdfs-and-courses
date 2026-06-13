@@ -1,0 +1,380 @@
+"""Google Gemini SDK provider for OCRLLM.
+
+This provider intentionally does not use the OpenAI-compatible Google endpoint.
+Google mode is an independent backend that uses the official ``google-genai``
+SDK so model listing, file uploads, and multimodal calls match AI Studio.
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import mimetypes
+import os
+import time
+from dataclasses import dataclass
+from enum import Enum
+from pathlib import Path
+from threading import Event
+from typing import Optional
+
+import httpx
+
+from OCRLLM.config import AppConfig
+from OCRLLM.core import model_catalog
+from OCRLLM.core.task_runner import CancelledError
+
+logger = logging.getLogger(__name__)
+
+
+class GoogleErrorKind(str, Enum):
+    QUOTA_EXHAUSTED = "quota_exhausted"
+    RATE_LIMIT = "rate_limit"
+    INVALID_MODEL = "invalid_model"
+    NETWORK = "network"
+    AUTH = "auth"
+    BILLING = "billing"
+    CONCURRENCY = "concurrency"
+    EMPTY_RESPONSE = "empty_response"
+    SAFETY = "safety"
+    UNKNOWN = "unknown"
+
+
+@dataclass(frozen=True)
+class ClassifiedGoogleError:
+    kind: GoogleErrorKind
+    should_switch_model: bool
+    should_retry_same_model: bool
+    message: str
+
+
+class GoogleProviderFailure(RuntimeError):
+    """Google provider error with a routing decision attached."""
+
+    def __init__(self, classified: ClassifiedGoogleError):
+        super().__init__(classified.message)
+        self.classified = classified
+
+
+_NETWORK_ERRORS = (
+    httpx.ConnectError,
+    httpx.ReadError,
+    httpx.WriteError,
+    httpx.ConnectTimeout,
+    httpx.ReadTimeout,
+    httpx.PoolTimeout,
+    ConnectionError,
+    ConnectionResetError,
+    OSError,
+    TimeoutError,
+)
+
+
+def classify_google_error(exc: Exception) -> ClassifiedGoogleError:
+    """Classify Google SDK/REST failures into retry or model-switch decisions."""
+    message = str(exc)
+    lowered = message.lower()
+
+    if isinstance(exc, _NETWORK_ERRORS):
+        return ClassifiedGoogleError(GoogleErrorKind.NETWORK, False, True, message)
+
+    if "not_found" in lowered or '"code":404' in lowered or "code 404" in lowered or "404" in lowered and "model" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.INVALID_MODEL, True, False, message)
+    if "quota" in lowered or "free tier" in lowered or "resource_exhausted" in lowered:
+        if "rate limit" in lowered or "too many requests" in lowered or "rpm" in lowered or "tpm" in lowered or "rpd" in lowered:
+            return ClassifiedGoogleError(GoogleErrorKind.RATE_LIMIT, False, True, message)
+        return ClassifiedGoogleError(GoogleErrorKind.QUOTA_EXHAUSTED, True, False, message)
+    if "permission_denied" in lowered or "unauthenticated" in lowered or "api key not valid" in lowered or "401" in lowered or "403" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.AUTH, False, False, message)
+    if "billing" in lowered or "payment" in lowered or "insufficient" in lowered and "fund" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.BILLING, True, False, message)
+    if "rate limit" in lowered or "too many requests" in lowered or "429" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.RATE_LIMIT, False, True, message)
+    if "concurrent" in lowered or "concurrency" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.CONCURRENCY, False, True, message)
+    if "safety" in lowered or "blocked" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.SAFETY, False, False, message)
+    if "empty response" in lowered or "响应为空" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.EMPTY_RESPONSE, False, True, message)
+    return ClassifiedGoogleError(GoogleErrorKind.UNKNOWN, False, False, message)
+
+
+def _field(value, name: str, default=None):
+    if isinstance(value, dict):
+        return value.get(name, default)
+    return getattr(value, name, default)
+
+
+def _response_text(response) -> str:
+    text = _field(response, "text")
+    if isinstance(text, str) and text.strip():
+        return text.strip()
+    parts: list[str] = []
+    for candidate in _field(response, "candidates", []) or []:
+        content = _field(candidate, "content")
+        for part in _field(content, "parts", []) or []:
+            part_text = _field(part, "text")
+            if isinstance(part_text, str) and part_text:
+                parts.append(part_text)
+    return "".join(parts).strip()
+
+
+def _looks_like_json_error(text: str) -> bool:
+    stripped = text.strip()
+    if not stripped.startswith("{"):
+        return False
+    try:
+        payload = json.loads(stripped)
+    except json.JSONDecodeError:
+        return False
+    if not isinstance(payload, dict):
+        return False
+    if "error" in payload:
+        return True
+    status = str(payload.get("status") or payload.get("code") or "").lower()
+    return status in {"404", "not_found", "resource_exhausted", "permission_denied"}
+
+
+class GoogleProviderClient:
+    """Official Google Gemini SDK client with OCRLLM-compatible methods."""
+
+    def __init__(self, cfg: Optional[AppConfig] = None, cancel_event: Optional[Event] = None):
+        self.cfg = cfg or AppConfig()
+        self._cancel_event = cancel_event
+        if not self.cfg.google_api.api_key:
+            raise ValueError("未配置 Google API Key。请填入 Google AI Studio / Gemini API Key")
+        self._client = None
+
+    def set_cancel_event(self, cancel_event: Optional[Event]):
+        self._cancel_event = cancel_event
+
+    def _check_cancelled(self):
+        if self._cancel_event and self._cancel_event.is_set():
+            raise CancelledError("任务已取消")
+
+    def _sleep_with_cancel(self, seconds: float):
+        if seconds <= 0:
+            return
+        deadline = time.monotonic() + seconds
+        while True:
+            self._check_cancelled()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                return
+            if self._cancel_event:
+                self._cancel_event.wait(min(0.2, remaining))
+            else:
+                time.sleep(min(0.2, remaining))
+
+    def _get_client(self):
+        if self._client is not None:
+            return self._client
+        try:
+            from google import genai
+        except Exception as exc:
+            raise RuntimeError("缺少 google-genai SDK，请先安装 google-genai") from exc
+        self._client = genai.Client(api_key=self.cfg.google_api.api_key)
+        return self._client
+
+    def _validate_text(self, text: str) -> str:
+        if not text.strip():
+            raise GoogleProviderFailure(ClassifiedGoogleError(
+                GoogleErrorKind.EMPTY_RESPONSE,
+                should_switch_model=False,
+                should_retry_same_model=True,
+                message="Google SDK 响应为空",
+            ))
+        if _looks_like_json_error(text):
+            classified = classify_google_error(RuntimeError(text))
+            raise GoogleProviderFailure(classified)
+        return text.strip()
+
+    def _retry_same_model(self, model: str, invoke, max_retries: int) -> str:
+        for attempt in range(1, max_retries + 1):
+            self._check_cancelled()
+            try:
+                return self._validate_text(invoke(model))
+            except GoogleProviderFailure as exc:
+                classified = exc.classified
+            except Exception as exc:
+                classified = classify_google_error(exc)
+
+            if not classified.should_retry_same_model or attempt >= max_retries:
+                raise GoogleProviderFailure(classified)
+            delay = min(2 ** (attempt - 1), 60)
+            logger.warning(
+                "[GOOGLE] %s 可重试错误 (model=%s, 尝试 %d/%d, %.0fs 后重试): %s",
+                classified.kind.value,
+                model,
+                attempt,
+                max_retries,
+                delay,
+                classified.message[:200],
+            )
+            self._sleep_with_cancel(delay)
+        raise RuntimeError("Google 重试循环异常结束")
+
+    def _call_with_model_switch(self, primary_model: str, chain: list[str], kind: str, invoke, max_retries: int) -> str:
+        ordered = [primary_model] + [model for model in chain if model and model != primary_model]
+        last_error: GoogleProviderFailure | None = None
+        previous = primary_model
+        for idx, model in enumerate(ordered):
+            if idx > 0:
+                logger.warning("[GOOGLE] 切换 %s 模型: %s -> %s", kind, previous, model)
+            try:
+                return self._retry_same_model(model, invoke, max_retries)
+            except GoogleProviderFailure as exc:
+                last_error = exc
+                if exc.classified.should_switch_model:
+                    previous = model
+                    continue
+                raise
+        if last_error is not None:
+            raise RuntimeError(f"Google {kind} 候选模型均不可用: {last_error}") from last_error
+        raise RuntimeError(f"Google {kind} 没有可用模型")
+
+    def _make_image_part(self, image_path: str):
+        try:
+            from google.genai import types
+        except Exception as exc:
+            raise RuntimeError("缺少 google-genai types.Part，无法构造图片请求") from exc
+        mime_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
+        with open(image_path, "rb") as f:
+            data = f.read()
+        return types.Part.from_bytes(data=data, mime_type=mime_type)
+
+    @staticmethod
+    def _history_to_text(history: Optional[list[dict]]) -> str:
+        if not history:
+            return ""
+        lines = []
+        for item in history:
+            role = _field(item, "role", "")
+            content = _field(item, "content", "")
+            if isinstance(content, list):
+                text = " ".join(str(_field(part, "text", "")) for part in content if _field(part, "text", ""))
+            else:
+                text = str(content)
+            if text.strip():
+                lines.append(f"{role}: {text.strip()}")
+        return "\n".join(lines)
+
+    def _vision_chain(self) -> list[str]:
+        return self.cfg.google_api.vision_model_queue or model_catalog.google_free_vision_chain()
+
+    def _audio_chain(self) -> list[str]:
+        return self.cfg.google_api.audio_model_queue or model_catalog.google_free_audio_chain()
+
+    def chat_with_images(
+        self,
+        prompt: str,
+        image_paths: list[str],
+        model: Optional[str] = None,
+        max_retries: int = 6,
+    ) -> str:
+        primary = model or self.cfg.google_api.vision_model
+        parts = [self._make_image_part(path) for path in image_paths]
+        parts.append(prompt)
+
+        def _invoke(model_name: str) -> str:
+            logger.info("[GOOGLE] 视觉请求: model=%s, 图片=%d", model_name, len(image_paths))
+            response = self._get_client().models.generate_content(model=model_name, contents=parts)
+            return _response_text(response)
+
+        return self._call_with_model_switch(primary, self._vision_chain(), "vision", _invoke, max_retries)
+
+    def chat_with_images_contextual(
+        self,
+        prompt: str,
+        image_paths: list[str],
+        history: Optional[list[dict]] = None,
+        model: Optional[str] = None,
+        max_retries: int = 6,
+    ) -> str:
+        history_text = self._history_to_text(history)
+        contextual_prompt = prompt
+        if history_text:
+            contextual_prompt = (
+                "以下历史上下文仅用于保持术语和编号一致，不要补充图片外内容。\n"
+                f"{history_text}\n\n当前识别提示:\n{prompt}"
+            )
+        return self.chat_with_images(contextual_prompt, image_paths, model=model, max_retries=max_retries)
+
+    def chat_text(
+        self,
+        prompt: str,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+        history: Optional[list[dict]] = None,
+        max_retries: int = 6,
+    ) -> str:
+        primary = model or self.cfg.google_api.text_model
+        text_parts = []
+        if system_prompt:
+            text_parts.append(system_prompt)
+        history_text = self._history_to_text(history)
+        if history_text:
+            text_parts.append(history_text)
+        text_parts.append(prompt)
+        contents = "\n\n".join(text_parts)
+
+        def _invoke(model_name: str) -> str:
+            logger.info("[GOOGLE] 文本请求: model=%s", model_name)
+            response = self._get_client().models.generate_content(model=model_name, contents=contents)
+            return _response_text(response)
+
+        return self._call_with_model_switch(primary, self._vision_chain(), "text", _invoke, max_retries)
+
+    def _wait_file_ready(self, file_obj, timeout_seconds: float = 600.0):
+        name = _field(file_obj, "name")
+        deadline = time.monotonic() + timeout_seconds
+        current = file_obj
+        while True:
+            state = _field(current, "state")
+            state_name = str(_field(state, "name", state) or "").upper()
+            if not state_name or state_name in {"ACTIVE", "SUCCEEDED", "READY"}:
+                return current
+            if state_name in {"FAILED", "ERROR"}:
+                raise RuntimeError(f"Google Files API 文件处理失败: {state_name}")
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f"Google Files API 文件处理超时: {name or '<unknown>'}")
+            self._sleep_with_cancel(2.0)
+            if not name:
+                return current
+            current = self._get_client().files.get(name=name)
+
+    def transcribe_long_audio(
+        self,
+        audio_path: str,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+        language: Optional[str] = None,
+        max_retries: int = 4,
+    ) -> str:
+        primary = model or self.cfg.google_api.audio_model
+        prompt = system_prompt or "Generate a detailed transcript of the speech with timestamps when possible."
+        if language:
+            prompt += f"\nPreferred language code: {language}"
+        display_name = os.path.basename(audio_path)
+
+        uploaded = None
+
+        def _invoke(model_name: str) -> str:
+            nonlocal uploaded
+            self._check_cancelled()
+            if uploaded is None:
+                logger.info("[GOOGLE] 上传音频到 Files API: %s", display_name)
+                uploaded = self._get_client().files.upload(file=audio_path)
+                uploaded = self._wait_file_ready(uploaded)
+            logger.info("[GOOGLE] 长音频识别: model=%s, audio=%s", model_name, display_name)
+            response = self._get_client().models.generate_content(model=model_name, contents=[prompt, uploaded])
+            return _response_text(response)
+
+        return self._call_with_model_switch(primary, self._audio_chain(), "audio", _invoke, max_retries)
+
+    def probe_vision_model(self, model: str, image_path: str, timeout: float = 60.0) -> tuple[bool, str]:
+        try:
+            text = self.chat_with_images("Read the visible text in this image.", [image_path], model=model, max_retries=1)
+            return bool(text), text[:200]
+        except Exception as exc:
+            return False, str(exc)
