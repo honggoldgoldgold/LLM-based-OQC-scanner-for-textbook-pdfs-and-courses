@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from OCRLLM.config import AppConfig
 from OCRLLM.processors.pdf import PDFProcessor
@@ -6,6 +7,23 @@ from OCRLLM.processors.video import VideoProcessor
 
 
 class GoogleProcessingConfigTests(unittest.TestCase):
+    def test_from_env_loads_google_runtime_controls_for_cli(self):
+        with patch.dict("os.environ", {
+            "OCRLLM_GOOGLE_MODE_ENABLED": "1",
+            "GOOGLE_API_KEY": "AIza-test",
+            "OCRLLM_GOOGLE_PARALLEL_REQUESTS": "3",
+            "OCRLLM_GOOGLE_REQUEST_STAGGER_SECONDS": "66.5",
+            "OCRLLM_GOOGLE_VISION_BATCH_SIZE": "4",
+            "OCRLLM_GOOGLE_VIDEO_FRAME_BATCH_SIZE": "5",
+        }, clear=True):
+            cfg = AppConfig.from_env()
+
+        self.assertTrue(cfg.google_api.enabled)
+        self.assertEqual(cfg.google_api.parallel_requests, 3)
+        self.assertEqual(cfg.google_api.request_stagger_seconds, 66.5)
+        self.assertEqual(cfg.google_api.vision_batch_size, 4)
+        self.assertEqual(cfg.google_api.video_frame_batch_size, 5)
+
     def test_pdf_uses_google_independent_batch_parallel_and_stagger_config(self):
         cfg = AppConfig().with_updates(
             google_api={

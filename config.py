@@ -250,6 +250,22 @@ class AppConfig:
             if raw is None:
                 return None
             return raw.strip().lower() in {"1", "true", "yes", "on"}
+        def _env_int(name: str) -> int | None:
+            raw = os.environ.get(name)
+            if raw is None or not raw.strip():
+                return None
+            try:
+                return int(raw)
+            except ValueError:
+                return None
+        def _env_float(name: str) -> float | None:
+            raw = os.environ.get(name)
+            if raw is None or not raw.strip():
+                return None
+            try:
+                return float(raw)
+            except ValueError:
+                return None
 
         key = os.environ.get("DASHSCOPE_API_KEY")
         if key:
@@ -299,6 +315,18 @@ class AppConfig:
         google_text = os.environ.get("OCRLLM_GOOGLE_TEXT_MODEL")
         if google_text:
             updates.setdefault("google_api", {})["text_model"] = google_text
+        google_parallel = _env_int("OCRLLM_GOOGLE_PARALLEL_REQUESTS")
+        if google_parallel is not None:
+            updates.setdefault("google_api", {})["parallel_requests"] = max(1, google_parallel)
+        google_stagger = _env_float("OCRLLM_GOOGLE_REQUEST_STAGGER_SECONDS")
+        if google_stagger is not None:
+            updates.setdefault("google_api", {})["request_stagger_seconds"] = max(0.0, google_stagger)
+        google_vision_batch = _env_int("OCRLLM_GOOGLE_VISION_BATCH_SIZE")
+        if google_vision_batch is not None:
+            updates.setdefault("google_api", {})["vision_batch_size"] = max(1, google_vision_batch)
+        google_video_batch = _env_int("OCRLLM_GOOGLE_VIDEO_FRAME_BATCH_SIZE")
+        if google_video_batch is not None:
+            updates.setdefault("google_api", {})["video_frame_batch_size"] = max(1, google_video_batch)
         if updates.get("codex_vision", {}).get("enabled"):
             codex_model_value = updates["codex_vision"].get("model", cfg.codex_vision.model)
             updates.setdefault("models", {})["vision_model"] = codex_model_value

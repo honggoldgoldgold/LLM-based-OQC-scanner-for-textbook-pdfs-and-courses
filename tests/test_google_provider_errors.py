@@ -3,6 +3,7 @@ import unittest
 from OCRLLM.core.providers.google_provider import (
     GoogleErrorKind,
     classify_google_error,
+    google_retry_delay_seconds,
 )
 
 
@@ -41,6 +42,23 @@ class GoogleProviderErrorTests(unittest.TestCase):
         self.assertEqual(classified.kind, GoogleErrorKind.NETWORK)
         self.assertFalse(classified.should_switch_model)
         self.assertTrue(classified.should_retry_same_model)
+
+    def test_rate_limit_waits_across_minute_window(self):
+        classified = classify_google_error(RuntimeError(
+            "429 Too Many Requests: rate limit exceeded for current project"
+        ))
+
+        self.assertGreaterEqual(google_retry_delay_seconds(classified, attempt=1), 60.0)
+
+    def test_retry_delay_honors_google_retry_info(self):
+        classified = classify_google_error(RuntimeError(
+            '{"error":{"code":429,"status":"RESOURCE_EXHAUSTED",'
+            '"message":"Rate limit exceeded",'
+            '"details":[{"@type":"type.googleapis.com/google.rpc.RetryInfo",'
+            '"retryDelay":"73s"}]}}'
+        ))
+
+        self.assertEqual(google_retry_delay_seconds(classified, attempt=1), 73.0)
 
 
 if __name__ == "__main__":

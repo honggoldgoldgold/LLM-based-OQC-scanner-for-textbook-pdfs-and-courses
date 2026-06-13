@@ -11,6 +11,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -97,6 +98,35 @@ def classify_google_error(exc: Exception) -> ClassifiedGoogleError:
     if "empty response" in lowered or "响应为空" in lowered:
         return ClassifiedGoogleError(GoogleErrorKind.EMPTY_RESPONSE, False, True, message)
     return ClassifiedGoogleError(GoogleErrorKind.UNKNOWN, False, False, message)
+
+
+def _retry_delay_from_message(message: str) -> float | None:
+    """Extract Google RetryInfo-style delays from SDK/REST error text."""
+    patterns = (
+        r'"retryDelay"\s*:\s*"(?P<value>\d+(?:\.\d+)?)s"',
+        r"retry[_ ]?delay['\"]?\s*[:=]\s*['\"]?(?P<value>\d+(?:\.\d+)?)s",
+        r"retry in (?P<value>\d+(?:\.\d+)?)\s*s",
+    )
+    lowered = message.lower()
+    for pattern in patterns:
+        match = re.search(pattern, message, flags=re.IGNORECASE)
+        if match:
+            return max(1.0, float(match.group("value")))
+    seconds_match = re.search(r"seconds['\"]?\s*[:=]\s*(?P<value>\d+(?:\.\d+)?)", lowered)
+    if "retry" in lowered and seconds_match:
+        return max(1.0, float(seconds_match.group("value")))
+    return None
+
+
+def google_retry_delay_seconds(classified: ClassifiedGoogleError, attempt: int) -> float:
+    """Choose retry delay without mistaking per-minute rate limits for transient errors."""
+    hinted = _retry_delay_from_message(classified.message)
+    if hinted is not None:
+        return hinted
+    exponential = min(2 ** max(0, attempt - 1), 60)
+    if classified.kind == GoogleErrorKind.RATE_LIMIT:
+        return max(65.0, float(exponential))
+    return float(exponential)
 
 
 def _field(value, name: str, default=None):
@@ -201,7 +231,7 @@ class GoogleProviderClient:
 
             if not classified.should_retry_same_model or attempt >= max_retries:
                 raise GoogleProviderFailure(classified)
-            delay = min(2 ** (attempt - 1), 60)
+            delay = google_retry_delay_seconds(classified, attempt)
             logger.warning(
                 "[GOOGLE] %s 可重试错误 (model=%s, 尝试 %d/%d, %.0fs 后重试): %s",
                 classified.kind.value,

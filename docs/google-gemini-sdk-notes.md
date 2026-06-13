@@ -31,6 +31,7 @@
 - Google 速率限制按项目计算，不是按 API key 计算。后续做 Google API 池时，不能照搬 DashScope 多 key 提升并发的假设。
 - 实验、预览、快照模型通常更容易有严格限流。OCRLLM 将它们放在图片识别优先队列前段，是为了优先消耗免费/不稳定模型；但限流错误仍按同模型重试处理，不直接误判为额度耗尽。
 - `RESOURCE_EXHAUSTED` 既可能是 quota，也可能是 rate limit。OCRLLM 分类时先看是否包含 rate limit/RPM/TPM/RPD 等字样；否则才进入“切换下一个免费候选模型”。
+- 分钟级 `RATE_LIMIT` 不能按普通网络错误快速重试。OCRLLM 会优先读取 Google `RetryInfo.retryDelay`；没有服务端建议时，rate limit 第一次重试至少等待 65 秒，避免一分钟窗口未刷新就失败。
 - 有些异常会以 JSON 文本形式出现在返回内容里。OCRLLM 会把形如 `{"error": ...}` 的模型文本视为假成功，并重新进入错误分类。
 - 长音频转写不是单独 ASR API，而是 Gemini 多模态模型加 Files API 和提示词。当前 Google 模式不做短音频盲切回退。
 
@@ -39,6 +40,7 @@
 - Google 模式独立于 DashScope 千问模式和 OpenAI-compatible 视觉 Provider。
 - 启用 Google 模式时，后台识别主路由走 Google provider，千问主链路不参与。
 - UI 勾选 Google 模式且已填写 Google key 时，会立即执行 google.com 连通性和实时模型拉取；未填写 key 时不弹额外网络错误，保存时再强校验。
+- CLI 可用 `OCRLLM_GOOGLE_PARALLEL_REQUESTS`、`OCRLLM_GOOGLE_REQUEST_STAGGER_SECONDS`、`OCRLLM_GOOGLE_VISION_BATCH_SIZE`、`OCRLLM_GOOGLE_VIDEO_FRAME_BATCH_SIZE` 控制 Google 模式的并发、错峰和批大小，真实长课任务建议先低并发运行。
 - OpenAI-compatible 视觉 Provider 的配置不清空，用户关闭 Google 模式后仍可继续使用。
 - 图片/视频帧模型优先链来自实时模型列表，排序为 image/preview/snapshot/experimental 优先；这些候选不可用后再尝试 Gemini 2+ Pro/Flash 长音频候选；泛用但非音频优先的老模型排在更后。
 - 长音频模型优先链来自实时模型列表，仅保留 Gemini 2+ Pro/Flash 这类多模态长上下文候选。
