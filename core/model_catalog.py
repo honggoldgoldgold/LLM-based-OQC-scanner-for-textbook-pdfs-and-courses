@@ -430,8 +430,13 @@ def _google_priority(model: GoogleModel, *, purpose: str) -> tuple[int, int, str
     lowered = model.name.lower()
     version_rank = -int(_google_version_score(lowered) * 100)
     if purpose == "audio":
-        if model.kind == "audio_long":
-            model_class = 0 if "flash" in lowered else 1
+        if _is_google_audio_long_candidate(model.name):
+            if "lite" in lowered:
+                model_class = 2
+            elif "flash" in lowered:
+                model_class = 0
+            else:
+                model_class = 1
             return (model_class, version_rank, model.name)
         return (9, version_rank, model.name)
     if model.kind == "image_preview":
@@ -854,7 +859,11 @@ def google_free_vision_chain() -> list[str]:
 
 def google_free_audio_chain() -> list[str]:
     """Google 长音频免费优先链：Gemini 2+ Pro/Flash 多模态模型。"""
-    return [m.name for m in load_google_audio_models() if m.free_quota]
+    return [
+        m.name
+        for m in sorted(load_google_audio_models(), key=lambda item: _google_priority(item, purpose="audio"))
+        if m.free_quota
+    ]
 
 
 # ====================================================================

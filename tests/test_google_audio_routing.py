@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock
+from unittest.mock import Mock, patch
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.providers.google_provider import GoogleProviderClient
@@ -31,6 +31,7 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             llm.transcribe_long_audio.return_value = "hello from google"
             processor = AudioProcessor(cfg=cfg, llm=llm)
             processor._ensure_upload_format = Mock(return_value=audio_path)
+            processor._get_cached_duration = Mock(return_value=None)
             processor._short_asr = Mock(side_effect=AssertionError("short fallback must not run"))
 
             result = processor.process(audio_path, output_path=output_path)
@@ -40,6 +41,54 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             with open(output_path, encoding="utf-8") as f:
                 self.assertIn("hello from google", f.read())
             processor._short_asr.assert_not_called()
+
+    def test_google_mode_rejects_hotword_only_long_audio_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = "根据您提供的板书内容，为您提取的专业术语热词表如下：共产主义"
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=9_600.0)
+
+            with self.assertRaisesRegex(RuntimeError, "Google 长音频识别疑似假成功"):
+                processor.process(audio_path, output_path=output_path)
+
+            self.assertFalse(os.path.exists(output_path))
+
+    def test_google_mode_rejects_too_short_long_audio_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = "老师开始讲课。"
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=9_600.0)
+
+            with self.assertRaisesRegex(RuntimeError, "转写正文过短"):
+                processor.process(audio_path, output_path=output_path)
 
     def test_qwen_no_valid_fragment_no_longer_forces_short_audio_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -93,7 +142,8 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             pool.get_single_client.return_value = llm
             processor = VideoProcessor(cfg=cfg, llm=llm, api_pool=pool)
 
-            processor._phase5_asr(audio_path, ["convex"], tmp, "lecture")
+            with patch("OCRLLM.processors.audio.AudioProcessor._get_cached_duration", return_value=None):
+                processor._phase5_asr(audio_path, ["convex"], tmp, "lecture")
 
             llm.transcribe_long_audio.assert_called_once()
             output_path = os.path.join(tmp, "lecture_录音识别.md")

@@ -121,6 +121,58 @@ def _normalize_trusted_url(url: str, trusted_hosts: set[str]) -> str | None:
     return urlunparse(parsed)
 
 
+def audio_markdown_body(md: str) -> str:
+    """Return transcript body without OCRLLM metadata blockquotes/comments."""
+    body_lines: list[str] = []
+    for line in md.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith("<!--") and stripped.endswith("-->"):
+            continue
+        if stripped.startswith(">"):
+            continue
+        body_lines.append(line)
+    return "\n".join(body_lines).strip()
+
+
+def google_audio_transcript_invalid_reason(text: str, duration: float | None = None) -> str | None:
+    """Detect Google long-audio false successes before they are written as transcripts."""
+    stripped = text.strip()
+    if not stripped:
+        return "返回空内容"
+
+    head = stripped[:240]
+    if (
+        ("根据您提供" in head or "基于你刚才识别" in head or "板书" in head)
+        and ("热词" in head or "术语" in head or "专业词" in head)
+    ):
+        return "正文像热词表/术语表，不是课堂语音转写"
+
+    if duration and duration >= 30 * 60:
+        duration_minutes = duration / 60.0
+        min_chars = max(4000, int(duration_minutes * 80))
+        if len(stripped) < min_chars:
+            return f"转写正文过短: {len(stripped)} 字，音频约 {duration_minutes:.1f} 分钟，最低期望 {min_chars} 字"
+
+    return None
+
+
+def validate_google_audio_transcript(text: str, duration: float | None = None):
+    reason = google_audio_transcript_invalid_reason(text, duration=duration)
+    if reason:
+        raise RuntimeError(f"Google 长音频识别疑似假成功: {reason}")
+
+
+def google_audio_transcript_md_valid(md_path: str, duration: float | None = None) -> bool:
+    try:
+        with open(md_path, encoding="utf-8") as f:
+            body = audio_markdown_body(f.read())
+    except OSError:
+        return False
+    return google_audio_transcript_invalid_reason(body, duration=duration) is None
+
+
 def _retry_on_ssl(fn, max_retries=3, base_delay=5, sleep_fn=None):
     for attempt in range(max_retries):
         try:
@@ -366,15 +418,20 @@ class AudioProcessor(BaseProcessor):
 
         self._report(1, 4, f"Google 长音频模式: {self.cfg.google_api.audio_model}")
         system_prompt = self._build_system_prompt(hotwords, prompt_template)
+        duration = None
+        try:
+            duration = self._get_cached_duration(audio_path)
+        except Exception as exc:
+            logger.warning("[ASR] Google 长音频时长探测失败，跳过长度型假成功校验: %s", exc)
         self._report(2, 4, "上传音频并请求 Gemini 识别...")
         text = self.llm.transcribe_long_audio(
             audio_path=audio_path,
             system_prompt=system_prompt,
             model=self.cfg.google_api.audio_model,
+            text_validator=lambda value: google_audio_transcript_invalid_reason(value, duration=duration),
         )
         text = strip_md_fence(text)
-        if not text.strip():
-            raise RuntimeError("Google 长音频识别返回空内容")
+        validate_google_audio_transcript(text, duration=duration)
 
         md_lines = [f"<!-- meta:audio title={stem} -->\n"]
         md_lines.append(f"> Provider: Google Gemini SDK\n")

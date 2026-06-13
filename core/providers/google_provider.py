@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 from threading import Event
-from typing import Optional
+from typing import Callable, Optional
 
 import httpx
 
@@ -39,8 +39,12 @@ class GoogleErrorKind(str, Enum):
     BILLING = "billing"
     CONCURRENCY = "concurrency"
     EMPTY_RESPONSE = "empty_response"
+    BAD_RESPONSE = "bad_response"
     SAFETY = "safety"
     UNKNOWN = "unknown"
+
+
+TextValidator = Callable[[str], str | None]
 
 
 @dataclass(frozen=True)
@@ -215,7 +219,7 @@ class GoogleProviderClient:
         self._client = genai.Client(api_key=self.cfg.google_api.api_key)
         return self._client
 
-    def _validate_text(self, text: str) -> str:
+    def _validate_text(self, text: str, text_validator: TextValidator | None = None) -> str:
         if not text.strip():
             raise GoogleProviderFailure(ClassifiedGoogleError(
                 GoogleErrorKind.EMPTY_RESPONSE,
@@ -226,13 +230,29 @@ class GoogleProviderClient:
         if _looks_like_json_error(text):
             classified = classify_google_error(RuntimeError(text))
             raise GoogleProviderFailure(classified)
-        return text.strip()
+        cleaned = text.strip()
+        if text_validator:
+            invalid_reason = text_validator(cleaned)
+            if invalid_reason:
+                raise GoogleProviderFailure(ClassifiedGoogleError(
+                    GoogleErrorKind.BAD_RESPONSE,
+                    should_switch_model=True,
+                    should_retry_same_model=False,
+                    message=f"Google 响应未通过内容校验: {invalid_reason}",
+                ))
+        return cleaned
 
-    def _retry_same_model(self, model: str, invoke, max_retries: int) -> str:
+    def _retry_same_model(
+        self,
+        model: str,
+        invoke,
+        max_retries: int,
+        text_validator: TextValidator | None = None,
+    ) -> str:
         for attempt in range(1, max_retries + 1):
             self._check_cancelled()
             try:
-                return self._validate_text(invoke(model))
+                return self._validate_text(invoke(model), text_validator=text_validator)
             except GoogleProviderFailure as exc:
                 classified = exc.classified
             except Exception as exc:
@@ -253,7 +273,15 @@ class GoogleProviderClient:
             self._sleep_with_cancel(delay)
         raise RuntimeError("Google 重试循环异常结束")
 
-    def _call_with_model_switch(self, primary_model: str, chain: list[str], kind: str, invoke, max_retries: int) -> str:
+    def _call_with_model_switch(
+        self,
+        primary_model: str,
+        chain: list[str],
+        kind: str,
+        invoke,
+        max_retries: int,
+        text_validator: TextValidator | None = None,
+    ) -> str:
         unavailable = self._unavailable_models_by_kind.setdefault(kind, set())
         preferred = self._last_successful_model_by_kind.get(kind)
         raw_ordered = []
@@ -278,7 +306,7 @@ class GoogleProviderClient:
             if idx > 0:
                 logger.warning("[GOOGLE] 切换 %s 模型: %s -> %s", kind, previous, model)
             try:
-                text = self._retry_same_model(model, invoke, max_retries)
+                text = self._retry_same_model(model, invoke, max_retries, text_validator=text_validator)
                 self._last_successful_model_by_kind[kind] = model
                 return text
             except GoogleProviderFailure as exc:
@@ -323,6 +351,23 @@ class GoogleProviderClient:
 
     def _audio_chain(self) -> list[str]:
         return self.cfg.google_api.audio_model_queue or model_catalog.google_free_audio_chain()
+
+    def _text_chain(self) -> list[str]:
+        """Prefer general/audio-capable Gemini models for pure text, not image generators."""
+        ordered: list[str] = []
+        ordered.extend(self.cfg.google_api.audio_model_queue or model_catalog.google_free_audio_chain())
+        ordered.extend(
+            model.name
+            for model in model_catalog.load_google_vision_models()
+            if model.kind != "image_preview"
+        )
+        deduped: list[str] = []
+        seen = set()
+        for model in ordered:
+            if model and model not in seen:
+                deduped.append(model)
+                seen.add(model)
+        return deduped
 
     def chat_with_images(
         self,
@@ -382,7 +427,7 @@ class GoogleProviderClient:
             response = self._get_client().models.generate_content(model=model_name, contents=contents)
             return _response_text(response)
 
-        return self._call_with_model_switch(primary, self._vision_chain(), "text", _invoke, max_retries)
+        return self._call_with_model_switch(primary, self._text_chain(), "text", _invoke, max_retries)
 
     def _wait_file_ready(self, file_obj, timeout_seconds: float = 600.0):
         name = _field(file_obj, "name")
@@ -421,6 +466,7 @@ class GoogleProviderClient:
         model: Optional[str] = None,
         language: Optional[str] = None,
         max_retries: int = 4,
+        text_validator: TextValidator | None = None,
     ) -> str:
         primary = model or self.cfg.google_api.audio_model
         prompt = system_prompt or "Generate a detailed transcript of the speech with timestamps when possible."
@@ -449,7 +495,14 @@ class GoogleProviderClient:
             response = self._get_client().models.generate_content(model=model_name, contents=[prompt, uploaded])
             return _response_text(response)
 
-        return self._call_with_model_switch(primary, self._audio_chain(), "audio", _invoke, max_retries)
+        return self._call_with_model_switch(
+            primary,
+            self._audio_chain(),
+            "audio",
+            _invoke,
+            max_retries,
+            text_validator=text_validator,
+        )
 
     def probe_vision_model(self, model: str, image_path: str, timeout: float = 60.0) -> tuple[bool, str]:
         try:

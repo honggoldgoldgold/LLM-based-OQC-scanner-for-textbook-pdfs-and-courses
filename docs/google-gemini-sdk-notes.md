@@ -36,6 +36,9 @@
 - `503 UNAVAILABLE` 且提示 high demand / try again later 通常是临时服务负载，也按可重试限流处理，不能写入板书失败占位。
 - `httpx.RemoteProtocolError: Server disconnected without sending a response` 属于长音频/大文件请求常见网络断连，应按网络错误重试同一模型，而不是当作未知错误直接失败。
 - 有些异常会以 JSON 文本形式出现在返回内容里。OCRLLM 会把形如 `{"error": ...}` 的模型文本视为假成功，并重新进入错误分类。
+- 真实 160 分钟级课程中，Google 长音频可能返回“热词表/术语表”或明显过短片段，但 SDK 仍给正常文本响应。OCRLLM 必须在正文层校验，不能只看非空。
+- `flash-lite` 对超长课程转写更容易出现短片段/非转写输出。音频优先链中非 lite 的 Flash/Pro 应排在 lite 前面；lite 仍可作为后置免费候选。
+- 纯文本任务不要复用 image/preview 视觉候选链。部分 image 模型在文本请求里会 404 或高限流，热词提取应优先走 text/audio-capable Gemini 候选。
 - 长音频转写不是单独 ASR API，而是 Gemini 多模态模型加 Files API 和提示词。当前 Google 模式不做短音频盲切回退。
 
 ## OCRLLM 当前策略
@@ -46,7 +49,9 @@
 - CLI 可用 `OCRLLM_GOOGLE_PARALLEL_REQUESTS`、`OCRLLM_GOOGLE_REQUEST_STAGGER_SECONDS`、`OCRLLM_GOOGLE_VISION_BATCH_SIZE`、`OCRLLM_GOOGLE_VIDEO_FRAME_BATCH_SIZE` 控制 Google 模式的并发、错峰和批大小，真实长课任务建议先低并发运行。
 - OpenAI-compatible 视觉 Provider 的配置不清空，用户关闭 Google 模式后仍可继续使用。
 - 图片/视频帧模型优先链来自实时模型列表，排序为 image/preview/snapshot/experimental 优先；这些候选不可用后再尝试 Gemini 2+ Pro/Flash 长音频候选；泛用但非音频优先的老模型排在更后。
-- 长音频模型优先链来自实时模型列表，仅保留 Gemini 2+ Pro/Flash 这类多模态长上下文候选。
+- 长音频模型优先链来自实时模型列表，仅保留 Gemini 2+ Pro/Flash 这类多模态长上下文候选；排序为非 lite Flash、非 lite Pro、lite。
 - 视频管线的 Phase 4 板书帧和 Phase 5 音频识别都复用 Google provider，因此 Google 模式不会在音频阶段回到 DashScope。
 - 同一个 provider 生命周期内会记住已经因 quota/404/欠费等切走的模型，并优先复用上一次成功模型，避免长课多批次每次都重新消耗不可用 image/preview 模型。
 - 网络错误、限流、并发限制先重试同模型；quota/欠费/404 模型不可用切换下一个候选。
+- Google 长音频写入前会校验正文：热词表/术语表正文、错误 JSON、空白文本、长音频异常过短文本都视为假成功。验证失败时在 Google 音频候选内部切换模型；所有候选失败才显式报错。
+- Phase 5 断点续传会重新校验已有音频 MD。旧文件如果是热词表正文或长度异常，不再被当作已完成阶段。

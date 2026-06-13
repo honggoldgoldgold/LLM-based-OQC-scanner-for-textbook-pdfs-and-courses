@@ -27,6 +27,20 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                         input_token_limit=128_000,
                     ),
                     SimpleNamespace(
+                        name="models/gemini-3.1-flash-lite",
+                        display_name="Gemini 3.1 Flash Lite",
+                        description="Lightweight multimodal flash model with audio understanding.",
+                        supported_generation_methods=["generateContent"],
+                        input_token_limit=1_000_000,
+                    ),
+                    SimpleNamespace(
+                        name="models/gemini-2.5-flash",
+                        display_name="Gemini 2.5 Flash",
+                        description="Multimodal flash model with audio understanding.",
+                        supported_generation_methods=["generateContent"],
+                        input_token_limit=1_000_000,
+                    ),
+                    SimpleNamespace(
                         name="models/gemini-2.0-pro-exp",
                         display_name="Gemini 2.0 Pro Experimental",
                         description="Experimental multimodal pro model.",
@@ -59,24 +73,26 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                 )
 
                 fake_client.models.list.assert_called_once()
-                self.assertEqual(summary.raw_count, 5)
+                self.assertEqual(summary.raw_count, 7)
                 self.assertEqual(
                     [m.name for m in summary.vision],
                     [
                         "gemini-2.5-flash-image-preview",
                         "gemini-2.0-pro-exp",
                         "gemini-3.5-flash",
+                        "gemini-3.1-flash-lite",
+                        "gemini-2.5-flash",
                         "gemini-1.5-pro",
                     ],
                 )
                 self.assertEqual(
                     [m.name for m in summary.audio],
-                    ["gemini-3.5-flash", "gemini-2.0-pro-exp"],
+                    ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-pro-exp", "gemini-3.1-flash-lite"],
                 )
                 self.assertTrue((Path(tmp) / ".OCRLLM" / "google_models.json").exists())
 
                 cached_audio = [m.name for m in model_catalog.load_google_audio_models()]
-                self.assertEqual(cached_audio, ["gemini-3.5-flash", "gemini-2.0-pro-exp"])
+                self.assertEqual(cached_audio, ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-pro-exp", "gemini-3.1-flash-lite"])
 
     def test_google_sdk_client_receives_model_fetch_timeout(self):
         with patch("google.genai.Client") as client_cls:
@@ -119,6 +135,31 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                     ["gemini-2.5-flash-image-preview", "gemini-3.5-flash"],
                 )
                 self.assertEqual(model_catalog.google_free_audio_chain(), ["gemini-3.5-flash"])
+
+    def test_google_audio_chain_resorts_cached_models_with_non_lite_before_lite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch.object(Path, "home", return_value=Path(tmp)):
+                model_catalog._save_google_models_raw({
+                    "audio": [
+                        {
+                            "name": "gemini-3.1-flash-lite",
+                            "label": "lite cached first",
+                            "kind": "audio_long",
+                            "free_quota": True,
+                        },
+                        {
+                            "name": "gemini-2.5-flash",
+                            "label": "full flash cached later",
+                            "kind": "audio_long",
+                            "free_quota": True,
+                        },
+                    ],
+                })
+
+                self.assertEqual(
+                    model_catalog.google_free_audio_chain(),
+                    ["gemini-2.5-flash", "gemini-3.1-flash-lite"],
+                )
 
 
 if __name__ == "__main__":

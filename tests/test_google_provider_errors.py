@@ -1,6 +1,8 @@
 import unittest
 
 import httpx
+from pathlib import Path
+from types import SimpleNamespace
 
 from OCRLLM.core.providers.google_provider import (
     ClassifiedGoogleError,
@@ -91,7 +93,7 @@ class GoogleProviderErrorTests(unittest.TestCase):
         client = GoogleProviderClient(cfg=cfg)
         calls: list[str] = []
 
-        def fake_retry(model: str, _invoke, _max_retries: int) -> str:
+        def fake_retry(model: str, _invoke, _max_retries: int, text_validator=None) -> str:
             calls.append(model)
             if model == "broken-image-model":
                 raise GoogleProviderFailure(ClassifiedGoogleError(
@@ -122,6 +124,75 @@ class GoogleProviderErrorTests(unittest.TestCase):
         self.assertEqual(first, "ok:gemini-flash-latest")
         self.assertEqual(second, "ok:gemini-flash-latest")
         self.assertEqual(calls, ["broken-image-model", "gemini-flash-latest", "gemini-flash-latest"])
+
+    def test_chat_text_uses_text_chain_without_image_preview_models(self):
+        cfg = AppConfig().with_updates(
+            google_api={
+                "enabled": True,
+                "api_key": "AIza-test",
+                "text_model": "gemini-3.5-flash",
+                "vision_model_queue": ["gemini-2.5-flash-image-preview"],
+                "audio_model_queue": ["gemini-2.5-flash"],
+            },
+        )
+        client = GoogleProviderClient(cfg=cfg)
+        captured = {}
+
+        def fake_call(primary, chain, kind, _invoke, _max_retries):
+            captured["primary"] = primary
+            captured["chain"] = chain
+            captured["kind"] = kind
+            return "ok"
+
+        client._call_with_model_switch = fake_call
+
+        self.assertEqual(client.chat_text("extract hotwords"), "ok")
+        self.assertEqual(captured["primary"], "gemini-3.5-flash")
+        self.assertEqual(captured["kind"], "text")
+        self.assertIn("gemini-2.5-flash", captured["chain"])
+        self.assertNotIn("gemini-2.5-flash-image-preview", captured["chain"])
+
+    def test_long_audio_switches_model_when_content_validator_rejects(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = Path(tmp) / "lecture.mp3"
+            audio_path.write_bytes(b"fake audio")
+            calls: list[str] = []
+
+            class FakeFiles:
+                def upload(self, file):
+                    return SimpleNamespace(name="files/test", state="ACTIVE")
+
+                def get(self, name):
+                    return SimpleNamespace(name=name, state="ACTIVE")
+
+            class FakeModels:
+                def generate_content(self, model, contents):
+                    calls.append(model)
+                    if model == "gemini-bad":
+                        return SimpleNamespace(text="根据您提供的板书内容，为您提取热词表如下：线性规划")
+                    return SimpleNamespace(text="老师开始讲课，今天我们继续讨论线性规划的内点法。")
+
+            cfg = AppConfig().with_updates(
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model_queue": ["gemini-good"],
+                },
+            )
+            client = GoogleProviderClient(cfg=cfg)
+            client._client = SimpleNamespace(files=FakeFiles(), models=FakeModels())
+
+            text = client.transcribe_long_audio(
+                str(audio_path),
+                model="gemini-bad",
+                max_retries=1,
+                text_validator=lambda value: "不是课堂转写" if "热词表" in value else None,
+            )
+
+            self.assertIn("老师开始讲课", text)
+            self.assertEqual(calls, ["gemini-bad", "gemini-good"])
 
 
 if __name__ == "__main__":
