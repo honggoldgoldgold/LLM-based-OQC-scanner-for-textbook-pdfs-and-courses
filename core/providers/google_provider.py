@@ -94,6 +94,8 @@ def classify_google_error(exc: Exception) -> ClassifiedGoogleError:
         return ClassifiedGoogleError(GoogleErrorKind.AUTH, False, False, message)
     if "billing" in lowered or "payment" in lowered or "insufficient" in lowered and "fund" in lowered:
         return ClassifiedGoogleError(GoogleErrorKind.BILLING, True, False, message)
+    if "503" in lowered or "unavailable" in lowered or "high demand" in lowered or "try again later" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.RATE_LIMIT, False, True, message)
     if "rate limit" in lowered or "too many requests" in lowered or "429" in lowered:
         return ClassifiedGoogleError(GoogleErrorKind.RATE_LIMIT, False, True, message)
     if "concurrent" in lowered or "concurrency" in lowered:

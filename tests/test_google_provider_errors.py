@@ -58,6 +58,17 @@ class GoogleProviderErrorTests(unittest.TestCase):
         self.assertFalse(classified.should_switch_model)
         self.assertTrue(classified.should_retry_same_model)
 
+    def test_google_503_high_demand_retries_same_model(self):
+        classified = classify_google_error(RuntimeError(
+            "503 UNAVAILABLE. {'error': {'code': 503, 'message': "
+            "'This model is currently experiencing high demand. Spikes in demand are usually temporary. "
+            "Please try again later.', 'status': 'UNAVAILABLE'}}"
+        ))
+
+        self.assertEqual(classified.kind, GoogleErrorKind.RATE_LIMIT)
+        self.assertFalse(classified.should_switch_model)
+        self.assertTrue(classified.should_retry_same_model)
+
     def test_rate_limit_waits_across_minute_window(self):
         classified = classify_google_error(RuntimeError(
             "429 Too Many Requests: rate limit exceeded for current project"
