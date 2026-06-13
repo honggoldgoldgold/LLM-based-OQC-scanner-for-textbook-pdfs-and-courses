@@ -440,9 +440,9 @@ def _google_priority(model: GoogleModel, *, purpose: str) -> tuple[int, int, str
         return (1, version_rank, model.name)
     if model.kind == "experimental":
         return (2, version_rank, model.name)
-    if model.kind == "vision_general":
-        return (3, version_rank, model.name)
     if model.kind == "audio_long":
+        return (3, version_rank, model.name)
+    if model.kind == "vision_general":
         return (4, version_rank, model.name)
     return (8, version_rank, model.name)
 
@@ -506,9 +506,11 @@ def _build_google_client(api_key: str, timeout: float = 20.0):
         raise ValueError("Google API Key 为空，无法获取模型列表")
     try:
         from google import genai
+        from google.genai import types
     except Exception as exc:
         raise RuntimeError("缺少 google-genai SDK，请安装 requirements.txt 中的 google-genai") from exc
-    return genai.Client(api_key=api_key)
+    timeout_ms = max(1, int(float(timeout) * 1000))
+    return genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=timeout_ms))
 
 
 def _fetch_google_models_via_rest(api_key: str, timeout: float = 20.0) -> list[dict]:

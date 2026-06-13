@@ -34,6 +34,13 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                         input_token_limit=1_000_000,
                     ),
                     SimpleNamespace(
+                        name="models/gemini-1.5-pro",
+                        display_name="Gemini 1.5 Pro",
+                        description="General Gemini model.",
+                        supported_generation_methods=["generateContent"],
+                        input_token_limit=1_000_000,
+                    ),
+                    SimpleNamespace(
                         name="models/text-embedding-004",
                         display_name="Text Embedding",
                         description="Embedding model.",
@@ -52,10 +59,15 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                 )
 
                 fake_client.models.list.assert_called_once()
-                self.assertEqual(summary.raw_count, 4)
+                self.assertEqual(summary.raw_count, 5)
                 self.assertEqual(
                     [m.name for m in summary.vision],
-                    ["gemini-2.5-flash-image-preview", "gemini-2.0-pro-exp", "gemini-3.5-flash"],
+                    [
+                        "gemini-2.5-flash-image-preview",
+                        "gemini-2.0-pro-exp",
+                        "gemini-3.5-flash",
+                        "gemini-1.5-pro",
+                    ],
                 )
                 self.assertEqual(
                     [m.name for m in summary.audio],
@@ -65,6 +77,14 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
 
                 cached_audio = [m.name for m in model_catalog.load_google_audio_models()]
                 self.assertEqual(cached_audio, ["gemini-3.5-flash", "gemini-2.0-pro-exp"])
+
+    def test_google_sdk_client_receives_model_fetch_timeout(self):
+        with patch("google.genai.Client") as client_cls:
+            model_catalog._build_google_client("AIza-test", timeout=7.5)
+
+        kwargs = client_cls.call_args.kwargs
+        self.assertEqual(kwargs["api_key"], "AIza-test")
+        self.assertEqual(kwargs["http_options"].timeout, 7500)
 
     def test_google_free_chains_keep_vision_and_audio_priorities_separate(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -20,12 +20,13 @@
 - 模型列表走 `client.models.list()`，REST fallback 是 `GET https://generativelanguage.googleapis.com/v1beta/models`。
 - 图片小请求可用 `google.genai.types.Part.from_bytes(data=..., mime_type=...)` 内嵌发送。
 - 大音频、长视频、大图片应先 `client.files.upload(file=...)`，再把上传对象放入 `contents`。
+- SDK 网络超时通过 `types.HttpOptions(timeout=毫秒)` 传给 `genai.Client`，不能只在外层函数保存一个 timeout 参数。
 
 ## 不显而易见的特性
 
 - Google 官方 SDK 会自动读取环境变量，但如果同时存在 `GOOGLE_API_KEY` 和 `GEMINI_API_KEY`，`GOOGLE_API_KEY` 优先。OCRLLM UI 内显式传入用户填写的 key，避免被系统环境变量悄悄覆盖。
 - Models API 返回的是 `models/{id}` 形式，实际调用 `generate_content` 时使用去掉 `models/` 后的 id 更符合官方 Python 示例。
-- `supportedGenerationMethods` 需要包含 `generateContent` 才适合 OCRLLM 当前识别管线；只支持 `embedContent` 的模型必须过滤掉。
+- REST 字段是 `supportedGenerationMethods`，当前 `google-genai` SDK 类型字段是 `supported_actions`。两种字段都要兼容，并且需要包含 `generateContent` 才适合 OCRLLM 当前识别管线；只支持 `embedContent` 的模型必须过滤掉。
 - Files API 文件会自动删除，官方文档写明单文件限制和项目存储限制。OCRLLM 当前只把它当临时上传通道，不把 Google 文件 URI 当长期缓存。
 - Google 速率限制按项目计算，不是按 API key 计算。后续做 Google API 池时，不能照搬 DashScope 多 key 提升并发的假设。
 - 实验、预览、快照模型通常更容易有严格限流。OCRLLM 将它们放在图片识别优先队列前段，是为了优先消耗免费/不稳定模型；但限流错误仍按同模型重试处理，不直接误判为额度耗尽。
@@ -38,6 +39,6 @@
 - Google 模式独立于 DashScope 千问模式和 OpenAI-compatible 视觉 Provider。
 - 启用 Google 模式时，后台识别主路由走 Google provider，千问主链路不参与。
 - OpenAI-compatible 视觉 Provider 的配置不清空，用户关闭 Google 模式后仍可继续使用。
-- 图片/视频帧模型优先链来自实时模型列表，排序为 image/preview/snapshot/experimental 优先，Gemini 2+ Pro/Flash 长音频候选最后兜底。
+- 图片/视频帧模型优先链来自实时模型列表，排序为 image/preview/snapshot/experimental 优先；这些候选不可用后再尝试 Gemini 2+ Pro/Flash 长音频候选；泛用但非音频优先的老模型排在更后。
 - 长音频模型优先链来自实时模型列表，仅保留 Gemini 2+ Pro/Flash 这类多模态长上下文候选。
 - 网络错误、限流、并发限制先重试同模型；quota/欠费/404 模型不可用切换下一个候选。
