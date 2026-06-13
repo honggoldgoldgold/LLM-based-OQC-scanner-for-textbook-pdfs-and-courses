@@ -27,9 +27,13 @@ from __future__ import annotations
 import json
 import logging
 import os
+import time
+import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, Literal, Optional
+
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +66,17 @@ class AudioModel:
     @property
     def is_long_capable(self) -> bool:
         return self.kind == "asr_long"
+
+
+@dataclass(frozen=True)
+class BailianModelDiscovery:
+    """Result of a real Alibaba Bailian/DashScope model list fetch."""
+
+    raw_count: int
+    vision: tuple[VisionModel, ...]
+    audio: tuple[AudioModel, ...]
+    raw_model_ids: tuple[str, ...]
+    fetched_at: float
 
 
 # ====================================================================
@@ -154,6 +169,243 @@ BUILTIN_AUDIO_MODELS: tuple[AudioModel, ...] = (
 
 def user_models_path() -> Path:
     return Path.home() / ".OCRLLM" / "user_models.json"
+
+
+def bailian_models_path() -> Path:
+    return Path.home() / ".OCRLLM" / "bailian_models.json"
+
+
+def is_dashscope_base_url(base_url: str) -> bool:
+    marker = (base_url or "").lower()
+    return "dashscope" in marker or "aliyuncs.com" in marker or "maas.aliyuncs.com" in marker
+
+
+def _normalize_openai_base_url(base_url: str) -> str:
+    normalized = (base_url or "").strip().rstrip("/")
+    if not normalized:
+        return normalized
+    # Bailian console snippets use compatible-mode/v1. If the user enters a
+    # regional host root, keep discovery usable by adding the compatible path.
+    if normalized.endswith("/compatible-mode/v1") or normalized.endswith("/v1"):
+        return normalized
+    return f"{normalized}/compatible-mode/v1"
+
+
+def _model_id_from_openai_item(item) -> str:
+    if isinstance(item, dict):
+        return str(item.get("id") or item.get("name") or "").strip()
+    return str(getattr(item, "id", "") or getattr(item, "name", "") or "").strip()
+
+
+def _fetch_openai_compatible_model_ids(base_url: str, api_key: str, timeout: float = 20.0) -> list[str]:
+    normalized_url = _normalize_openai_base_url(base_url)
+    if not normalized_url:
+        raise ValueError("Base URL 为空，无法获取百炼模型列表")
+    if not api_key:
+        raise ValueError("API Key 为空，无法获取百炼模型列表")
+
+    try:
+        client = OpenAI(api_key=api_key, base_url=normalized_url, timeout=timeout, max_retries=0)
+        models = client.models.list()
+        ids = [_model_id_from_openai_item(item) for item in getattr(models, "data", []) or []]
+        ids = [mid for mid in ids if mid]
+        if ids:
+            return sorted(dict.fromkeys(ids))
+    except Exception as exc:
+        logger.warning("[MODELS] OpenAI SDK 获取百炼模型列表失败，尝试 HTTP /models: %s", exc)
+
+    req = urllib.request.Request(
+        normalized_url.rstrip("/") + "/models",
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        body = json.loads(resp.read().decode("utf-8"))
+    if isinstance(body, dict) and isinstance(body.get("data"), list):
+        raw = body["data"]
+    elif isinstance(body, dict) and isinstance(body.get("models"), list):
+        raw = body["models"]
+    else:
+        raw = []
+    ids = [_model_id_from_openai_item(item) for item in raw]
+    ids = [mid for mid in ids if mid]
+    if not ids:
+        raise RuntimeError("百炼 /models 返回成功，但没有可用模型 ID")
+    return sorted(dict.fromkeys(ids))
+
+
+def _classify_bailian_vision_model(model_id: str) -> VisionModel | None:
+    name = model_id.strip()
+    lowered = name.lower()
+    if not name:
+        return None
+    if "asr" in lowered or lowered.startswith(("paraformer", "sensevoice", "fun-asr")):
+        return None
+    if "vl-ocr" in lowered or lowered.endswith("-ocr") or "-ocr-" in lowered:
+        kind: VisionKind = "ocr"
+        label = f"{name} — 百炼实时获取 OCR"
+    elif "omni" in lowered:
+        kind = "omni"
+        label = f"{name} — 百炼实时获取全模态"
+    elif "vl" in lowered:
+        kind = "vlm"
+        label = f"{name} — 百炼实时获取视觉"
+    elif lowered.startswith(("qwen3.5", "qwen3.6")):
+        kind = "general"
+        label = f"{name} — 百炼实时获取通用模型"
+    else:
+        return None
+    return VisionModel(name=name, label=label, kind=kind, free_quota=False, max_images=None, note="百炼 /models 实时获取")
+
+
+def _classify_bailian_audio_model(model_id: str) -> AudioModel | None:
+    name = model_id.strip()
+    lowered = name.lower()
+    if not name:
+        return None
+    if "filetrans" in lowered or lowered.startswith(("paraformer", "sensevoice", "fun-asr")):
+        return AudioModel(
+            name=name,
+            label=f"{name} — 百炼实时获取长录音",
+            kind="asr_long",
+            free_quota=False,
+            max_seconds=None,
+            note="百炼 /models 实时获取",
+        )
+    if "asr" in lowered:
+        return AudioModel(
+            name=name,
+            label=f"{name} — 百炼实时获取短音频",
+            kind="asr_short",
+            free_quota=False,
+            max_seconds=None,
+            note="百炼 /models 实时获取",
+        )
+    if "omni" in lowered:
+        return AudioModel(
+            name=name,
+            label=f"{name} — 百炼实时获取全模态音频",
+            kind="omni_audio",
+            free_quota=False,
+            max_seconds=None,
+            note="百炼 /models 实时获取",
+        )
+    return None
+
+
+def _save_bailian_models_raw(data: dict) -> None:
+    path = bailian_models_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def _load_bailian_models_raw() -> dict:
+    path = bailian_models_path()
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8")) or {}
+    except (json.JSONDecodeError, OSError) as exc:
+        logger.warning("[MODELS] 百炼模型缓存读取失败 (%s)，按空处理", exc)
+        return {}
+
+
+def _vision_from_raw_items(items: list[dict]) -> tuple[VisionModel, ...]:
+    out: list[VisionModel] = []
+    for item in items:
+        try:
+            out.append(VisionModel(
+                name=item["name"],
+                label=item.get("label") or f"{item['name']} — 百炼实时获取",
+                kind=item.get("kind", "vlm"),
+                free_quota=bool(item.get("free_quota", False)),
+                max_images=item.get("max_images"),
+                note=item.get("note", "百炼 /models 实时获取"),
+            ))
+        except KeyError:
+            continue
+    return tuple(out)
+
+
+def _audio_from_raw_items(items: list[dict]) -> tuple[AudioModel, ...]:
+    out: list[AudioModel] = []
+    for item in items:
+        try:
+            out.append(AudioModel(
+                name=item["name"],
+                label=item.get("label") or f"{item['name']} — 百炼实时获取",
+                kind=item.get("kind", "asr_long"),
+                free_quota=bool(item.get("free_quota", False)),
+                max_seconds=item.get("max_seconds"),
+                note=item.get("note", "百炼 /models 实时获取"),
+            ))
+        except KeyError:
+            continue
+    return tuple(out)
+
+
+def load_bailian_vision_models() -> tuple[VisionModel, ...]:
+    return _vision_from_raw_items(_load_bailian_models_raw().get("vision", []))
+
+
+def load_bailian_audio_models() -> tuple[AudioModel, ...]:
+    return _audio_from_raw_items(_load_bailian_models_raw().get("audio", []))
+
+
+def bailian_model_cache_is_stale(max_age_seconds: float = 24 * 3600) -> bool:
+    raw = _load_bailian_models_raw()
+    fetched_at = raw.get("fetched_at")
+    if not isinstance(fetched_at, (int, float)):
+        return True
+    return time.time() - float(fetched_at) > max_age_seconds
+
+
+def refresh_bailian_models(base_url: str, api_key: str, timeout: float = 20.0) -> BailianModelDiscovery:
+    """Fetch the actual Bailian model list and cache classified OCRLLM entries."""
+    model_ids = _fetch_openai_compatible_model_ids(base_url, api_key, timeout=timeout)
+    vision = tuple(m for mid in model_ids if (m := _classify_bailian_vision_model(mid)) is not None)
+    audio = tuple(m for mid in model_ids if (m := _classify_bailian_audio_model(mid)) is not None)
+    fetched_at = time.time()
+    _save_bailian_models_raw({
+        "source": "bailian-openai-compatible-models",
+        "base_url": _normalize_openai_base_url(base_url),
+        "fetched_at": fetched_at,
+        "raw_model_ids": model_ids,
+        "vision": [
+            {
+                "name": m.name,
+                "label": m.label,
+                "kind": m.kind,
+                "free_quota": m.free_quota,
+                "max_images": m.max_images,
+                "note": m.note,
+            }
+            for m in vision
+        ],
+        "audio": [
+            {
+                "name": m.name,
+                "label": m.label,
+                "kind": m.kind,
+                "free_quota": m.free_quota,
+                "max_seconds": m.max_seconds,
+                "note": m.note,
+            }
+            for m in audio
+        ],
+    })
+    logger.info("[MODELS] 百炼模型刷新完成: raw=%d, vision=%d, audio=%d", len(model_ids), len(vision), len(audio))
+    return BailianModelDiscovery(
+        raw_count=len(model_ids),
+        vision=vision,
+        audio=audio,
+        raw_model_ids=tuple(model_ids),
+        fetched_at=fetched_at,
+    )
 
 
 def _load_user_models_raw() -> dict:
@@ -267,6 +519,8 @@ def list_vision_models() -> tuple[VisionModel, ...]:
     seen: dict[str, VisionModel] = {}
     for m in BUILTIN_VISION_MODELS:
         seen.setdefault(m.name, m)
+    for m in load_bailian_vision_models():
+        seen.setdefault(m.name, m)
     for m in load_user_vision_models():
         seen.setdefault(m.name, m)
     return tuple(seen.values())
@@ -275,6 +529,8 @@ def list_vision_models() -> tuple[VisionModel, ...]:
 def list_audio_models() -> tuple[AudioModel, ...]:
     seen: dict[str, AudioModel] = {}
     for m in BUILTIN_AUDIO_MODELS:
+        seen.setdefault(m.name, m)
+    for m in load_bailian_audio_models():
         seen.setdefault(m.name, m)
     for m in load_user_audio_models():
         seen.setdefault(m.name, m)

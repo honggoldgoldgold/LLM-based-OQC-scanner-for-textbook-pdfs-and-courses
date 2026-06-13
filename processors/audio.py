@@ -12,6 +12,7 @@ import re
 import ssl
 import time
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -33,6 +34,45 @@ _DASHSCOPE_RESULT_HOSTS = {
     "dashscope-result-bj.oss-cn-beijing.aliyuncs.com",
     "dashscope-file-mgr.oss-cn-beijing.aliyuncs.com",
 }
+
+
+@dataclass(frozen=True)
+class AudioChunk:
+    path: str
+    actual_start: float
+    actual_end: float
+    logical_start: float
+    logical_end: float
+
+
+@dataclass(frozen=True)
+class AudioWindow:
+    actual_start: float
+    actual_end: float
+    logical_start: float
+    logical_end: float
+
+
+def build_fallback_audio_windows(
+    duration: float,
+    chunk_seconds: int = 360,
+    context_seconds: int = 30,
+) -> list[AudioWindow]:
+    """Build long-audio fallback windows with clamped head/tail context."""
+    if duration <= 0:
+        return []
+    chunk = max(1, int(chunk_seconds))
+    context = max(0, int(context_seconds))
+    windows: list[AudioWindow] = []
+    logical_start = 0.0
+    while logical_start < duration:
+        logical_end = min(duration, logical_start + chunk)
+        actual_start = max(0.0, logical_start - context)
+        actual_end = min(duration, logical_end + context)
+        if actual_end > actual_start:
+            windows.append(AudioWindow(actual_start, actual_end, logical_start, logical_end))
+        logical_start = logical_end
+    return windows
 
 
 def _derive_asr_api_root(base_url: str) -> str:
@@ -301,7 +341,14 @@ class AudioProcessor(BaseProcessor):
                     logger.warning("[ASR] 文件转写未检测到语音，自动回退分段短 ASR")
                 else:
                     logger.warning("[ASR] 长音频异步失败，回退分段短 ASR（已开启允许回退）: %s", e)
-                return self._short_asr(actual_path, hotwords, output_path, prompt_template, duration=duration)
+                return self._short_asr(
+                    actual_path,
+                    hotwords,
+                    output_path,
+                    prompt_template,
+                    duration=duration,
+                    fallback_mode=True,
+                )
             raise RuntimeError(
                 f"长音频异步识别失败，且已禁止自动回退短音频。原始错误: {e}"
             ) from e
@@ -309,15 +356,21 @@ class AudioProcessor(BaseProcessor):
             self._close_http_session()
 
     def _short_asr(self, audio_path: str, hotwords, output_path: str,
-                   prompt_template: str = None, duration: float = None) -> str:
+                   prompt_template: str = None, duration: float = None,
+                   fallback_mode: bool = False) -> str:
         stem = Path(audio_path).stem
-        chunks = self._split_audio(audio_path, duration=duration)
+        chunks = self._split_audio(audio_path, duration=duration, fallback_mode=fallback_mode)
         sys_prompt = self._build_system_prompt(hotwords, prompt_template)
 
         md_lines = [f"<!-- meta:audio title={stem} -->\n"]
         if hotwords:
             md_lines.append(f"> 热词: {', '.join(hotwords)}\n")
         md_lines.append(f"> 模型: {self.cfg.models.asr_short_model}\n")
+        if fallback_mode:
+            md_lines.append(
+                f"> 回退切片: 逻辑 {self.cfg.processing.asr_fallback_chunk_seconds}s，"
+                f"上下文 {self.cfg.processing.asr_fallback_context_seconds}s\n"
+            )
 
         workers = resolve_workers(
             self.cfg.concurrency.audio_asr_parallel_requests,
@@ -326,12 +379,12 @@ class AudioProcessor(BaseProcessor):
         )
         total = len(chunks) + 1
 
-        def _transcribe_one(idx: int, chunk_path: str, start: float, end: float) -> tuple[int, str, str, str]:
-            t1 = _ms_ts(int(start * 1000))
-            t2 = _ms_ts(int(end * 1000))
+        def _transcribe_one(idx: int, chunk: AudioChunk) -> tuple[int, str, str, str]:
+            t1 = _ms_ts(int(chunk.logical_start * 1000))
+            t2 = _ms_ts(int(chunk.logical_end * 1000))
             try:
                 text = self.llm.transcribe_short_audio(
-                    audio_path=chunk_path,
+                    audio_path=chunk.path,
                     system_prompt=sys_prompt,
                     model=self.cfg.models.asr_short_model,
                 )
@@ -347,9 +400,9 @@ class AudioProcessor(BaseProcessor):
         executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="audio-asr")
         future_map = {}
         try:
-            for idx, (chunk_path, start, end) in enumerate(chunks):
+            for idx, chunk in enumerate(chunks):
                 self._check_cancelled()
-                future = executor.submit(_transcribe_one, idx, chunk_path, start, end)
+                future = executor.submit(_transcribe_one, idx, chunk)
                 future_map[future] = idx
 
             done = 0
@@ -366,9 +419,9 @@ class AudioProcessor(BaseProcessor):
 
         for idx, entry in enumerate(ordered):
             if entry is None:
-                chunk_start = idx * self.cfg.processing.asr_short_chunk_seconds
-                t1 = _ms_ts(int(chunk_start * 1000))
-                t2 = "??:??"
+                chunk = chunks[idx]
+                t1 = _ms_ts(int(chunk.logical_start * 1000))
+                t2 = _ms_ts(int(chunk.logical_end * 1000))
                 md_lines.extend([f"<!-- meta:segment index={idx + 1} time={t1}~{t2} -->\n", f"（分段 {idx + 1} 未完成）", ""])
             else:
                 t1, t2, text = entry
@@ -379,7 +432,7 @@ class AudioProcessor(BaseProcessor):
             f.write("\n".join(md_lines).strip() + "\n")
 
         try:
-            total_duration = sum(end - start for _, start, end in chunks)
+            total_duration = sum(chunk.logical_end - chunk.logical_start for chunk in chunks)
             est_cost = total_duration * 0.22 / 1000
             logger.info(
                 f"[ASR] 短音频识别完成: {stem}, {len(chunks)} 个分段, 总时长 {total_duration:.1f}s, "
@@ -436,32 +489,47 @@ class AudioProcessor(BaseProcessor):
         size_mb = os.path.getsize(audio_path) / (1024 * 1024)
         return dur <= self.cfg.processing.asr_short_chunk_seconds and size_mb <= 9.5, dur
 
-    def _split_audio(self, audio_path: str, duration: float = None) -> list[tuple[str, float, float]]:
-        max_chunk = self.cfg.processing.asr_short_chunk_seconds
+    def _split_audio(self, audio_path: str, duration: float = None, fallback_mode: bool = False) -> list[AudioChunk]:
+        max_chunk = (
+            self.cfg.processing.asr_fallback_chunk_seconds
+            if fallback_mode else self.cfg.processing.asr_short_chunk_seconds
+        )
+        context_seconds = self.cfg.processing.asr_fallback_context_seconds if fallback_mode else 0
         dur = duration if duration is not None else self._get_cached_duration(audio_path)
         size_mb = os.path.getsize(audio_path) / (1024 * 1024)
 
-        if dur <= max_chunk and size_mb <= 9.5:
-            return [(audio_path, 0.0, dur)]
+        if not fallback_mode and dur <= max_chunk and size_mb <= 9.5:
+            return [AudioChunk(audio_path, 0.0, dur, 0.0, dur)]
 
         ffmpeg = get_ffmpeg()
         chunk_dir = ensure_dir(os.path.join(self.cfg.paths.temp_dir, "audio_chunks", Path(audio_path).stem))
-        chunk_count = int(math.ceil(dur / max_chunk))
+        windows = (
+            build_fallback_audio_windows(dur, max_chunk, context_seconds)
+            if fallback_mode
+            else [
+                AudioWindow(
+                    actual_start=idx * max_chunk,
+                    actual_end=min((idx + 1) * max_chunk, dur),
+                    logical_start=idx * max_chunk,
+                    logical_end=min((idx + 1) * max_chunk, dur),
+                )
+                for idx in range(int(math.ceil(dur / max_chunk)))
+            ]
+        )
+        chunk_count = len(windows)
         chunks = [None] * chunk_count
         workers = resolve_workers(self.cfg.concurrency.audio_split_workers, chunk_count, hard_cap=8)
 
-        def _split_one(idx: int) -> tuple[int, str, float, float]:
-            start = idx * max_chunk
-            end = min((idx + 1) * max_chunk, dur)
+        def _split_one(idx: int, window: AudioWindow) -> tuple[int, AudioChunk]:
             out = os.path.join(chunk_dir, f"part{idx + 1:03d}.mp3")
             cmd = [
                 ffmpeg,
                 "-ss",
-                f"{start:.3f}",
+                f"{window.actual_start:.3f}",
                 "-i",
                 audio_path,
                 "-t",
-                f"{end - start:.3f}",
+                f"{window.actual_end - window.actual_start:.3f}",
                 "-vn",
                 "-ac",
                 "1",
@@ -478,20 +546,26 @@ class AudioProcessor(BaseProcessor):
                 cmd, cancel_event=self.reporter.cancel_event,
                 timeout=600, check=True,
             )
-            return idx, out, start, end
+            return idx, AudioChunk(
+                path=out,
+                actual_start=window.actual_start,
+                actual_end=window.actual_end,
+                logical_start=window.logical_start,
+                logical_end=window.logical_end,
+            )
 
         executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="audio-split")
         future_map = {}
         try:
-            for idx in range(chunk_count):
+            for idx, window in enumerate(windows):
                 self._check_cancelled()
-                future = executor.submit(_split_one, idx)
+                future = executor.submit(_split_one, idx, window)
                 future_map[future] = idx
 
             for future in self._iter_completed_futures(set(future_map)):
                 future_map.pop(future, None)
-                idx, out, start, end = future.result()
-                chunks[idx] = (out, start, end)
+                idx, chunk = future.result()
+                chunks[idx] = chunk
         finally:
             self._cancel_futures(future_map)
             executor.shutdown(wait=False, cancel_futures=True)
@@ -566,9 +640,14 @@ class AudioProcessor(BaseProcessor):
         return url
 
     def _submit_task(self, file_url: str, hotwords=None) -> str:
+        model_name = self.cfg.models.asr_model
+        if _uses_single_file_url(model_name):
+            audio_input = {"file_url": file_url}
+        else:
+            audio_input = {"file_urls": [file_url]}
         payload = {
-            "model": self.cfg.models.asr_model,
-            "input": {"file_url": file_url},
+            "model": model_name,
+            "input": audio_input,
             "parameters": {"channel_id": [0], "enable_itn": False, "enable_words": True},
         }
         corpus = self._build_corpus(hotwords)
@@ -640,6 +719,7 @@ class AudioProcessor(BaseProcessor):
             report_bucket = int(elapsed // 30)
 
             if status == "SUCCEEDED":
+                self._raise_on_failed_success_payload(data)
                 logger.info("[ASR] 任务完成，耗时 %.1fs", elapsed)
                 return data
             if status == "FAILED":
@@ -666,6 +746,29 @@ class AudioProcessor(BaseProcessor):
             self._sleep(poll_interval)
 
         raise TimeoutError(f"ASR 超时 ({max_wait}s)")
+
+    @staticmethod
+    def _raise_on_failed_success_payload(data: dict) -> None:
+        output = data.get("output", {}) if isinstance(data, dict) else {}
+        items: list[dict] = []
+        result = output.get("result")
+        if isinstance(result, dict):
+            items.append(result)
+        results = output.get("results")
+        if isinstance(results, list):
+            items.extend(item for item in results if isinstance(item, dict))
+
+        for item in items:
+            status = str(item.get("subtask_status") or "").upper()
+            code = item.get("code")
+            message = item.get("message")
+            if status == "FAILED" or code:
+                detail = ": ".join(str(part) for part in (code, message) if part)
+                raise RuntimeError(f"ASR 子任务失败: {detail or json.dumps(item, ensure_ascii=False)[:500]}")
+
+        task_metrics = output.get("task_metrics")
+        if isinstance(task_metrics, dict) and int(task_metrics.get("FAILED") or 0) > 0:
+            raise RuntimeError(f"ASR 子任务失败: {json.dumps(task_metrics, ensure_ascii=False)}")
 
     def _result_to_md(self, result: dict, title: str) -> str:
         transcripts = self._extract_transcripts(result)
@@ -833,6 +936,12 @@ class AudioProcessor(BaseProcessor):
 
 def _is_remote(path: str) -> bool:
     return path.startswith(("http://", "https://", "oss://"))
+
+
+def _uses_single_file_url(model_name: str) -> bool:
+    """Qwen3-ASR-Flash-Filetrans uses input.file_url; classic ASR uses input.file_urls."""
+    lowered = (model_name or "").lower()
+    return "qwen" in lowered and "filetrans" in lowered
 
 
 def _coerce_ms_timestamp(value) -> int | None:

@@ -620,7 +620,42 @@ class LLMClient:
             音频转写文本。
         """
         model = model or self.cfg.models.asr_short_model
+        prefer_dashscope_sdk = self._is_dashscope_api()
+        if prefer_dashscope_sdk:
+            try:
+                return self._transcribe_short_audio_dashscope_sdk(
+                    audio_path=audio_path,
+                    system_prompt=system_prompt,
+                    model=model,
+                    language=language,
+                    enable_itn=enable_itn,
+                    max_retries=max_retries,
+                )
+            except Exception as exc:
+                logger.warning("[LLM] DashScope SDK 短音频识别失败，回退 OpenAI 兼容: %s", exc)
+        return self._transcribe_short_audio_openai_compatible(
+            audio_path=audio_path,
+            system_prompt=system_prompt,
+            model=model,
+            language=language,
+            enable_itn=enable_itn,
+            max_retries=max_retries,
+        )
 
+    def _is_dashscope_api(self) -> bool:
+        marker = (self.cfg.api.base_url or "").lower()
+        return "dashscope" in marker or "aliyuncs.com" in marker or "maas.aliyuncs.com" in marker
+
+    def _transcribe_short_audio_openai_compatible(
+        self,
+        audio_path: str,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+        language: Optional[str] = None,
+        enable_itn: bool = False,
+        max_retries: int = 6,
+    ) -> str:
+        model = model or self.cfg.models.asr_short_model
         if audio_path.startswith(("http://", "https://", "data:")):
             audio_ref = audio_path
         else:
@@ -648,6 +683,75 @@ class LLMClient:
             return result
 
         return self._retry_call(_call, max_retries)
+
+    def _transcribe_short_audio_dashscope_sdk(
+        self,
+        audio_path: str,
+        system_prompt: Optional[str] = None,
+        model: Optional[str] = None,
+        language: Optional[str] = None,
+        enable_itn: bool = False,
+        max_retries: int = 6,
+    ) -> str:
+        """Use DashScope SDK for short ASR, with OpenAI-compatible kept as fallback.
+
+        两条短音频实现同时保留：后续接入其他音频识别模型时，OpenAI-compatible
+        是通用路径；当 DashScope SDK 或原生路径临时不可用时，同一段音频还能用
+        OpenAI 格式对 Qwen API 做兜底重试。
+        """
+        model = model or self.cfg.models.asr_short_model
+
+        def _call():
+            try:
+                import dashscope
+                from http import HTTPStatus
+            except Exception as exc:
+                raise RuntimeError(f"dashscope SDK 不可用: {exc}") from exc
+
+            if audio_path.startswith(("http://", "https://", "data:")):
+                audio_ref = audio_path
+            else:
+                audio_ref = Path(audio_path).resolve().as_uri()
+
+            asr_options = {"enable_itn": enable_itn}
+            if language:
+                asr_options["language"] = language
+            if system_prompt:
+                asr_options["prompt"] = system_prompt
+
+            logger.info("[LLM] DashScope SDK 短音频识别: model=%s, audio=%s", model, os.path.basename(audio_path))
+            response = dashscope.MultiModalConversation.call(
+                api_key=self.cfg.api.api_key,
+                model=model,
+                messages=[{"role": "user", "content": [{"audio": audio_ref}]}],
+                asr_options=asr_options,
+            )
+            status_code = _field(response, "status_code")
+            if status_code not in (None, HTTPStatus.OK, 200):
+                code = _field(response, "code", "")
+                message = _field(response, "message", "")
+                raise RuntimeError(f"DashScope SDK ASR 失败: {status_code} {code} {message}")
+            text = self._extract_dashscope_audio_text(response)
+            if not text:
+                raise EmptyResponseError("DashScope SDK ASR 响应为空")
+            logger.info("[LLM] DashScope SDK 短音频识别完成: %d 字符", len(text))
+            return text
+
+        return self._retry_call(_call, max_retries)
+
+    @staticmethod
+    def _extract_dashscope_audio_text(response) -> str:
+        output = _field(response, "output") or response
+        choices = _field(output, "choices") or _field(response, "choices") or []
+        parts: list[str] = []
+        for choice in choices:
+            message = _field(choice, "message") or choice
+            text = _content_text(_field(message, "content") or _field(message, "text"))
+            if text:
+                parts.append(text)
+        if parts:
+            return "".join(parts).strip()
+        return _content_text(_field(output, "text") or _field(response, "text")).strip()
 
     # ------------------------------------------------------------------
     # 模型可用性探测

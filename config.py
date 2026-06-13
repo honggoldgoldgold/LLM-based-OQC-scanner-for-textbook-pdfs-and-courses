@@ -100,6 +100,8 @@ class ProcessingConfig:
     image_quality: int = 90
     image_max_side: int = 2048
     asr_short_chunk_seconds: int = 290
+    asr_fallback_chunk_seconds: int = 360
+    asr_fallback_context_seconds: int = 30
 
 
 @dataclass

@@ -153,6 +153,10 @@ class SettingsDialog(QDialog):
         self._base_url_input = QLineEdit()
         self._base_url_input.setPlaceholderText("https://dashscope.aliyuncs.com/compatible-mode/v1")
         row2.addWidget(self._base_url_input, stretch=1)
+        self._refresh_dashscope_models_btn = QPushButton("刷新百炼模型")
+        self._refresh_dashscope_models_btn.setToolTip("调用百炼 OpenAI 兼容 /models 获取当前账号真实可用模型")
+        self._refresh_dashscope_models_btn.clicked.connect(lambda: self._refresh_bailian_models(force=True, notify=True))
+        row2.addWidget(self._refresh_dashscope_models_btn)
         dash_layout.addLayout(row2)
 
         body_layout.addWidget(dash_group)
@@ -432,6 +436,42 @@ class SettingsDialog(QDialog):
                                 f"从视觉 Provider 获取到 {len(models)} 个模型。\n"
                                 "请从下拉菜单中选择模型。")
 
+    def _refresh_bailian_models(self, *, force: bool = False, notify: bool = False) -> bool:
+        api_key = self._api_key_input.text().strip()
+        base_url = self._base_url_input.text().strip() or self._cfg.api.base_url
+        if not api_key:
+            if notify:
+                QMessageBox.warning(self, "缺少 API Key", "请先填入 DashScope 主 API Key。")
+            return False
+        if not model_catalog.is_dashscope_base_url(base_url):
+            if notify:
+                QMessageBox.warning(self, "不是百炼地址", "主 API Base URL 看起来不是阿里云百炼 / DashScope 地址。")
+            return False
+        if not force and not model_catalog.bailian_model_cache_is_stale():
+            return True
+
+        self._refresh_dashscope_models_btn.setEnabled(False)
+        self._refresh_dashscope_models_btn.setText("刷新中...")
+        self.repaint()
+        try:
+            summary = model_catalog.refresh_bailian_models(base_url, api_key, timeout=15.0)
+        except Exception as exc:
+            logger.warning("百炼模型刷新失败: %s", exc)
+            if notify:
+                QMessageBox.warning(self, "刷新失败", f"未能从百炼真实获取模型列表：\n{exc}")
+            return False
+        finally:
+            self._refresh_dashscope_models_btn.setEnabled(True)
+            self._refresh_dashscope_models_btn.setText("刷新百炼模型")
+
+        if notify:
+            QMessageBox.information(
+                self,
+                "刷新完成",
+                f"获取到 {summary.raw_count} 个模型；已识别视觉 {len(summary.vision)} 个、音频 {len(summary.audio)} 个。",
+            )
+        return True
+
     def _on_vision_model_text_changed(self, text: str):
         self._pending_vision_model = text.strip()
 
@@ -667,6 +707,7 @@ class SettingsDialog(QDialog):
             self._set_queue_items(self._cfg.vision_api.vision_model_queue)
         self._restoring_settings = False
         self._apply_codex_ui_state()
+        self._refresh_bailian_models(force=False, notify=False)
 
     def _persist_to_settings(self):
         self._settings.setValue("ui/api_key", self._api_key_input.text())
@@ -864,5 +905,6 @@ class SettingsDialog(QDialog):
                 QMessageBox.warning(self, "提示", "启用视觉独立 Provider 时，视觉 API Key 和 Base URL 不能为空")
                 return
 
+        self._refresh_bailian_models(force=False, notify=False)
         self._persist_to_settings()
         self.accept()
