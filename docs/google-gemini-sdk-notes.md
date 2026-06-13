@@ -45,4 +45,5 @@
 - 图片/视频帧模型优先链来自实时模型列表，排序为 image/preview/snapshot/experimental 优先；这些候选不可用后再尝试 Gemini 2+ Pro/Flash 长音频候选；泛用但非音频优先的老模型排在更后。
 - 长音频模型优先链来自实时模型列表，仅保留 Gemini 2+ Pro/Flash 这类多模态长上下文候选。
 - 视频管线的 Phase 4 板书帧和 Phase 5 音频识别都复用 Google provider，因此 Google 模式不会在音频阶段回到 DashScope。
+- 同一个 provider 生命周期内会记住已经因 quota/404/欠费等切走的模型，并优先复用上一次成功模型，避免长课多批次每次都重新消耗不可用 image/preview 模型。
 - 网络错误、限流、并发限制先重试同模型；quota/欠费/404 模型不可用切换下一个候选。

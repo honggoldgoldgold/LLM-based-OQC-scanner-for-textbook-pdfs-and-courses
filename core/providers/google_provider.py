@@ -174,6 +174,8 @@ class GoogleProviderClient:
         if not self.cfg.google_api.api_key:
             raise ValueError("未配置 Google API Key。请填入 Google AI Studio / Gemini API Key")
         self._client = None
+        self._unavailable_models_by_kind: dict[str, set[str]] = {}
+        self._last_successful_model_by_kind: dict[str, str] = {}
 
     def set_cancel_event(self, cancel_event: Optional[Event]):
         self._cancel_event = cancel_event
@@ -245,17 +247,37 @@ class GoogleProviderClient:
         raise RuntimeError("Google 重试循环异常结束")
 
     def _call_with_model_switch(self, primary_model: str, chain: list[str], kind: str, invoke, max_retries: int) -> str:
-        ordered = [primary_model] + [model for model in chain if model and model != primary_model]
+        unavailable = self._unavailable_models_by_kind.setdefault(kind, set())
+        preferred = self._last_successful_model_by_kind.get(kind)
+        raw_ordered = []
+        if preferred:
+            raw_ordered.append(preferred)
+        raw_ordered.append(primary_model)
+        raw_ordered.extend(model for model in chain if model)
+        ordered = []
+        seen = set()
+        for model in raw_ordered:
+            if not model or model in seen:
+                continue
+            seen.add(model)
+            if model in unavailable and model != preferred:
+                continue
+            ordered.append(model)
+        if not ordered and raw_ordered:
+            ordered = [model for model in dict.fromkeys(raw_ordered) if model]
         last_error: GoogleProviderFailure | None = None
         previous = primary_model
         for idx, model in enumerate(ordered):
             if idx > 0:
                 logger.warning("[GOOGLE] 切换 %s 模型: %s -> %s", kind, previous, model)
             try:
-                return self._retry_same_model(model, invoke, max_retries)
+                text = self._retry_same_model(model, invoke, max_retries)
+                self._last_successful_model_by_kind[kind] = model
+                return text
             except GoogleProviderFailure as exc:
                 last_error = exc
                 if exc.classified.should_switch_model:
+                    unavailable.add(model)
                     previous = model
                     continue
                 raise
