@@ -12,6 +12,8 @@ import logging
 import mimetypes
 import os
 import re
+import shutil
+import tempfile
 import time
 from dataclasses import dataclass
 from enum import Enum
@@ -395,6 +397,18 @@ class GoogleProviderClient:
                 return current
             current = self._get_client().files.get(name=name)
 
+    @staticmethod
+    def _ascii_safe_upload_copy(path: str) -> tuple[str, str | None]:
+        try:
+            path.encode("ascii")
+            return path, None
+        except UnicodeEncodeError:
+            suffix = Path(path).suffix or ".audio"
+            fd, tmp_path = tempfile.mkstemp(prefix="ocrllm-google-upload-", suffix=suffix)
+            os.close(fd)
+            shutil.copyfile(path, tmp_path)
+            return tmp_path, tmp_path
+
     def transcribe_long_audio(
         self,
         audio_path: str,
@@ -416,8 +430,16 @@ class GoogleProviderClient:
             self._check_cancelled()
             if uploaded is None:
                 logger.info("[GOOGLE] 上传音频到 Files API: %s", display_name)
-                uploaded = self._get_client().files.upload(file=audio_path)
-                uploaded = self._wait_file_ready(uploaded)
+                upload_path, cleanup_path = self._ascii_safe_upload_copy(audio_path)
+                try:
+                    uploaded = self._get_client().files.upload(file=upload_path)
+                    uploaded = self._wait_file_ready(uploaded)
+                finally:
+                    if cleanup_path:
+                        try:
+                            os.unlink(cleanup_path)
+                        except OSError:
+                            logger.debug("[GOOGLE] 临时上传文件清理失败: %s", cleanup_path)
             logger.info("[GOOGLE] 长音频识别: model=%s, audio=%s", model_name, display_name)
             response = self._get_client().models.generate_content(model=model_name, contents=[prompt, uploaded])
             return _response_text(response)

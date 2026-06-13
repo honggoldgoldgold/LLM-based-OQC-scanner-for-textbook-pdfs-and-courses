@@ -1,9 +1,12 @@
 import os
 import tempfile
 import unittest
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.providers.google_provider import GoogleProviderClient
 from OCRLLM.processors.audio import AudioProcessor
 from OCRLLM.processors.video import VideoProcessor
 
@@ -96,6 +99,36 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             output_path = os.path.join(tmp, "lecture_录音识别.md")
             with open(output_path, encoding="utf-8") as f:
                 self.assertIn("video audio through google", f.read())
+
+    def test_google_long_audio_upload_uses_ascii_safe_temp_path_for_chinese_filenames(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = Path(tmp) / "数据库及实现_录音.mp3"
+            audio_path.write_bytes(b"fake audio")
+            uploaded_paths: list[str] = []
+
+            class FakeFiles:
+                def upload(self, file):
+                    uploaded_paths.append(str(file))
+                    Path(file).read_bytes()
+                    return SimpleNamespace(name="files/test", state="ACTIVE")
+
+                def get(self, name):
+                    return SimpleNamespace(name=name, state="ACTIVE")
+
+            class FakeModels:
+                def generate_content(self, **_kwargs):
+                    return SimpleNamespace(text="ok transcript")
+
+            cfg = AppConfig().with_updates(google_api={"enabled": True, "api_key": "AIza-test"})
+            client = GoogleProviderClient(cfg=cfg)
+            client._client = SimpleNamespace(files=FakeFiles(), models=FakeModels())
+
+            text = client.transcribe_long_audio(str(audio_path), model="gemini-3.5-flash")
+
+            self.assertEqual(text, "ok transcript")
+            self.assertEqual(len(uploaded_paths), 1)
+            uploaded_paths[0].encode("ascii")
+            self.assertNotEqual(uploaded_paths[0], str(audio_path))
 
 
 if __name__ == "__main__":

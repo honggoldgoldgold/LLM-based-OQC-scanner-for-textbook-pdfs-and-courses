@@ -28,6 +28,7 @@
 - Models API 返回的是 `models/{id}` 形式，实际调用 `generate_content` 时使用去掉 `models/` 后的 id 更符合官方 Python 示例。
 - REST 字段是 `supportedGenerationMethods`，当前 `google-genai` SDK 类型字段是 `supported_actions`。两种字段都要兼容，并且需要包含 `generateContent` 才适合 OCRLLM 当前识别管线；只支持 `embedContent` 的模型必须过滤掉。
 - Files API 文件会自动删除，官方文档写明单文件限制和项目存储限制。OCRLLM 当前只把它当临时上传通道，不把 Google 文件 URI 当长期缓存。
+- `google-genai` Files API 对非 ASCII 本地路径不稳定。OCRLLM 上传长音频前会为中文文件名复制一个 ASCII 临时文件，上传完成后清理，避免课程名中文导致 `ascii codec` 错误。
 - Google 速率限制按项目计算，不是按 API key 计算。后续做 Google API 池时，不能照搬 DashScope 多 key 提升并发的假设。
 - 实验、预览、快照模型通常更容易有严格限流。OCRLLM 将它们放在图片识别优先队列前段，是为了优先消耗免费/不稳定模型；但限流错误仍按同模型重试处理，不直接误判为额度耗尽。
 - `RESOURCE_EXHAUSTED` 既可能是 quota，也可能是 rate limit。OCRLLM 分类时先看是否包含 rate limit/RPM/TPM/RPD 等字样；否则才进入“切换下一个免费候选模型”。
