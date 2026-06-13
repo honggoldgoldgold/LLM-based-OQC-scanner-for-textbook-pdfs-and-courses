@@ -72,6 +72,18 @@ class GoogleSettingsDialogTests(unittest.TestCase):
         dlg.deleteLater()
         self._app.processEvents()
 
+    def test_google_mode_toggle_runs_network_and_model_check_when_key_is_present(self):
+        cfg = AppConfig()
+        dlg = SettingsDialog(None, cfg)
+        dlg._google_key_input.setText("AIza-test")
+
+        with patch.object(dlg, "_refresh_google_models", return_value=True) as refresh:
+            dlg._google_enabled_cb.setChecked(True)
+
+        refresh.assert_called_once_with(force=False, notify=True)
+        dlg.deleteLater()
+        self._app.processEvents()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -671,6 +671,12 @@ class SettingsDialog(QDialog):
         """Google 模式与 Codex/Qwen 主链路互斥，但保留 OpenAI-compatible Provider 配置。"""
         if not self._restoring_settings and checked and self._codex_enabled_cb.isChecked():
             self._codex_enabled_cb.setChecked(False)
+        if (
+            checked
+            and not self._restoring_settings
+            and self._google_key_input.text().strip()
+        ):
+            self._refresh_google_models(force=False, notify=True)
         self._apply_codex_ui_state()
 
     def _on_codex_model_changed(self, _text: str):

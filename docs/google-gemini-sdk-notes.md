@@ -38,7 +38,9 @@
 
 - Google 模式独立于 DashScope 千问模式和 OpenAI-compatible 视觉 Provider。
 - 启用 Google 模式时，后台识别主路由走 Google provider，千问主链路不参与。
+- UI 勾选 Google 模式且已填写 Google key 时，会立即执行 google.com 连通性和实时模型拉取；未填写 key 时不弹额外网络错误，保存时再强校验。
 - OpenAI-compatible 视觉 Provider 的配置不清空，用户关闭 Google 模式后仍可继续使用。
 - 图片/视频帧模型优先链来自实时模型列表，排序为 image/preview/snapshot/experimental 优先；这些候选不可用后再尝试 Gemini 2+ Pro/Flash 长音频候选；泛用但非音频优先的老模型排在更后。
 - 长音频模型优先链来自实时模型列表，仅保留 Gemini 2+ Pro/Flash 这类多模态长上下文候选。
+- 视频管线的 Phase 4 板书帧和 Phase 5 音频识别都复用 Google provider，因此 Google 模式不会在音频阶段回到 DashScope。
 - 网络错误、限流、并发限制先重试同模型；quota/欠费/404 模型不可用切换下一个候选。

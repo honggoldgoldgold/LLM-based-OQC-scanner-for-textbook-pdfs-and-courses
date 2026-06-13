@@ -5,6 +5,7 @@ from unittest.mock import Mock
 
 from OCRLLM.config import AppConfig
 from OCRLLM.processors.audio import AudioProcessor
+from OCRLLM.processors.video import VideoProcessor
 
 
 class GoogleAudioRoutingTests(unittest.TestCase):
@@ -68,6 +69,33 @@ class GoogleAudioRoutingTests(unittest.TestCase):
 
             self.assertIn("已禁止自动回退短音频", str(ctx.exception))
             processor._short_asr.assert_not_called()
+
+    def test_video_phase5_uses_google_long_audio_route(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = "video audio through google"
+            pool = Mock()
+            pool.get_single_client.return_value = llm
+            processor = VideoProcessor(cfg=cfg, llm=llm, api_pool=pool)
+
+            processor._phase5_asr(audio_path, ["convex"], tmp, "lecture")
+
+            llm.transcribe_long_audio.assert_called_once()
+            output_path = os.path.join(tmp, "lecture_录音识别.md")
+            with open(output_path, encoding="utf-8") as f:
+                self.assertIn("video audio through google", f.read())
 
 
 if __name__ == "__main__":
