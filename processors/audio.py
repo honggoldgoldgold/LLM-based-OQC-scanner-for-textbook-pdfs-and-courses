@@ -53,6 +53,16 @@ class AudioWindow:
     logical_end: float
 
 
+@dataclass(frozen=True)
+class AudioSignalStats:
+    mean_volume_db: float | None = None
+    max_volume_db: float | None = None
+
+
+_GOOGLE_WEAK_AUDIO_MIN_DURATION = 30 * 60
+_GOOGLE_WEAK_AUDIO_MEAN_DB = -55.0
+
+
 def build_fallback_audio_windows(
     duration: float,
     chunk_seconds: int = 360,
@@ -143,11 +153,16 @@ def google_audio_transcript_invalid_reason(text: str, duration: float | None = N
         return "返回空内容"
 
     head = stripped[:240]
+    if "请把这段课程录音尽量逐字转写成中文文本" in head or "只输出转写内容本身" in head:
+        return "正文包含提示词回显，不是纯课堂语音转写"
     if (
         ("根据您提供" in head or "基于你刚才识别" in head or "板书" in head)
         and ("热词" in head or "术语" in head or "专业词" in head)
     ):
         return "正文像热词表/术语表，不是课堂语音转写"
+
+    if re.search(r"(你[，。,.、\s]*){30,}", stripped[:5000]):
+        return "正文包含大段重复噪声"
 
     if duration and duration >= 30 * 60:
         duration_minutes = duration / 60.0
@@ -155,6 +170,71 @@ def google_audio_transcript_invalid_reason(text: str, duration: float | None = N
         if len(stripped) < min_chars:
             return f"转写正文过短: {len(stripped)} 字，音频约 {duration_minutes:.1f} 分钟，最低期望 {min_chars} 字"
 
+    return None
+
+
+def _parse_db_value(value: str) -> float | None:
+    normalized = value.strip().lower()
+    if normalized == "-inf":
+        return float("-inf")
+    try:
+        return float(normalized)
+    except ValueError:
+        return None
+
+
+def parse_ffmpeg_volumedetect(output: str) -> AudioSignalStats:
+    mean_volume_db = None
+    max_volume_db = None
+    mean_match = re.search(r"mean_volume:\s*([-+]?(?:\d+(?:\.\d+)?|inf|-inf))\s*dB", output, flags=re.IGNORECASE)
+    max_match = re.search(r"max_volume:\s*([-+]?(?:\d+(?:\.\d+)?|inf|-inf))\s*dB", output, flags=re.IGNORECASE)
+    if mean_match:
+        mean_volume_db = _parse_db_value(mean_match.group(1))
+    if max_match:
+        max_volume_db = _parse_db_value(max_match.group(1))
+    return AudioSignalStats(mean_volume_db=mean_volume_db, max_volume_db=max_volume_db)
+
+
+def measure_audio_signal(audio_path: str, cancel_event=None) -> AudioSignalStats:
+    ffmpeg = get_ffmpeg()
+    result = run_subprocess_cancellable(
+        [
+            ffmpeg,
+            "-hide_banner",
+            "-i",
+            audio_path,
+            "-vn",
+            "-af",
+            "volumedetect",
+            "-f",
+            "null",
+            "-",
+        ],
+        cancel_event=cancel_event,
+        timeout=1800,
+        text=True,
+        check=False,
+    )
+    output = "\n".join(part for part in (result.stdout, result.stderr) if part)
+    stats = parse_ffmpeg_volumedetect(output)
+    if stats.mean_volume_db is None and stats.max_volume_db is None:
+        raise RuntimeError(f"无法解析音频响度: {audio_path}")
+    return stats
+
+
+def google_audio_signal_invalid_reason(stats: AudioSignalStats, duration: float | None = None) -> str | None:
+    if not duration or duration < _GOOGLE_WEAK_AUDIO_MIN_DURATION:
+        return None
+    if stats.mean_volume_db is None:
+        return None
+    if stats.mean_volume_db <= _GOOGLE_WEAK_AUDIO_MEAN_DB:
+        max_part = ""
+        if stats.max_volume_db is not None:
+            max_part = f"，峰值 {stats.max_volume_db:.1f} dB"
+        return (
+            f"音轨整体响度过低: 均值 {stats.mean_volume_db:.1f} dB{max_part}，"
+            f"音频约 {duration / 60.0:.1f} 分钟，疑似没有可识别课堂语音"
+        )
     return None
 
 
@@ -423,6 +503,15 @@ class AudioProcessor(BaseProcessor):
             duration = self._get_cached_duration(audio_path)
         except Exception as exc:
             logger.warning("[ASR] Google 长音频时长探测失败，跳过长度型假成功校验: %s", exc)
+        if duration and duration >= _GOOGLE_WEAK_AUDIO_MIN_DURATION:
+            try:
+                stats = measure_audio_signal(audio_path, cancel_event=self.reporter.cancel_event)
+            except Exception as exc:
+                logger.warning("[ASR] Google 长音频响度探测失败，继续交给模型与正文校验: %s", exc)
+            else:
+                invalid_signal = google_audio_signal_invalid_reason(stats, duration=duration)
+                if invalid_signal:
+                    raise RuntimeError(f"Google 长音频输入不可用: {invalid_signal}")
         self._report(2, 4, "上传音频并请求 Gemini 识别...")
         text = self.llm.transcribe_long_audio(
             audio_path=audio_path,

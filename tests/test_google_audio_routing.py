@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.providers.google_provider import GoogleProviderClient
-from OCRLLM.processors.audio import AudioProcessor
+from OCRLLM.processors.audio import AudioProcessor, AudioSignalStats
 from OCRLLM.processors.video import VideoProcessor
 
 
@@ -89,6 +89,84 @@ class GoogleAudioRoutingTests(unittest.TestCase):
 
             with self.assertRaisesRegex(RuntimeError, "转写正文过短"):
                 processor.process(audio_path, output_path=output_path)
+
+    def test_google_mode_rejects_prompt_echo_long_audio_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = (
+                "请把这段课程录音尽量逐字转写成中文文本。要求：只输出转写内容本身。"
+                "嗯，后面才像课堂内容。"
+            )
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=None)
+
+            with self.assertRaisesRegex(RuntimeError, "提示词回显"):
+                processor.process(audio_path, output_path=output_path)
+
+    def test_google_mode_rejects_repetitive_noise_long_audio_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = "嗯，" + "你，" * 80 + "后面仍然是重复噪声。"
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=None)
+
+            with self.assertRaisesRegex(RuntimeError, "重复噪声"):
+                processor.process(audio_path, output_path=output_path)
+
+    def test_google_mode_rejects_extremely_weak_long_audio_before_upload(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=9_600.0)
+
+            with patch(
+                "OCRLLM.processors.audio.measure_audio_signal",
+                return_value=AudioSignalStats(mean_volume_db=-71.1, max_volume_db=-5.4),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "音轨整体响度过低"):
+                    processor.process(audio_path, output_path=output_path)
+
+            llm.transcribe_long_audio.assert_not_called()
+            self.assertFalse(os.path.exists(output_path))
 
     def test_qwen_no_valid_fragment_no_longer_forces_short_audio_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
