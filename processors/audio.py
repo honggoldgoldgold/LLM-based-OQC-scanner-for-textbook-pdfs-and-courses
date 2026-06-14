@@ -61,6 +61,7 @@ class AudioSignalStats:
 
 _GOOGLE_WEAK_AUDIO_MIN_DURATION = 30 * 60
 _GOOGLE_WEAK_AUDIO_MEAN_DB = -55.0
+_GOOGLE_WEAK_AUDIO_MAX_DB = -35.0
 
 
 def build_fallback_audio_windows(
@@ -240,7 +241,10 @@ def google_audio_signal_invalid_reason(stats: AudioSignalStats, duration: float 
         return None
     if stats.mean_volume_db is None:
         return None
-    if stats.mean_volume_db <= _GOOGLE_WEAK_AUDIO_MEAN_DB:
+    if (
+        stats.mean_volume_db <= _GOOGLE_WEAK_AUDIO_MEAN_DB
+        and (stats.max_volume_db is None or stats.max_volume_db <= _GOOGLE_WEAK_AUDIO_MAX_DB)
+    ):
         max_part = ""
         if stats.max_volume_db is not None:
             max_part = f"，峰值 {stats.max_volume_db:.1f} dB"

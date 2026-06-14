@@ -272,13 +272,45 @@ class GoogleAudioRoutingTests(unittest.TestCase):
 
             with patch(
                 "OCRLLM.processors.audio.measure_audio_signal",
-                return_value=AudioSignalStats(mean_volume_db=-71.1, max_volume_db=-5.4),
+                return_value=AudioSignalStats(mean_volume_db=-71.1, max_volume_db=-60.0),
             ):
                 with self.assertRaisesRegex(RuntimeError, "音轨整体响度过低"):
                     processor.process(audio_path, output_path=output_path)
 
             llm.transcribe_long_audio.assert_not_called()
             self.assertFalse(os.path.exists(output_path))
+
+    def test_google_mode_allows_sparse_long_audio_when_peak_is_clear(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = "老师继续讲解马克思主义基本原理课程内容。" * 2000
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=9_600.0)
+            processor._split_google_audio = Mock(return_value=[
+                AudioChunk(audio_path, 0.0, 9600.0, 0.0, 9600.0),
+            ])
+
+            with patch(
+                "OCRLLM.processors.audio.measure_audio_signal",
+                return_value=AudioSignalStats(mean_volume_db=-73.7, max_volume_db=-7.6),
+            ):
+                processor.process(audio_path, output_path=output_path)
+
+            llm.transcribe_long_audio.assert_called_once()
+            self.assertTrue(os.path.exists(output_path))
 
     def test_qwen_no_valid_fragment_no_longer_forces_short_audio_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
