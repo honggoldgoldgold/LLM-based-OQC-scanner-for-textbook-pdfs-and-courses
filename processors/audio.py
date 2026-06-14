@@ -609,8 +609,10 @@ class AudioProcessor(BaseProcessor):
         lines = text.strip().splitlines()
         while lines and not lines[0].strip():
             lines.pop(0)
-        if lines and re.match(r"^<!--\s*meta:segment\b.*-->\s*$", lines[0].strip(), flags=re.IGNORECASE):
-            lines = lines[1:]
+        lines = [
+            line for line in lines
+            if not re.match(r"^<!--\s*meta:segment\b.*-->\s*$", line.strip(), flags=re.IGNORECASE)
+        ]
         return "\n".join(lines).strip()
 
     def _short_asr(self, audio_path: str, hotwords, output_path: str,

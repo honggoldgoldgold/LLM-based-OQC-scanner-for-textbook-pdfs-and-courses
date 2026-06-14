@@ -104,6 +104,44 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             self.assertIn("first transcript", md)
             self.assertIn("second transcript", md)
 
+    def test_google_mode_removes_model_emitted_segment_markers_from_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            with open(source, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-2.5-pro",
+                    "audio_chunk_seconds": 1800,
+                    "audio_overlap_seconds": 30,
+                },
+            )
+            llm = Mock()
+            long_body = "老师继续讲解数据库事务隔离级别和调度等价。" * 1300
+            llm.transcribe_long_audio.return_value = (
+                long_body
+                + "\n<!-- meta:segment index=1 time=00:00~30:00 -->\n"
+                + "这行注释来自模型正文，程序需要剥掉。"
+            )
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=1800.0)
+            processor._split_google_audio = Mock(return_value=[
+                AudioChunk(source, 0.0, 1800.0, 0.0, 1800.0),
+            ])
+
+            processor.process(source, output_path=output_path)
+
+            with open(output_path, encoding="utf-8") as f:
+                md = f.read()
+            self.assertEqual(md.count("meta:segment"), 1)
+            self.assertIn("老师继续讲解数据库事务隔离级别", md)
+            self.assertIn("这行注释来自模型正文", md)
+
     def test_google_mode_rejects_hotword_only_long_audio_body(self):
         with tempfile.TemporaryDirectory() as tmp:
             audio_path = os.path.join(tmp, "lecture.mp3")
