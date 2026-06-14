@@ -85,6 +85,19 @@ def build_fallback_audio_windows(
     return windows
 
 
+def build_google_audio_windows(
+    duration: float,
+    chunk_seconds: int = 30 * 60,
+    overlap_seconds: int = 30,
+) -> list[AudioWindow]:
+    """Build Google audio windows: 30-minute logical chunks with overlap context."""
+    return build_fallback_audio_windows(
+        duration=duration,
+        chunk_seconds=chunk_seconds,
+        context_seconds=overlap_seconds,
+    )
+
+
 def _derive_asr_api_root(base_url: str) -> str:
     """从主 API Base URL 派生出 DashScope 原生 API 根路径。
 
@@ -486,7 +499,7 @@ class AudioProcessor(BaseProcessor):
         output_path: str = None,
         prompt_template: str = None,
     ) -> str:
-        """Google 模式只走长音频 Files API，不做本地盲切短音频回退。"""
+        """Google 模式走 Files API，并按录课友好的长片段切分后合并。"""
         if not self.cfg.google_api.api_key:
             raise ValueError("未配置 Google API Key。请在谷歌模式中填入 Google AI Studio API Key")
         if _is_remote(audio_path):
@@ -497,7 +510,7 @@ class AudioProcessor(BaseProcessor):
             output_path = os.path.join(ensure_dir(self.cfg.paths.output_dir), f"{stem}_录音识别.md")
 
         self._report(1, 4, f"Google 长音频模式: {self.cfg.google_api.audio_model}")
-        system_prompt = self._build_system_prompt(hotwords, prompt_template)
+        base_prompt = self._build_system_prompt(hotwords, prompt_template)
         duration = None
         try:
             duration = self._get_cached_duration(audio_path)
@@ -512,30 +525,93 @@ class AudioProcessor(BaseProcessor):
                 invalid_signal = google_audio_signal_invalid_reason(stats, duration=duration)
                 if invalid_signal:
                     raise RuntimeError(f"Google 长音频输入不可用: {invalid_signal}")
-        self._report(2, 4, "上传音频并请求 Gemini 识别...")
-        text = self.llm.transcribe_long_audio(
-            audio_path=audio_path,
-            system_prompt=system_prompt,
-            model=self.cfg.google_api.audio_model,
-            text_validator=lambda value: google_audio_transcript_invalid_reason(value, duration=duration),
-        )
-        text = strip_md_fence(text)
-        validate_google_audio_transcript(text, duration=duration)
+
+        chunks = self._split_google_audio(audio_path, duration=duration)
+        if not chunks:
+            raise RuntimeError("Google 长音频分割失败：没有可识别片段")
+
+        self._report(2, 4, f"上传并请求 Gemini 识别 {len(chunks)} 个音频片段...")
+        segment_texts: list[tuple[AudioChunk, str, str]] = []
+        for idx, chunk in enumerate(chunks, start=1):
+            self._check_cancelled()
+            t1 = _ms_ts(int(chunk.logical_start * 1000))
+            t2 = _ms_ts(int(chunk.logical_end * 1000))
+            segment_duration = max(0.0, chunk.logical_end - chunk.logical_start)
+            segment_prompt = self._build_google_segment_prompt(base_prompt, idx, chunk, len(chunks))
+            self._report(2, 4, f"Google 识别片段 {idx}/{len(chunks)} ({t1}~{t2})...")
+            text = self.llm.transcribe_long_audio(
+                audio_path=chunk.path,
+                system_prompt=segment_prompt,
+                model=self.cfg.google_api.audio_model,
+                text_validator=lambda value, dur=segment_duration: google_audio_transcript_invalid_reason(
+                    self._strip_model_segment_marker(strip_md_fence(value)),
+                    duration=dur,
+                ),
+            )
+            text = self._strip_model_segment_marker(strip_md_fence(text))
+            validate_google_audio_transcript(text, duration=segment_duration)
+            model_used = self.cfg.google_api.audio_model
+            last_successful_model = getattr(self.llm, "last_successful_model", None)
+            if callable(last_successful_model):
+                reported_model = last_successful_model("audio")
+                if isinstance(reported_model, str) and reported_model.strip():
+                    model_used = reported_model.strip()
+            segment_texts.append((chunk, text, model_used))
 
         md_lines = [f"<!-- meta:audio title={stem} -->\n"]
         md_lines.append(f"> Provider: Google Gemini SDK\n")
-        md_lines.append(f"> 模型: {self.cfg.google_api.audio_model}\n")
+        md_lines.append(f"> 模型优先级起点: {self.cfg.google_api.audio_model}\n")
+        actual_models = list(dict.fromkeys(model for _, _, model in segment_texts if model))
+        if actual_models:
+            md_lines.append(f"> 实际使用模型: {', '.join(actual_models)}\n")
+        md_lines.append(
+            f"> Google 切片: 逻辑 {self.cfg.google_api.audio_chunk_seconds}s，"
+            f"上下文重叠 {self.cfg.google_api.audio_overlap_seconds}s\n"
+        )
         if hotwords:
             md_lines.append(f"> 热词: {', '.join(hotwords)}\n")
-        md_lines.extend(["", text.strip(), ""])
+        md_lines.append("")
+        for idx, (chunk, text, _model_used) in enumerate(segment_texts, start=1):
+            t1 = _ms_ts(int(chunk.logical_start * 1000))
+            t2 = _ms_ts(int(chunk.logical_end * 1000))
+            md_lines.extend([f"<!-- meta:segment index={idx} time={t1}~{t2} -->\n", text.strip(), ""])
 
         self._report(3, 4, "写入 Markdown...")
         ensure_dir(os.path.dirname(output_path))
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n".join(md_lines).strip() + "\n")
-        self._report_content(text.strip(), "Google 长音频识别完成")
+        self._report_content("\n\n".join(text for _, text, _model in segment_texts), "Google 长音频识别完成")
         self._report(4, 4, f"完成: {output_path}")
         return output_path
+
+    def _build_google_segment_prompt(
+        self,
+        base_prompt: str,
+        index: int,
+        chunk: AudioChunk,
+        total: int,
+    ) -> str:
+        t1 = _ms_ts(int(chunk.logical_start * 1000))
+        t2 = _ms_ts(int(chunk.logical_end * 1000))
+        marker = f"<!-- meta:segment index={index} time={t1}~{t2} -->"
+        return (
+            f"{base_prompt}\n\n"
+            "Google 录课音频分段格式要求：\n"
+            f"- 这是第 {index}/{total} 个音频片段，逻辑时间范围为 {t1}~{t2}。\n"
+            f"- 输出第一行必须严格写成：{marker}\n"
+            "- 第一行之后只写这一片段的逐字转写正文。\n"
+            "- 不要省略 HTML 注释，不要把 meta 注释放进代码块，不要输出 Markdown 围栏。\n"
+            "- 如果音频开头或结尾听到与相邻片段重复的上下文，只保留属于上述逻辑时间范围的内容。"
+        )
+
+    @staticmethod
+    def _strip_model_segment_marker(text: str) -> str:
+        lines = text.strip().splitlines()
+        while lines and not lines[0].strip():
+            lines.pop(0)
+        if lines and re.match(r"^<!--\s*meta:segment\b.*-->\s*$", lines[0].strip(), flags=re.IGNORECASE):
+            lines = lines[1:]
+        return "\n".join(lines).strip()
 
     def _short_asr(self, audio_path: str, hotwords, output_path: str,
                    prompt_template: str = None, duration: float = None,
@@ -660,6 +736,89 @@ class AudioProcessor(BaseProcessor):
                       else (result.stderr or b"").decode("utf-8", errors="replace"))
             raise RuntimeError(f"ffmpeg 转换失败: {stderr[:500]}")
         return out
+
+    def _split_google_audio(self, audio_path: str, duration: float = None) -> list[AudioChunk]:
+        dur = duration if duration is not None else self._get_cached_duration(audio_path)
+        if dur <= 0:
+            raise RuntimeError(f"音频时长无效，无法进行 Google 分片: {audio_path}")
+
+        chunk_seconds = max(1, int(self.cfg.google_api.audio_chunk_seconds))
+        overlap_seconds = max(0, int(self.cfg.google_api.audio_overlap_seconds))
+        if overlap_seconds >= chunk_seconds:
+            overlap_seconds = max(0, chunk_seconds - 1)
+
+        windows = build_google_audio_windows(dur, chunk_seconds, overlap_seconds)
+        if not windows:
+            return []
+
+        if len(windows) == 1 and windows[0].actual_start <= 0.001 and abs(windows[0].actual_end - dur) <= 0.001:
+            window = windows[0]
+            return [AudioChunk(
+                path=audio_path,
+                actual_start=window.actual_start,
+                actual_end=window.actual_end,
+                logical_start=window.logical_start,
+                logical_end=window.logical_end,
+            )]
+
+        ffmpeg = get_ffmpeg()
+        chunk_dir = ensure_dir(os.path.join(self.cfg.paths.temp_dir, "google_audio_chunks", Path(audio_path).stem))
+        chunks = [None] * len(windows)
+        workers = resolve_workers(self.cfg.concurrency.audio_split_workers, len(windows), hard_cap=6)
+
+        def _split_one(idx: int, window: AudioWindow) -> tuple[int, AudioChunk]:
+            out = os.path.join(chunk_dir, f"google_part{idx + 1:03d}.mp3")
+            cmd = [
+                ffmpeg,
+                "-ss",
+                f"{window.actual_start:.3f}",
+                "-i",
+                audio_path,
+                "-t",
+                f"{window.actual_end - window.actual_start:.3f}",
+                "-vn",
+                "-ac",
+                "1",
+                "-ar",
+                "16000",
+                "-ab",
+                "64k",
+                "-acodec",
+                "libmp3lame",
+                "-y",
+                out,
+            ]
+            run_subprocess_cancellable(
+                cmd,
+                cancel_event=self.reporter.cancel_event,
+                timeout=max(600, int(window.actual_end - window.actual_start) + 300),
+                check=True,
+            )
+            return idx, AudioChunk(
+                path=out,
+                actual_start=window.actual_start,
+                actual_end=window.actual_end,
+                logical_start=window.logical_start,
+                logical_end=window.logical_end,
+            )
+
+        executor = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="google-audio-split")
+        future_map = {}
+        try:
+            for idx, window in enumerate(windows):
+                self._check_cancelled()
+                future = executor.submit(_split_one, idx, window)
+                future_map[future] = idx
+
+            for future in self._iter_completed_futures(set(future_map)):
+                future_map.pop(future, None)
+                idx, chunk = future.result()
+                chunks[idx] = chunk
+        finally:
+            self._cancel_futures(future_map)
+            executor.shutdown(wait=False, cancel_futures=True)
+
+        return [chunk for chunk in chunks if chunk is not None]
 
     def _should_use_short_asr(self, audio_path: str) -> tuple[bool, float]:
         """判断是否应使用短音频 ASR 模型。

@@ -16,6 +16,58 @@ from OCRLLM.config import AppConfig
 
 
 class GoogleProviderErrorTests(unittest.TestCase):
+    def test_google_audio_default_chain_prefers_pro_before_flash_and_lite(self):
+        cfg = AppConfig().with_updates(google_api={"enabled": True, "api_key": "AIza-test"})
+        client = GoogleProviderClient(cfg=cfg)
+
+        chain = client._audio_chain()
+        pro_positions = [idx for idx, model in enumerate(chain) if "pro" in model.lower()]
+        flash_positions = [
+            idx
+            for idx, model in enumerate(chain)
+            if "flash" in model.lower() or "lite" in model.lower()
+        ]
+
+        self.assertTrue(pro_positions, chain)
+        self.assertTrue(flash_positions, chain)
+        self.assertLess(min(pro_positions), min(flash_positions), chain)
+
+    def test_audio_switches_to_flash_after_pro_rate_limit_retries_are_exhausted(self):
+        cfg = AppConfig().with_updates(
+            google_api={
+                "enabled": True,
+                "api_key": "AIza-test",
+                "audio_model": "gemini-2.5-pro",
+                "audio_model_queue": ["gemini-2.5-flash"],
+            },
+        )
+        client = GoogleProviderClient(cfg=cfg)
+        calls: list[str] = []
+
+        def fake_retry(model: str, _invoke, _max_retries: int, text_validator=None) -> str:
+            calls.append(model)
+            if model == "gemini-2.5-pro":
+                raise GoogleProviderFailure(ClassifiedGoogleError(
+                    GoogleErrorKind.RATE_LIMIT,
+                    should_switch_model=False,
+                    should_retry_same_model=True,
+                    message="429 Too Many Requests: rate limit exceeded",
+                ))
+            return "flash transcript"
+
+        client._retry_same_model = fake_retry
+
+        text = client._call_with_model_switch(
+            "gemini-2.5-pro",
+            client._audio_chain(),
+            "audio",
+            lambda _model: "",
+            max_retries=2,
+        )
+
+        self.assertEqual(text, "flash transcript")
+        self.assertEqual(calls, ["gemini-2.5-pro", "gemini-2.5-flash"])
+
     def test_quota_exhaustion_switches_model_without_retrying_same_model(self):
         classified = classify_google_error(RuntimeError(
             "RESOURCE_EXHAUSTED: You exceeded your current quota, "

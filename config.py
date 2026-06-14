@@ -91,7 +91,7 @@ class GoogleAPIConfig:
     )
     text_model: str = "gemini-3.5-flash"
     vision_model: str = "gemini-2.5-flash-image-preview"
-    audio_model: str = "gemini-3.5-flash"
+    audio_model: str = "gemini-3.1-pro-preview"
     vision_model_queue: list[str] = field(default_factory=list)
     audio_model_queue: list[str] = field(default_factory=list)
     api_keys: list[str] = field(default_factory=list)
@@ -99,6 +99,8 @@ class GoogleAPIConfig:
     request_stagger_seconds: float = 1.0
     vision_batch_size: int = 20
     video_frame_batch_size: int = 20
+    audio_chunk_seconds: int = 30 * 60
+    audio_overlap_seconds: int = 30
     network_check_timeout_seconds: float = 8.0
     model_fetch_timeout_seconds: float = 20.0
     allow_force_continue_after_network_warning: bool = False
@@ -327,6 +329,12 @@ class AppConfig:
         google_video_batch = _env_int("OCRLLM_GOOGLE_VIDEO_FRAME_BATCH_SIZE")
         if google_video_batch is not None:
             updates.setdefault("google_api", {})["video_frame_batch_size"] = max(1, google_video_batch)
+        google_audio_chunk = _env_int("OCRLLM_GOOGLE_AUDIO_CHUNK_SECONDS")
+        if google_audio_chunk is not None:
+            updates.setdefault("google_api", {})["audio_chunk_seconds"] = max(1, google_audio_chunk)
+        google_audio_overlap = _env_int("OCRLLM_GOOGLE_AUDIO_OVERLAP_SECONDS")
+        if google_audio_overlap is not None:
+            updates.setdefault("google_api", {})["audio_overlap_seconds"] = max(0, google_audio_overlap)
         if updates.get("codex_vision", {}).get("enabled"):
             codex_model_value = updates["codex_vision"].get("model", cfg.codex_vision.model)
             updates.setdefault("models", {})["vision_model"] = codex_model_value

@@ -15,6 +15,8 @@ class GoogleProcessingConfigTests(unittest.TestCase):
             "OCRLLM_GOOGLE_REQUEST_STAGGER_SECONDS": "66.5",
             "OCRLLM_GOOGLE_VISION_BATCH_SIZE": "4",
             "OCRLLM_GOOGLE_VIDEO_FRAME_BATCH_SIZE": "5",
+            "OCRLLM_GOOGLE_AUDIO_CHUNK_SECONDS": "1801",
+            "OCRLLM_GOOGLE_AUDIO_OVERLAP_SECONDS": "31",
         }, clear=True):
             cfg = AppConfig.from_env()
 
@@ -23,6 +25,8 @@ class GoogleProcessingConfigTests(unittest.TestCase):
         self.assertEqual(cfg.google_api.request_stagger_seconds, 66.5)
         self.assertEqual(cfg.google_api.vision_batch_size, 4)
         self.assertEqual(cfg.google_api.video_frame_batch_size, 5)
+        self.assertEqual(cfg.google_api.audio_chunk_seconds, 1801)
+        self.assertEqual(cfg.google_api.audio_overlap_seconds, 31)
 
     def test_pdf_uses_google_independent_batch_parallel_and_stagger_config(self):
         cfg = AppConfig().with_updates(

@@ -79,6 +79,38 @@ _NETWORK_ERRORS = (
     TimeoutError,
 )
 
+_AUDIO_RETRY_EXHAUSTED_SWITCH_KINDS = {
+    GoogleErrorKind.RATE_LIMIT,
+    GoogleErrorKind.CONCURRENCY,
+    GoogleErrorKind.EMPTY_RESPONSE,
+    GoogleErrorKind.BAD_RESPONSE,
+}
+
+
+def _google_audio_model_class(model: str) -> int:
+    lowered = (model or "").lower()
+    if "lite" in lowered:
+        return 2
+    elif "pro" in lowered:
+        return 0
+    elif "flash" in lowered:
+        return 1
+    return 3
+
+
+def prioritize_google_audio_models(models: list[str]) -> list[str]:
+    """Keep unique audio candidates, always trying Pro models before Flash/Lite."""
+    deduped: list[str] = []
+    seen = set()
+    for model in models:
+        if model and model not in seen:
+            deduped.append(model)
+            seen.add(model)
+    ordered: list[str] = []
+    for model_class in (0, 1, 2, 3):
+        ordered.extend(model for model in deduped if _google_audio_model_class(model) == model_class)
+    return ordered
+
 
 def classify_google_error(exc: Exception) -> ClassifiedGoogleError:
     """Classify Google SDK/REST failures into retry or model-switch decisions."""
@@ -190,6 +222,9 @@ class GoogleProviderClient:
 
     def set_cancel_event(self, cancel_event: Optional[Event]):
         self._cancel_event = cancel_event
+
+    def last_successful_model(self, kind: str) -> str | None:
+        return self._last_successful_model_by_kind.get(kind)
 
     def _check_cancelled(self):
         if self._cancel_event and self._cancel_event.is_set():
@@ -315,6 +350,21 @@ class GoogleProviderClient:
                     unavailable.add(model)
                     previous = model
                     continue
+                if (
+                    kind == "audio"
+                    and exc.classified.should_retry_same_model
+                    and exc.classified.kind in _AUDIO_RETRY_EXHAUSTED_SWITCH_KINDS
+                    and idx + 1 < len(ordered)
+                ):
+                    logger.warning(
+                        "[GOOGLE] %s 模型重试耗尽，进入下一个音频候选: model=%s, error=%s",
+                        kind,
+                        model,
+                        exc.classified.message[:200],
+                    )
+                    unavailable.add(model)
+                    previous = model
+                    continue
                 raise
         if last_error is not None:
             raise RuntimeError(f"Google {kind} 候选模型均不可用: {last_error}") from last_error
@@ -350,7 +400,9 @@ class GoogleProviderClient:
         return self.cfg.google_api.vision_model_queue or model_catalog.google_free_vision_chain()
 
     def _audio_chain(self) -> list[str]:
-        return self.cfg.google_api.audio_model_queue or model_catalog.google_free_audio_chain()
+        return prioritize_google_audio_models(
+            self.cfg.google_api.audio_model_queue or model_catalog.google_free_audio_chain()
+        )
 
     def _text_chain(self) -> list[str]:
         """Prefer general/audio-capable Gemini models for pure text, not image generators."""
