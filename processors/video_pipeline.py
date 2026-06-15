@@ -333,6 +333,12 @@ class AudioRecognizePhase(VideoPhase):
         """检查转写结果文件是否已存在。"""
         transcript_path = processor._phase5_output_path(context.output_dir, context.stem)
         if os.path.exists(transcript_path) and os.path.getsize(transcript_path) > 0:
+            if getattr(getattr(processor, "cfg", None), "google_api", None) and processor.cfg.google_api.enabled:
+                from OCRLLM.processors.audio import google_audio_transcript_md_valid
+
+                if not google_audio_transcript_md_valid(transcript_path, expected_terms=context.hotwords):
+                    logger.warning("[VIDEO] Google audio transcript failed validation; rerunning Phase 5")
+                    return False
             context.audio_path = processor._phase1_audio_path(context.output_dir, context.stem)
             return True
         return False

@@ -63,6 +63,26 @@ class AudioSignalStats:
 _GOOGLE_WEAK_AUDIO_MIN_DURATION = 30 * 60
 _GOOGLE_WEAK_AUDIO_MEAN_DB = -55.0
 _GOOGLE_WEAK_AUDIO_MAX_DB = -35.0
+_GOOGLE_TOPIC_MIN_TERMS = 5
+_GOOGLE_TOPIC_MIN_TEXT_CHARS = 4000
+
+_TOPIC_TERM_STOPWORDS = {
+    "about",
+    "above",
+    "after",
+    "before",
+    "course",
+    "example",
+    "lecture",
+    "method",
+    "problem",
+    "question",
+    "section",
+    "teacher",
+    "today",
+}
+
+_TRANSCRIPT_TIMESTAMP_RE = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
 
 
 def build_fallback_audio_windows(
@@ -161,7 +181,82 @@ def audio_markdown_body(md: str) -> str:
     return "\n".join(body_lines).strip()
 
 
-def google_audio_transcript_invalid_reason(text: str, duration: float | None = None) -> str | None:
+def _clean_topic_term(value: str) -> str:
+    term = re.sub(r"\s+", " ", str(value or "")).strip()
+    return term.strip(" \t\r\n-_*#`~:：,，.。;；|/\\()[]{}<>")
+
+
+def _dedupe_topic_terms(expected_terms: list[str] | tuple[str, ...] | None) -> list[str]:
+    if not expected_terms:
+        return []
+    terms: list[str] = []
+    seen: set[str] = set()
+    for raw in expected_terms:
+        term = _clean_topic_term(str(raw))
+        if len(term) < 2 or len(term) > 60:
+            continue
+        key = term.casefold()
+        if key in _TOPIC_TERM_STOPWORDS or key.isdigit() or key in seen:
+            continue
+        seen.add(key)
+        terms.append(term)
+    return terms
+
+
+def _count_topic_hits(text: str, expected_terms: list[str]) -> int:
+    lower_text = text.casefold()
+    compact_text = re.sub(r"\s+", "", lower_text)
+    hits = 0
+    for term in expected_terms:
+        needle = term.casefold()
+        compact_needle = re.sub(r"\s+", "", needle)
+        if needle in lower_text or (compact_needle and compact_needle in compact_text):
+            hits += 1
+    return hits
+
+
+def _google_topic_mismatch_reason(text: str, expected_terms: list[str] | tuple[str, ...] | None) -> str | None:
+    terms = _dedupe_topic_terms(expected_terms)
+    if len(terms) < _GOOGLE_TOPIC_MIN_TERMS or len(text) < _GOOGLE_TOPIC_MIN_TEXT_CHARS:
+        return None
+    hits = _count_topic_hits(text, terms)
+    required_hits = min(6, max(2, len(terms) // 8))
+    hit_ratio = hits / max(1, len(terms))
+    if hits < required_hits and hit_ratio < 0.08:
+        return f"topic mismatch: matched {hits}/{len(terms)} expected terms, need at least {required_hits}"
+    return None
+
+
+def _timestamp_only_reason(text: str) -> str | None:
+    sample = text[:10000]
+    timestamps = _TRANSCRIPT_TIMESTAMP_RE.findall(sample)
+    if len(timestamps) < 60:
+        return None
+    residue = _TRANSCRIPT_TIMESTAMP_RE.sub(" ", sample)
+    residue = re.sub(r"[\s,，.。;；:：/\\|()[\]{}<>_\-+=*#`~]+", "", residue)
+    nonspace_chars = len(re.sub(r"\s+", "", sample))
+    if len(residue) < max(80, int(nonspace_chars * 0.05)):
+        return f"timestamp-only output: {len(timestamps)} timestamps with almost no speech text"
+    return None
+
+
+def _repeated_filler_reason(text: str) -> str | None:
+    sample = text[:10000]
+    filler_tokens = re.findall(r"[嗯啊呃额哎哦诶唔]{1,3}", sample)
+    if len(filler_tokens) < 80:
+        return None
+    residue = re.sub(r"[嗯啊呃额哎哦诶唔\s,，.。;；:：!！?？~～-]+", "", sample)
+    nonspace_chars = len(re.sub(r"\s+", "", sample))
+    if len(residue) < max(80, int(nonspace_chars * 0.10)):
+        return f"repeated filler output: {len(filler_tokens)} filler tokens with almost no speech text"
+    return None
+
+
+def google_audio_transcript_invalid_reason(
+    text: str,
+    duration: float | None = None,
+    expected_terms: list[str] | tuple[str, ...] | None = None,
+) -> str | None:
     """Detect Google long-audio false successes before they are written as transcripts."""
     stripped = text.strip()
     if not stripped:
@@ -179,11 +274,23 @@ def google_audio_transcript_invalid_reason(text: str, duration: float | None = N
     if re.search(r"(你[，。,.、\s]*){30,}", stripped[:5000]):
         return "正文包含大段重复噪声"
 
+    timestamp_reason = _timestamp_only_reason(stripped)
+    if timestamp_reason:
+        return timestamp_reason
+
+    filler_reason = _repeated_filler_reason(stripped)
+    if filler_reason:
+        return filler_reason
+
     if duration and duration >= 30 * 60:
         duration_minutes = duration / 60.0
         min_chars = max(4000, int(duration_minutes * 80))
         if len(stripped) < min_chars:
             return f"转写正文过短: {len(stripped)} 字，音频约 {duration_minutes:.1f} 分钟，最低期望 {min_chars} 字"
+
+    topic_reason = _google_topic_mismatch_reason(stripped, expected_terms)
+    if topic_reason:
+        return topic_reason
 
     return None
 
@@ -256,19 +363,27 @@ def google_audio_signal_invalid_reason(stats: AudioSignalStats, duration: float 
     return None
 
 
-def validate_google_audio_transcript(text: str, duration: float | None = None):
-    reason = google_audio_transcript_invalid_reason(text, duration=duration)
+def validate_google_audio_transcript(
+    text: str,
+    duration: float | None = None,
+    expected_terms: list[str] | tuple[str, ...] | None = None,
+):
+    reason = google_audio_transcript_invalid_reason(text, duration=duration, expected_terms=expected_terms)
     if reason:
         raise RuntimeError(f"Google 长音频识别疑似假成功: {reason}")
 
 
-def google_audio_transcript_md_valid(md_path: str, duration: float | None = None) -> bool:
+def google_audio_transcript_md_valid(
+    md_path: str,
+    duration: float | None = None,
+    expected_terms: list[str] | tuple[str, ...] | None = None,
+) -> bool:
     try:
         with open(md_path, encoding="utf-8") as f:
             body = audio_markdown_body(f.read())
     except OSError:
         return False
-    return google_audio_transcript_invalid_reason(body, duration=duration) is None
+    return google_audio_transcript_invalid_reason(body, duration=duration, expected_terms=expected_terms) is None
 
 
 def _retry_on_ssl(fn, max_retries=3, base_delay=5, sleep_fn=None):
@@ -575,6 +690,16 @@ class AudioProcessor(BaseProcessor):
             self._write_google_audio_checkpoint(checkpoint_path, checkpoint_meta, segment_text_by_index)
 
         segment_texts = [segment_text_by_index[idx] for idx in range(1, len(chunks) + 1)]
+        merged_body = "\n\n".join(text for _, text, _model in segment_texts)
+        try:
+            validate_google_audio_transcript(merged_body, duration=duration, expected_terms=hotwords)
+        except RuntimeError:
+            try:
+                checkpoint_path.unlink(missing_ok=True)
+            except OSError as exc:
+                logger.warning("[ASR] Google invalid transcript checkpoint cleanup failed: %s", exc)
+            raise
+
         md_lines = [f"<!-- meta:audio title={stem} -->\n"]
         md_lines.append(f"> Provider: Google Gemini SDK\n")
         md_lines.append(f"> 模型优先级起点: {self.cfg.google_api.audio_model}\n")
@@ -618,9 +743,19 @@ class AudioProcessor(BaseProcessor):
             }
             for idx, chunk in enumerate(chunks, start=1)
         ]
+        try:
+            source_stat = Path(audio_path).stat()
+            source_size = int(source_stat.st_size)
+            source_mtime_ns = int(source_stat.st_mtime_ns)
+        except OSError:
+            source_size = None
+            source_mtime_ns = None
+
         meta = {
             "version": 1,
             "source": str(Path(audio_path).resolve()),
+            "source_size": source_size,
+            "source_mtime_ns": source_mtime_ns,
             "output": str(Path(output_path).resolve()),
             "audio_model": self.cfg.google_api.audio_model,
             "chunk_seconds": int(self.cfg.google_api.audio_chunk_seconds),

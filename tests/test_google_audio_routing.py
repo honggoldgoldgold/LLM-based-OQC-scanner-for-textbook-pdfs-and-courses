@@ -7,8 +7,15 @@ from unittest.mock import Mock, patch
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.providers.google_provider import GoogleProviderClient
-from OCRLLM.processors.audio import AudioChunk, AudioProcessor, AudioSignalStats, build_google_audio_windows
+from OCRLLM.processors.audio import (
+    AudioChunk,
+    AudioProcessor,
+    AudioSignalStats,
+    build_google_audio_windows,
+    google_audio_transcript_invalid_reason,
+)
 from OCRLLM.processors.video import VideoProcessor
+from OCRLLM.processors.video_pipeline import AudioRecognizePhase, VideoProcessContext
 
 
 class GoogleAudioRoutingTests(unittest.TestCase):
@@ -464,6 +471,118 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             output_path = os.path.join(tmp, "lecture_录音识别.md")
             with open(output_path, encoding="utf-8") as f:
                 self.assertIn("video audio through google", f.read())
+
+    def test_google_transcript_rejects_topic_mismatch_when_hotwords_have_no_overlap(self):
+        wrong_transcript = (
+            "The lecture discusses sparse signal recovery, LASSO, ISTA, FISTA, "
+            "ADMM, compressed sensing, nuclear norm minimization, and linear regression. "
+        ) * 260
+        expected_terms = [
+            "transaction",
+            "isolation level",
+            "dirty read",
+            "phantom read",
+            "SQL",
+            "B+ tree",
+            "LSM tree",
+            "query optimizer",
+            "row lock",
+            "deadlock",
+        ]
+
+        reason = google_audio_transcript_invalid_reason(
+            wrong_transcript,
+            duration=3600,
+            expected_terms=expected_terms,
+        )
+
+        self.assertIsNotNone(reason)
+        self.assertIn("topic mismatch", reason)
+
+    def test_google_transcript_rejects_timestamp_only_output(self):
+        timestamp_only = " ".join(f"{minute:02d}:{second:02d}" for minute in range(30) for second in range(60))
+
+        reason = google_audio_transcript_invalid_reason(timestamp_only, duration=1800)
+
+        self.assertIsNotNone(reason)
+        self.assertIn("timestamp-only", reason)
+
+    def test_google_transcript_rejects_repeated_filler_output(self):
+        repeated_filler = "哎\n" + "嗯\n" * 500
+
+        reason = google_audio_transcript_invalid_reason(repeated_filler, duration=1800)
+
+        self.assertIsNotNone(reason)
+        self.assertIn("repeated filler", reason)
+
+    def test_video_phase5_resume_rejects_invalid_google_transcript_with_hotwords(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stem = "lecture"
+            output_path = os.path.join(tmp, f"{stem}_\u5f55\u97f3\u8bc6\u522b.md")
+            wrong_transcript = (
+                "The lecture discusses sparse signal recovery, LASSO, ISTA, FISTA, "
+                "ADMM, compressed sensing, nuclear norm minimization, and linear regression. "
+            ) * 260
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(wrong_transcript)
+
+            processor = VideoProcessor.__new__(VideoProcessor)
+            processor.cfg = AppConfig().with_updates(
+                google_api={"enabled": True, "api_key": "AIza-test"},
+            )
+            context = VideoProcessContext(
+                video_path="lecture.mp4",
+                output_dir=tmp,
+                frames_dir=os.path.join(tmp, "frames"),
+                debug_dir=tmp,
+                info_path=os.path.join(tmp, "frame_info.json"),
+                stem=stem,
+                selected_phases=[5],
+                skip_audio=False,
+                hotwords=[
+                    "transaction",
+                    "isolation level",
+                    "dirty read",
+                    "phantom read",
+                    "SQL",
+                    "B+ tree",
+                    "LSM tree",
+                    "query optimizer",
+                    "row lock",
+                    "deadlock",
+                ],
+            )
+
+            self.assertFalse(AudioRecognizePhase().can_resume(processor, context))
+
+    def test_google_audio_checkpoint_changes_when_source_file_changes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            output_path = os.path.join(tmp, "out.md")
+            chunk = AudioChunk(source, 0.0, 20.0, 0.0, 20.0)
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            processor = AudioProcessor(cfg=cfg, llm=Mock())
+
+            with open(source, "wb") as f:
+                f.write(b"first")
+            first_path, first_meta = processor._google_audio_checkpoint_path(
+                audio_path=source,
+                output_path=output_path,
+                base_prompt="prompt",
+                chunks=[chunk],
+            )
+
+            with open(source, "wb") as f:
+                f.write(b"second-version")
+            second_path, second_meta = processor._google_audio_checkpoint_path(
+                audio_path=source,
+                output_path=output_path,
+                base_prompt="prompt",
+                chunks=[chunk],
+            )
+
+            self.assertNotEqual(first_path, second_path)
+            self.assertNotEqual(first_meta["source_size"], second_meta["source_size"])
 
     def test_google_long_audio_upload_uses_ascii_safe_temp_path_for_chinese_filenames(self):
         with tempfile.TemporaryDirectory() as tmp:

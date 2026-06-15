@@ -87,6 +87,15 @@ class GoogleProviderErrorTests(unittest.TestCase):
         self.assertFalse(classified.should_switch_model)
         self.assertTrue(classified.should_retry_same_model)
 
+    def test_internal_server_error_retries_same_model(self):
+        classified = classify_google_error(RuntimeError(
+            "500 INTERNAL. An internal error has occurred. Please retry."
+        ))
+
+        self.assertEqual(classified.kind, GoogleErrorKind.BAD_RESPONSE)
+        self.assertFalse(classified.should_switch_model)
+        self.assertTrue(classified.should_retry_same_model)
+
     def test_404_model_error_switches_to_next_candidate(self):
         classified = classify_google_error(RuntimeError(
             '{"error":{"code":404,"status":"NOT_FOUND","message":"models/gemini-old is not found"}}'
