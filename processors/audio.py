@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import math
@@ -534,12 +535,22 @@ class AudioProcessor(BaseProcessor):
         if not chunks:
             raise RuntimeError("Google 长音频分割失败：没有可识别片段")
 
+        checkpoint_path, checkpoint_meta = self._google_audio_checkpoint_path(
+            audio_path=audio_path,
+            output_path=output_path,
+            base_prompt=base_prompt,
+            chunks=chunks,
+        )
+        segment_text_by_index = self._load_google_audio_checkpoint(checkpoint_path, checkpoint_meta, chunks)
         self._report(2, 4, f"上传并请求 Gemini 识别 {len(chunks)} 个音频片段...")
-        segment_texts: list[tuple[AudioChunk, str, str]] = []
         for idx, chunk in enumerate(chunks, start=1):
             self._check_cancelled()
             t1 = _ms_ts(int(chunk.logical_start * 1000))
             t2 = _ms_ts(int(chunk.logical_end * 1000))
+            if idx in segment_text_by_index:
+                self._report(2, 4, f"复用 Google 已完成片段 {idx}/{len(chunks)} ({t1}~{t2})...")
+                continue
+
             segment_duration = max(0.0, chunk.logical_end - chunk.logical_start)
             segment_prompt = self._build_google_segment_prompt(base_prompt, idx, chunk, len(chunks))
             self._report(2, 4, f"Google 识别片段 {idx}/{len(chunks)} ({t1}~{t2})...")
@@ -560,8 +571,10 @@ class AudioProcessor(BaseProcessor):
                 reported_model = last_successful_model("audio")
                 if isinstance(reported_model, str) and reported_model.strip():
                     model_used = reported_model.strip()
-            segment_texts.append((chunk, text, model_used))
+            segment_text_by_index[idx] = (chunk, text, model_used)
+            self._write_google_audio_checkpoint(checkpoint_path, checkpoint_meta, segment_text_by_index)
 
+        segment_texts = [segment_text_by_index[idx] for idx in range(1, len(chunks) + 1)]
         md_lines = [f"<!-- meta:audio title={stem} -->\n"]
         md_lines.append(f"> Provider: Google Gemini SDK\n")
         md_lines.append(f"> 模型优先级起点: {self.cfg.google_api.audio_model}\n")
@@ -587,6 +600,122 @@ class AudioProcessor(BaseProcessor):
         self._report_content("\n\n".join(text for _, text, _model in segment_texts), "Google 长音频识别完成")
         self._report(4, 4, f"完成: {output_path}")
         return output_path
+
+    def _google_audio_checkpoint_path(
+        self,
+        audio_path: str,
+        output_path: str,
+        base_prompt: str,
+        chunks: list[AudioChunk],
+    ) -> tuple[Path, dict]:
+        chunk_meta = [
+            {
+                "index": idx,
+                "actual_start": round(chunk.actual_start, 3),
+                "actual_end": round(chunk.actual_end, 3),
+                "logical_start": round(chunk.logical_start, 3),
+                "logical_end": round(chunk.logical_end, 3),
+            }
+            for idx, chunk in enumerate(chunks, start=1)
+        ]
+        meta = {
+            "version": 1,
+            "source": str(Path(audio_path).resolve()),
+            "output": str(Path(output_path).resolve()),
+            "audio_model": self.cfg.google_api.audio_model,
+            "chunk_seconds": int(self.cfg.google_api.audio_chunk_seconds),
+            "overlap_seconds": int(self.cfg.google_api.audio_overlap_seconds),
+            "prompt_hash": hashlib.sha256(base_prompt.encode("utf-8")).hexdigest(),
+            "chunks": chunk_meta,
+        }
+        digest = hashlib.sha256(
+            json.dumps(meta, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        ).hexdigest()[:20]
+        safe_stem = re.sub(r"[^A-Za-z0-9_.-]+", "_", Path(output_path).stem).strip("._")
+        if not safe_stem:
+            safe_stem = "google_audio"
+        checkpoint_dir = Path(ensure_dir(os.path.join(self.cfg.paths.temp_dir, "google_audio_checkpoints")))
+        return checkpoint_dir / f"{safe_stem[:80]}.{digest}.json", meta
+
+    def _load_google_audio_checkpoint(
+        self,
+        checkpoint_path: Path,
+        expected_meta: dict,
+        chunks: list[AudioChunk],
+    ) -> dict[int, tuple[AudioChunk, str, str]]:
+        if not checkpoint_path.exists():
+            return {}
+        try:
+            payload = json.loads(checkpoint_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            logger.warning("[ASR] Google 断点缓存读取失败，忽略旧缓存: %s", exc)
+            return {}
+        if payload.get("metadata") != expected_meta:
+            return {}
+
+        cached: dict[int, tuple[AudioChunk, str, str]] = {}
+        segments = payload.get("segments")
+        if not isinstance(segments, dict):
+            return cached
+        for raw_index, item in segments.items():
+            try:
+                index = int(raw_index)
+            except (TypeError, ValueError):
+                continue
+            if index < 1 or index > len(chunks) or not isinstance(item, dict):
+                continue
+            chunk = chunks[index - 1]
+            if not self._google_checkpoint_segment_matches(item, chunk):
+                continue
+            text = str(item.get("text") or "").strip()
+            model = str(item.get("model") or self.cfg.google_api.audio_model).strip()
+            duration = max(0.0, chunk.logical_end - chunk.logical_start)
+            try:
+                validate_google_audio_transcript(text, duration=duration)
+            except RuntimeError:
+                continue
+            cached[index] = (chunk, text, model)
+        return cached
+
+    @staticmethod
+    def _google_checkpoint_segment_matches(item: dict, chunk: AudioChunk) -> bool:
+        def same_time(key: str, expected: float) -> bool:
+            try:
+                return abs(float(item.get(key)) - round(expected, 3)) < 0.001
+            except (TypeError, ValueError):
+                return False
+
+        return (
+            same_time("actual_start", chunk.actual_start)
+            and same_time("actual_end", chunk.actual_end)
+            and same_time("logical_start", chunk.logical_start)
+            and same_time("logical_end", chunk.logical_end)
+        )
+
+    def _write_google_audio_checkpoint(
+        self,
+        checkpoint_path: Path,
+        metadata: dict,
+        segments: dict[int, tuple[AudioChunk, str, str]],
+    ) -> None:
+        payload = {
+            "metadata": metadata,
+            "segments": {
+                str(index): {
+                    "actual_start": round(chunk.actual_start, 3),
+                    "actual_end": round(chunk.actual_end, 3),
+                    "logical_start": round(chunk.logical_start, 3),
+                    "logical_end": round(chunk.logical_end, 3),
+                    "model": model,
+                    "text": text,
+                }
+                for index, (chunk, text, model) in sorted(segments.items())
+            },
+        }
+        checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = checkpoint_path.with_suffix(checkpoint_path.suffix + ".tmp")
+        tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp_path, checkpoint_path)
 
     def _build_google_segment_prompt(
         self,

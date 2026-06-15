@@ -104,6 +104,58 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             self.assertIn("first transcript", md)
             self.assertIn("second transcript", md)
 
+    def test_google_mode_resumes_cached_segments_after_quota_failure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            part1 = os.path.join(tmp, "part001.mp3")
+            part2 = os.path.join(tmp, "part002.mp3")
+            for path in (source, part1, part2):
+                with open(path, "wb") as f:
+                    f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-2.5-pro",
+                    "audio_chunk_seconds": 1800,
+                    "audio_overlap_seconds": 30,
+                },
+            )
+            chunks = [
+                AudioChunk(part1, 0.0, 1830.0, 0.0, 1800.0),
+                AudioChunk(part2, 1770.0, 3605.0, 1800.0, 3605.0),
+            ]
+            first_body = "first cached transcript " + "老师继续讲解课程内容。" * 900
+            second_body = "second resumed transcript " + "老师继续讲解课程内容。" * 900
+
+            llm_first = Mock()
+            llm_first.transcribe_long_audio.side_effect = [first_body, RuntimeError("quota")]
+            processor_first = AudioProcessor(cfg=cfg, llm=llm_first)
+            processor_first._get_cached_duration = Mock(return_value=3605.0)
+            processor_first._split_google_audio = Mock(return_value=chunks)
+
+            with self.assertRaisesRegex(RuntimeError, "quota"):
+                processor_first.process(source, output_path=output_path)
+            self.assertFalse(os.path.exists(output_path))
+
+            llm_second = Mock()
+            llm_second.transcribe_long_audio.return_value = second_body
+            processor_second = AudioProcessor(cfg=cfg, llm=llm_second)
+            processor_second._get_cached_duration = Mock(return_value=3605.0)
+            processor_second._split_google_audio = Mock(return_value=chunks)
+
+            processor_second.process(source, output_path=output_path)
+
+            self.assertEqual(llm_second.transcribe_long_audio.call_count, 1)
+            self.assertEqual(llm_second.transcribe_long_audio.call_args.kwargs["audio_path"], part2)
+            with open(output_path, encoding="utf-8") as f:
+                md = f.read()
+            self.assertIn("first cached transcript", md)
+            self.assertIn("second resumed transcript", md)
+
     def test_google_mode_removes_model_emitted_segment_markers_from_body(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = os.path.join(tmp, "lecture.mp3")
