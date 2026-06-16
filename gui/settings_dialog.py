@@ -831,8 +831,12 @@ class SettingsDialog(QDialog):
         self._restoring_settings = True
         if self._settings.contains("ui/api_key"):
             self._api_key_input.setText(self._settings.value("ui/api_key", type=str) or "")
+        else:
+            self._api_key_input.setText(self._cfg.api.api_key)
         if self._settings.contains("ui/base_url"):
             self._base_url_input.setText(self._settings.value("ui/base_url", type=str) or "")
+        else:
+            self._base_url_input.setText(self._cfg.api.base_url)
         # Google Gemini
         if self._settings.contains("ui/google_api_enabled"):
             self._google_enabled_cb.setChecked(self._settings.value("ui/google_api_enabled", type=bool))
@@ -881,40 +885,71 @@ class SettingsDialog(QDialog):
         # 视觉 Provider
         if self._settings.contains("ui/vision_api_enabled"):
             self._vision_enabled_cb.setChecked(self._settings.value("ui/vision_api_enabled", type=bool))
+        else:
+            self._vision_enabled_cb.setChecked(self._cfg.vision_api.enabled)
         if self._settings.contains("ui/vision_provider"):
             self._vision_provider_input.setText(self._settings.value("ui/vision_provider", type=str) or "")
+        else:
+            self._vision_provider_input.setText(self._cfg.vision_api.provider)
         if self._settings.contains("ui/vision_api_key"):
             self._vision_key_input.setText(self._settings.value("ui/vision_api_key", type=str) or "")
+        else:
+            self._vision_key_input.setText(self._cfg.vision_api.api_key)
         if self._settings.contains("ui/vision_base_url"):
             self._vision_url_input.setText(self._settings.value("ui/vision_base_url", type=str) or "")
+        else:
+            self._vision_url_input.setText(self._cfg.vision_api.base_url)
         if self._settings.contains("ui/vision_wire_api"):
             self._vision_wire_input.setText(self._settings.value("ui/vision_wire_api", type=str) or "")
+        else:
+            self._vision_wire_input.setText(self._cfg.vision_api.wire_api)
         if self._settings.contains("ui/vision_reasoning_effort"):
             self._vision_reasoning_input.setText(self._settings.value("ui/vision_reasoning_effort", type=str) or "")
+        else:
+            self._vision_reasoning_input.setText(self._cfg.vision_api.model_reasoning_effort)
         if self._settings.contains("ui/vision_network_access"):
             self._vision_network_cb.setChecked(self._settings.value("ui/vision_network_access", type=bool))
+        else:
+            self._vision_network_cb.setChecked(self._cfg.vision_api.network_access)
         if self._settings.contains("ui/vision_disable_response_storage"):
             self._vision_no_store_cb.setChecked(self._settings.value("ui/vision_disable_response_storage", type=bool))
+        else:
+            self._vision_no_store_cb.setChecked(self._cfg.vision_api.disable_response_storage)
         if self._settings.contains("ui/vision_model"):
             saved = self._settings.value("ui/vision_model", type=str) or ""
             if saved:
                 self._pending_vision_model = saved
                 self._vision_model_combo.setCurrentText(saved)
+        else:
+            self._vision_model_combo.setCurrentText(self._pending_vision_model)
         if self._settings.contains("ui/audio_model"):
             self._pending_audio_model = self._settings.value("ui/audio_model", type=str) or ""
         self._refresh_model_labels()
         if self._settings.contains("ui/llm_parallel_requests"):
             self._llm_parallel_input.setValue(int(self._settings.value("ui/llm_parallel_requests")))
+        else:
+            self._llm_parallel_input.setValue(self._cfg.concurrency.llm_parallel_requests)
         if self._settings.contains("ui/llm_request_stagger_seconds"):
             self._llm_stagger_input.setValue(float(self._settings.value("ui/llm_request_stagger_seconds")))
+        else:
+            self._llm_stagger_input.setValue(self._cfg.concurrency.llm_request_stagger_seconds)
         if self._settings.contains("ui/paid_mode"):
             self._paid_mode_cb.setChecked(self._settings.value("ui/paid_mode", type=bool))
+        else:
+            self._paid_mode_cb.setChecked(self._cfg.api.paid_mode)
         if self._settings.contains("ui/extra_api_keys"):
             self._extra_keys_input.setText(self._settings.value("ui/extra_api_keys", type=str) or "")
+        else:
+            extra_keys = [key for key in self._cfg.api.api_keys if key and key != self._cfg.api.api_key]
+            self._extra_keys_input.setText(", ".join(extra_keys))
         if self._settings.contains("ui/processing_batch_size"):
             self._processing_batch_input.setValue(int(self._settings.value("ui/processing_batch_size")))
+        else:
+            self._processing_batch_input.setValue(self._cfg.processing.batch_size)
         if self._settings.contains("ui/video_batch_size"):
             self._video_batch_input.setValue(int(self._settings.value("ui/video_batch_size")))
+        else:
+            self._video_batch_input.setValue(self._cfg.video.batch_size)
         # 模型降级队列
         if self._settings.contains("ui/vision_model_queue"):
             try:
@@ -930,6 +965,15 @@ class SettingsDialog(QDialog):
             self._refresh_bailian_models(force=False, notify=False)
 
     def _persist_to_settings(self):
+        self._pending_google_vision_model = (
+            self._google_vision_model_combo.currentText().strip() or self._pending_google_vision_model
+        )
+        self._pending_google_audio_model = (
+            self._google_audio_model_combo.currentText().strip() or self._pending_google_audio_model
+        )
+        self._pending_vision_model = (
+            self._vision_model_combo.currentText().strip() or self._pending_vision_model
+        )
         self._settings.setValue("ui/api_key", self._api_key_input.text())
         self._settings.setValue("ui/base_url", self._base_url_input.text())
         self._settings.setValue("ui/google_api_enabled", self._google_enabled_cb.isChecked())

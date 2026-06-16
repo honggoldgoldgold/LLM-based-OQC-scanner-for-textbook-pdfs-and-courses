@@ -515,6 +515,28 @@ class GoogleAudioRoutingTests(unittest.TestCase):
         self.assertIsNotNone(reason)
         self.assertIn("repeated filler", reason)
 
+    def test_google_transcript_rejects_repeated_hotword_echo_output(self):
+        expected_terms = [
+            "事务隔离",
+            "脏读",
+            "幻读",
+            "可串行化",
+            "两阶段锁",
+            "B+ tree",
+            "LSM tree",
+            "查询优化器",
+        ]
+        hotword_echo = ("热词表\n" + "\n".join(expected_terms) + "\n") * 120
+
+        reason = google_audio_transcript_invalid_reason(
+            hotword_echo,
+            duration=1800,
+            expected_terms=expected_terms,
+        )
+
+        self.assertIsNotNone(reason)
+        self.assertIn("热词", reason)
+
     def test_video_phase5_resume_rejects_invalid_google_transcript_with_hotwords(self):
         with tempfile.TemporaryDirectory() as tmp:
             stem = "lecture"
@@ -560,7 +582,10 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             source = os.path.join(tmp, "lecture.mp3")
             output_path = os.path.join(tmp, "out.md")
             chunk = AudioChunk(source, 0.0, 20.0, 0.0, 20.0)
-            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                api={"api_key": "sk-test"},
+            )
             processor = AudioProcessor(cfg=cfg, llm=Mock())
 
             with open(source, "wb") as f:

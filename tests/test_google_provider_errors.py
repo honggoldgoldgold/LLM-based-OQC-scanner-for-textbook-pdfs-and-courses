@@ -149,6 +149,51 @@ class GoogleProviderErrorTests(unittest.TestCase):
 
         self.assertEqual(google_retry_delay_seconds(classified, attempt=1), 73.0)
 
+    def test_long_audio_retries_top_level_google_400_json_error_text(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = Path(tmp) / "lecture.mp3"
+            audio_path.write_bytes(b"fake audio")
+            calls: list[str] = []
+
+            class FakeFiles:
+                def upload(self, file):
+                    return SimpleNamespace(name="files/test", state="ACTIVE")
+
+                def get(self, name):
+                    return SimpleNamespace(name=name, state="ACTIVE")
+
+            class FakeModels:
+                def generate_content(self, model, contents):
+                    calls.append(model)
+                    if len(calls) < 3:
+                        return SimpleNamespace(
+                            text='{"code":400,"status":"INVALID_ARGUMENT","message":"json failed"}'
+                        )
+                    return SimpleNamespace(text="老师开始讲课，今天我们继续讨论数据库事务。")
+
+            cfg = AppConfig().with_updates(
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                    "audio_model_queue": ["gemini-3.5-flash"],
+                },
+            )
+            client = GoogleProviderClient(cfg=cfg)
+            client._client = SimpleNamespace(files=FakeFiles(), models=FakeModels())
+            client._sleep_with_cancel = lambda _seconds: None
+
+            text = client.transcribe_long_audio(
+                str(audio_path),
+                model="gemini-3.5-flash",
+                max_retries=3,
+            )
+
+            self.assertIn("老师开始讲课", text)
+            self.assertEqual(calls, ["gemini-3.5-flash"] * 3)
+
     def test_provider_reuses_successful_model_after_switchable_failures(self):
         cfg = AppConfig().with_updates(google_api={"enabled": True, "api_key": "AIza-test"})
         client = GoogleProviderClient(cfg=cfg)

@@ -341,55 +341,67 @@ class QCRMainWindow(QMainWindow):
         此处只从 QSettings 读取并构建 with_updates 所需的字典。
         """
         s = self._settings
-        def _str(key): return (s.value(key, type=str) or "").strip()
-        def _bool(key): return s.value(key, type=bool) if s.contains(key) else False
-        def _int(key): return int(s.value(key) or 0)
-        def _float(key): return float(s.value(key) or 0)
-        def _queue(key):
+        def _str(key, default=""):
+            if not s.contains(key):
+                return str(default or "").strip()
+            return (s.value(key, type=str) or "").strip()
+        def _bool(key, default=False):
+            return s.value(key, type=bool) if s.contains(key) else bool(default)
+        def _int(key, default=0):
+            return int(s.value(key) if s.contains(key) else default)
+        def _float(key, default=0.0):
+            return float(s.value(key) if s.contains(key) else default)
+        def _queue(key, default=None):
+            if not s.contains(key):
+                return list(default or [])
             try:
                 import json
                 return json.loads(s.value(key, type=str) or "[]")
             except Exception:
-                return []
+                return list(default or [])
 
-        new_key = _str("ui/api_key")
-        new_url = _str("ui/base_url")
-        google_enabled = _bool("ui/google_api_enabled")
-        google_key = _str("ui/google_api_key")
+        new_key = _str("ui/api_key", self._cfg.api.api_key)
+        new_url = _str("ui/base_url", self._cfg.api.base_url)
+        google_enabled = _bool("ui/google_api_enabled", self._cfg.google_api.enabled)
+        google_key = _str("ui/google_api_key", self._cfg.google_api.api_key)
         google_vision_model = _str("ui/google_vision_model") or self._cfg.google_api.vision_model
         google_audio_model = _str("ui/google_audio_model") or self._cfg.google_api.audio_model
-        google_parallel = _int("ui/google_parallel_requests") or self._cfg.google_api.parallel_requests
-        google_stagger = _float("ui/google_request_stagger_seconds") or self._cfg.google_api.request_stagger_seconds
-        google_vision_batch = _int("ui/google_vision_batch_size") or self._cfg.google_api.vision_batch_size
-        google_video_batch = _int("ui/google_video_frame_batch_size") or self._cfg.google_api.video_frame_batch_size
-        codex_enabled = _bool("ui/codex_vision_enabled")
-        codex_command = _str("ui/codex_command") or "codex"
-        codex_model = _str("ui/codex_model") or CODEX_VISION_DEFAULT_MODEL
-        codex_reasoning = _str("ui/codex_reasoning_effort") or CODEX_VISION_DEFAULT_REASONING
-        codex_timeout = _int("ui/codex_timeout_seconds") or 600
-        vis_enabled = _bool("ui/vision_api_enabled")
-        vis_provider = _str("ui/vision_provider")
-        vis_key = _str("ui/vision_api_key")
-        vis_url = _str("ui/vision_base_url")
-        vis_wire = (_str("ui/vision_wire_api") or "chat").lower()
-        vis_reasoning = _str("ui/vision_reasoning_effort")
-        vis_network = _bool("ui/vision_network_access")
-        vis_no_store = _bool("ui/vision_disable_response_storage")
+        google_parallel = _int("ui/google_parallel_requests", self._cfg.google_api.parallel_requests)
+        google_stagger = _float("ui/google_request_stagger_seconds", self._cfg.google_api.request_stagger_seconds)
+        google_vision_batch = _int("ui/google_vision_batch_size", self._cfg.google_api.vision_batch_size)
+        google_video_batch = _int("ui/google_video_frame_batch_size", self._cfg.google_api.video_frame_batch_size)
+        codex_enabled = _bool("ui/codex_vision_enabled", self._cfg.codex_vision.enabled)
+        codex_command = _str("ui/codex_command", self._cfg.codex_vision.command) or "codex"
+        codex_model = _str("ui/codex_model", self._cfg.codex_vision.model) or CODEX_VISION_DEFAULT_MODEL
+        codex_reasoning = _str("ui/codex_reasoning_effort", self._cfg.codex_vision.reasoning_effort) or CODEX_VISION_DEFAULT_REASONING
+        codex_timeout = _int("ui/codex_timeout_seconds", self._cfg.codex_vision.timeout_seconds)
+        vis_enabled = _bool("ui/vision_api_enabled", self._cfg.vision_api.enabled)
+        vis_provider = _str("ui/vision_provider", self._cfg.vision_api.provider)
+        vis_key = _str("ui/vision_api_key", self._cfg.vision_api.api_key)
+        vis_url = _str("ui/vision_base_url", self._cfg.vision_api.base_url)
+        vis_wire = (_str("ui/vision_wire_api", self._cfg.vision_api.wire_api) or "chat").lower()
+        vis_reasoning = _str("ui/vision_reasoning_effort", self._cfg.vision_api.model_reasoning_effort)
+        vis_network = _bool("ui/vision_network_access", self._cfg.vision_api.network_access)
+        vis_no_store = _bool("ui/vision_disable_response_storage", self._cfg.vision_api.disable_response_storage)
         vision_model = codex_model if codex_enabled else (_str("ui/vision_model") or self._cfg.models.vision_model)
         audio_model = _str("ui/audio_model") or self._cfg.models.asr_model
-        new_parallel = _int("ui/llm_parallel_requests")
-        new_stagger = float(s.value("ui/llm_request_stagger_seconds") or 0)
-        processing_batch = _int("ui/processing_batch_size") or self._cfg.processing.batch_size
-        video_batch = _int("ui/video_batch_size") or self._cfg.video.batch_size
-        paid_mode = _bool("ui/paid_mode")
+        new_parallel = _int("ui/llm_parallel_requests", self._cfg.concurrency.llm_parallel_requests)
+        new_stagger = _float("ui/llm_request_stagger_seconds", self._cfg.concurrency.llm_request_stagger_seconds)
+        processing_batch = _int("ui/processing_batch_size", self._cfg.processing.batch_size)
+        video_batch = _int("ui/video_batch_size", self._cfg.video.batch_size)
+        paid_mode = _bool("ui/paid_mode", self._cfg.api.paid_mode)
         extra_keys_text = _str("ui/extra_api_keys")
 
-        api_keys = [new_key] if new_key else []
-        if extra_keys_text:
+        if s.contains("ui/extra_api_keys"):
+            api_keys = [new_key] if new_key else []
             for k in extra_keys_text.split(","):
                 k = k.strip()
                 if k and k != new_key:
                     api_keys.append(k)
+        else:
+            api_keys = list(self._cfg.api.api_keys)
+            if paid_mode and new_key and new_key not in api_keys:
+                api_keys.insert(0, new_key)
 
         models_update: dict = {}
         if vision_model:
@@ -438,7 +450,7 @@ class QCRMainWindow(QMainWindow):
                 "model_reasoning_effort": vis_reasoning,
                 "network_access": vis_network,
                 "disable_response_storage": vis_no_store,
-                "vision_model_queue": _queue("ui/vision_model_queue"),
+                "vision_model_queue": _queue("ui/vision_model_queue", self._cfg.vision_api.vision_model_queue),
             },
             "concurrency": {
                 "llm_parallel_requests": (

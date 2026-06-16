@@ -9,6 +9,7 @@ from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from OCRLLM.config import AppConfig
+from OCRLLM.gui.app import QCRMainWindow
 from OCRLLM.gui.settings_dialog import SettingsDialog
 
 
@@ -82,6 +83,103 @@ class GoogleSettingsDialogTests(unittest.TestCase):
 
         refresh.assert_called_once_with(force=False, notify=True)
         dlg.deleteLater()
+        self._app.processEvents()
+
+    def test_settings_dialog_prefills_api_fields_from_current_config_when_no_saved_settings(self):
+        cfg = AppConfig().with_updates(
+            api={"api_key": "dash-key", "base_url": "https://dash.example/v1"},
+            google_api={
+                "enabled": True,
+                "api_key": "google-key",
+                "vision_model": "gemini-vision",
+                "audio_model": "gemini-audio",
+            },
+            vision_api={
+                "enabled": True,
+                "provider": "ioasis",
+                "api_key": "vision-key",
+                "base_url": "https://vision.example/v1",
+            },
+        )
+
+        dlg = SettingsDialog(None, cfg)
+
+        self.assertEqual(dlg._api_key_input.text(), "dash-key")
+        self.assertEqual(dlg._base_url_input.text(), "https://dash.example/v1")
+        self.assertTrue(dlg._google_enabled_cb.isChecked())
+        self.assertEqual(dlg._google_key_input.text(), "google-key")
+        self.assertEqual(dlg._google_vision_model_combo.currentText(), "gemini-vision")
+        self.assertEqual(dlg._google_audio_model_combo.currentText(), "gemini-audio")
+        self.assertTrue(dlg._vision_enabled_cb.isChecked())
+        self.assertEqual(dlg._vision_provider_input.text(), "ioasis")
+        self.assertEqual(dlg._vision_key_input.text(), "vision-key")
+        self.assertEqual(dlg._vision_url_input.text(), "https://vision.example/v1")
+        dlg.deleteLater()
+        self._app.processEvents()
+
+    def test_main_window_does_not_clear_config_api_values_when_qsettings_are_empty(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                api={"api_key": "dash-key", "base_url": "https://dash.example/v1"},
+                google_api={
+                    "enabled": True,
+                    "api_key": "google-key",
+                    "vision_model": "gemini-vision",
+                    "audio_model": "gemini-audio",
+                },
+                vision_api={
+                    "enabled": True,
+                    "provider": "ioasis",
+                    "api_key": "vision-key",
+                    "base_url": "https://vision.example/v1",
+                },
+            )
+
+            window = QCRMainWindow(cfg=cfg)
+
+            self.assertEqual(window._cfg.api.api_key, "dash-key")
+            self.assertEqual(window._cfg.api.base_url, "https://dash.example/v1")
+            self.assertTrue(window._cfg.google_api.enabled)
+            self.assertEqual(window._cfg.google_api.api_key, "google-key")
+            self.assertEqual(window._cfg.google_api.vision_model, "gemini-vision")
+            self.assertEqual(window._cfg.google_api.audio_model, "gemini-audio")
+            self.assertTrue(window._cfg.vision_api.enabled)
+            self.assertEqual(window._cfg.vision_api.api_key, "vision-key")
+            window.deleteLater()
+            self._app.processEvents()
+
+    def test_applied_api_inputs_are_restored_by_next_settings_dialog(self):
+        cfg = AppConfig()
+        first = SettingsDialog(None, cfg)
+        first._api_key_input.setText("dash-key")
+        first._base_url_input.setText("https://dash.example/v1")
+        first._google_enabled_cb.setChecked(True)
+        first._google_key_input.setText("google-key")
+        first._google_vision_model_combo.setCurrentText("gemini-vision")
+        first._google_audio_model_combo.setCurrentText("gemini-audio")
+        first._vision_enabled_cb.setChecked(True)
+        first._vision_provider_input.setText("ioasis")
+        first._vision_key_input.setText("vision-key")
+        first._vision_url_input.setText("https://vision.example/v1")
+
+        with patch.object(SettingsDialog, "_validate_google_environment_if_needed", return_value=True), \
+                patch.object(SettingsDialog, "accept"):
+            first._on_apply()
+
+        second = SettingsDialog(None, AppConfig())
+
+        self.assertEqual(second._api_key_input.text(), "dash-key")
+        self.assertEqual(second._base_url_input.text(), "https://dash.example/v1")
+        self.assertTrue(second._google_enabled_cb.isChecked())
+        self.assertEqual(second._google_key_input.text(), "google-key")
+        self.assertEqual(second._google_vision_model_combo.currentText(), "gemini-vision")
+        self.assertEqual(second._google_audio_model_combo.currentText(), "gemini-audio")
+        self.assertEqual(second._vision_provider_input.text(), "ioasis")
+        self.assertEqual(second._vision_key_input.text(), "vision-key")
+        self.assertEqual(second._vision_url_input.text(), "https://vision.example/v1")
+        first.deleteLater()
+        second.deleteLater()
         self._app.processEvents()
 
 

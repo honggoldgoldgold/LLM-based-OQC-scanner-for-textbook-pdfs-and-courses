@@ -120,6 +120,10 @@ def classify_google_error(exc: Exception) -> ClassifiedGoogleError:
     if isinstance(exc, _NETWORK_ERRORS):
         return ClassifiedGoogleError(GoogleErrorKind.NETWORK, False, True, message)
 
+    json_error = _google_json_error_payload(message)
+    if json_error is not None:
+        return _classify_google_json_error(json_error, message)
+
     if "not_found" in lowered or '"code":404' in lowered or "code 404" in lowered or "404" in lowered and "model" in lowered:
         return ClassifiedGoogleError(GoogleErrorKind.INVALID_MODEL, True, False, message)
     if "quota" in lowered or "free tier" in lowered or "resource_exhausted" in lowered:
@@ -201,20 +205,106 @@ def _response_text(response) -> str:
     return "".join(parts).strip()
 
 
-def _looks_like_json_error(text: str) -> bool:
+_GOOGLE_JSON_ERROR_STATUSES = {
+    "aborted",
+    "bad_request",
+    "cancelled",
+    "data_loss",
+    "deadline_exceeded",
+    "failed_precondition",
+    "internal",
+    "invalid_argument",
+    "not_found",
+    "out_of_range",
+    "permission_denied",
+    "resource_exhausted",
+    "unauthenticated",
+    "unavailable",
+    "unknown",
+}
+
+
+def _coerce_error_code(value) -> int | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, int):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except ValueError:
+            return None
+    return None
+
+
+def _google_json_error_payload(text: str) -> dict | None:
     stripped = text.strip()
     if not stripped.startswith("{"):
-        return False
+        return None
     try:
         payload = json.loads(stripped)
     except json.JSONDecodeError:
-        return False
+        return None
     if not isinstance(payload, dict):
-        return False
-    if "error" in payload:
-        return True
-    status = str(payload.get("status") or payload.get("code") or "").lower()
-    return status in {"404", "not_found", "resource_exhausted", "permission_denied"}
+        return None
+
+    raw_error = payload.get("error")
+    if isinstance(raw_error, dict):
+        payload = raw_error
+    elif raw_error is not None:
+        return payload
+
+    code = _coerce_error_code(payload.get("code"))
+    status = str(payload.get("status") or "").strip().lower()
+    if code is not None and code >= 400:
+        return payload
+    if status in _GOOGLE_JSON_ERROR_STATUSES:
+        return payload
+    if "message" in payload and (code is not None or status):
+        return payload
+    return None
+
+
+def _looks_like_json_error(text: str) -> bool:
+    return _google_json_error_payload(text) is not None
+
+
+def _classify_google_json_error(payload: dict, original_message: str) -> ClassifiedGoogleError:
+    code = _coerce_error_code(payload.get("code"))
+    status = str(payload.get("status") or "").strip().lower()
+    message = str(payload.get("message") or original_message)
+    lowered = " ".join([status, str(code or ""), message, original_message]).lower()
+
+    if code == 404 or status == "not_found" or ("not found" in lowered and "model" in lowered):
+        return ClassifiedGoogleError(GoogleErrorKind.INVALID_MODEL, True, False, original_message)
+    if (
+        code in {401, 403}
+        or status in {"permission_denied", "unauthenticated"}
+        or "api key not valid" in lowered
+    ):
+        return ClassifiedGoogleError(GoogleErrorKind.AUTH, False, False, original_message)
+    if "billing" in lowered or "payment" in lowered or ("insufficient" in lowered and "fund" in lowered):
+        return ClassifiedGoogleError(GoogleErrorKind.BILLING, True, False, original_message)
+    if code == 429 or status == "resource_exhausted" or "quota" in lowered:
+        if (
+            code == 429
+            or "rate limit" in lowered
+            or "too many requests" in lowered
+            or "rpm" in lowered
+            or "tpm" in lowered
+            or "rpd" in lowered
+        ):
+            return ClassifiedGoogleError(GoogleErrorKind.RATE_LIMIT, False, True, original_message)
+        return ClassifiedGoogleError(GoogleErrorKind.QUOTA_EXHAUSTED, True, False, original_message)
+    if "safety" in lowered or "blocked" in lowered:
+        return ClassifiedGoogleError(GoogleErrorKind.SAFETY, False, False, original_message)
+    if code and code >= 500:
+        return ClassifiedGoogleError(GoogleErrorKind.BAD_RESPONSE, False, True, original_message)
+    if status in {"internal", "unavailable", "deadline_exceeded"}:
+        return ClassifiedGoogleError(GoogleErrorKind.BAD_RESPONSE, False, True, original_message)
+    if code == 400 or status in {"invalid_argument", "bad_request", "failed_precondition", "aborted"}:
+        return ClassifiedGoogleError(GoogleErrorKind.BAD_RESPONSE, False, True, original_message)
+    return ClassifiedGoogleError(GoogleErrorKind.BAD_RESPONSE, False, True, original_message)
 
 
 class GoogleProviderClient:

@@ -12,6 +12,7 @@ import os
 import re
 import ssl
 import time
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
@@ -83,6 +84,8 @@ _TOPIC_TERM_STOPWORDS = {
 }
 
 _TRANSCRIPT_TIMESTAMP_RE = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
+_HOTWORD_MARKER_RE = re.compile(r"(?:热词|术语|关键词|专业词)(?:表|列表)?")
+_SENTENCE_PUNCT_RE = re.compile(r"[。！？!?]")
 
 
 def build_fallback_audio_windows(
@@ -252,6 +255,68 @@ def _repeated_filler_reason(text: str) -> str | None:
     return None
 
 
+def _repeated_hotword_echo_reason(
+    text: str,
+    expected_terms: list[str] | tuple[str, ...] | None = None,
+) -> str | None:
+    sample = text[:20000]
+    marker_count = len(_HOTWORD_MARKER_RE.findall(sample))
+    raw_lines = [line.strip() for line in sample.splitlines() if line.strip()]
+    short_lines = []
+    for line in raw_lines:
+        if line.startswith("<!--"):
+            continue
+        cleaned = _clean_topic_term(line)
+        if 2 <= len(cleaned) <= 80 and not _SENTENCE_PUNCT_RE.search(line):
+            short_lines.append(cleaned)
+
+    if short_lines:
+        repeated_short_lines = sum(
+            count for count in Counter(line.casefold() for line in short_lines).values()
+            if count >= 3
+        )
+        if marker_count >= 2 and len(short_lines) >= 12 and len(short_lines) >= int(len(raw_lines) * 0.6):
+            return f"正文夹杂重复热词列表: {marker_count} 个热词标记，{len(short_lines)} 行短术语"
+        if repeated_short_lines >= 20 and (marker_count >= 1 or repeated_short_lines >= int(len(short_lines) * 0.5)):
+            return f"正文夹杂重复热词短行: {repeated_short_lines} 行重复术语"
+
+    terms = _dedupe_topic_terms(expected_terms)
+    if len(terms) < 3:
+        return None
+    lower_text = sample.casefold()
+    compact_text = re.sub(r"\s+", "", lower_text)
+    compact_len = len(compact_text)
+    if compact_len <= 0:
+        return None
+
+    distinct_hits = 0
+    occurrence_count = 0
+    matched_chars = 0
+    for term in terms:
+        needle = term.casefold()
+        compact_needle = re.sub(r"\s+", "", needle)
+        count = lower_text.count(needle)
+        if count == 0 and compact_needle and compact_needle != needle:
+            count = compact_text.count(compact_needle)
+        if count <= 0:
+            continue
+        distinct_hits += 1
+        occurrence_count += count
+        matched_chars += len(compact_needle or needle) * count
+
+    density = matched_chars / compact_len
+    if (
+        distinct_hits >= min(4, len(terms))
+        and occurrence_count >= max(20, len(terms) * 3)
+        and density >= 0.35
+    ):
+        return (
+            f"正文被重复热词占据: 命中 {distinct_hits}/{len(terms)} 个热词，"
+            f"出现 {occurrence_count} 次，热词密度 {density:.0%}"
+        )
+    return None
+
+
 def google_audio_transcript_invalid_reason(
     text: str,
     duration: float | None = None,
@@ -273,6 +338,10 @@ def google_audio_transcript_invalid_reason(
 
     if re.search(r"(你[，。,.、\s]*){30,}", stripped[:5000]):
         return "正文包含大段重复噪声"
+
+    hotword_reason = _repeated_hotword_echo_reason(stripped, expected_terms)
+    if hotword_reason:
+        return hotword_reason
 
     timestamp_reason = _timestamp_only_reason(stripped)
     if timestamp_reason:

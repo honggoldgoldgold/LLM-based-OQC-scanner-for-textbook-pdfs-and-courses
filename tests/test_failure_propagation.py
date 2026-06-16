@@ -49,6 +49,20 @@ class _HotwordOnlyWhenAskedLLM:
         return "Linux\nShell"
 
 
+class _SparseThenClosedPDFLLM:
+    def __init__(self):
+        self.calls = 0
+
+    def set_cancel_event(self, *_args):
+        pass
+
+    def chat_with_images(self, *_args, **_kwargs):
+        self.calls += 1
+        if self.calls == 1:
+            return "<!-- meta:page number=1 -->\n\n短"
+        raise RuntimeError("Cannot send a request, as the client has been closed.")
+
+
 def _cfg(tmp: str) -> AppConfig:
     return AppConfig(
         api=APIConfig(api_key="dummy-key"),
@@ -92,6 +106,33 @@ class VisionFailurePropagationTests(unittest.TestCase):
 
             with open(output_path, encoding="utf-8") as f:
                 self.assertIn("识别失败", f.read())
+
+    def test_pdf_raises_when_failure_placeholders_leave_too_little_real_text(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            pdf_path = os.path.join(tmp, "book.pdf")
+            output_path = os.path.join(tmp, "book.md")
+            image_paths = [os.path.join(tmp, "page1.png"), os.path.join(tmp, "page2.png")]
+            for path in image_paths:
+                Image.new("RGB", (8, 8), "white").save(path)
+
+            import fitz
+
+            doc = fitz.open()
+            doc.new_page(width=64, height=64)
+            doc.new_page(width=64, height=64)
+            doc.save(pdf_path)
+            doc.close()
+
+            proc = PDFProcessor(cfg=_cfg(tmp), llm=_SparseThenClosedPDFLLM(), api_pool=_SingleClientPool())
+
+            from unittest.mock import patch
+            with patch("OCRLLM.processors.pdf.pdf_to_images", return_value=image_paths):
+                with self.assertRaisesRegex(RuntimeError, "识别失败.*有效正文过少"):
+                    proc.process(pdf_path, need_formula=True, output_path=output_path)
+
+            with open(output_path, encoding="utf-8") as f:
+                content = f.read()
+            self.assertIn("client has been closed", content)
 
     def test_video_phase4_raises_when_every_batch_only_writes_error_placeholders(self):
         with tempfile.TemporaryDirectory() as tmp:

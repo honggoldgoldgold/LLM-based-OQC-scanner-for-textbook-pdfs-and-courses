@@ -17,6 +17,7 @@ from OCRLLM.config import AppConfig
 from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.core.incremental_writer import IncrementalMDWriter
 from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.output_quality import failed_placeholder_quality_reason
 from OCRLLM.core.task_runner import CancelledError, ProgressReporter
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.utils import (
@@ -190,6 +191,7 @@ class PDFProcessor(BaseProcessor):
         ensure_dir(os.path.dirname(output_path))
         with open(output_path, "w", encoding="utf-8") as f:
             f.write("\n\n".join(md_pages))
+        self._raise_if_failed_output_too_short(output_path, len(pages))
         logger.info("[PDF] RapidOCR 识别完成 -> %s", output_path)
         return output_path
 
@@ -382,6 +384,7 @@ class PDFProcessor(BaseProcessor):
             writer.finalize()
             if successful_batches == 0:
                 raise RuntimeError(f"PDF 大模型识别全部 {len(batches)} 个批次失败，输出文件只包含错误信息: {output_path}")
+            self._raise_if_failed_output_too_short(output_path, total_pages)
             self.checkpoint_mgr.remove("pdf", pdf_path)
 
             bottleneck = self.tracker.get_bottleneck_report()
@@ -539,6 +542,20 @@ class PDFProcessor(BaseProcessor):
             executor.shutdown(wait=True, cancel_futures=True)
 
         return "\n\n".join(parts), success
+
+    @staticmethod
+    def _raise_if_failed_output_too_short(output_path: str, expected_pages: int) -> None:
+        try:
+            content = Path(output_path).read_text(encoding="utf-8")
+        except OSError as exc:
+            raise RuntimeError(f"PDF 输出质量检查失败，无法读取输出文件: {output_path}") from exc
+        reason = failed_placeholder_quality_reason(
+            content,
+            expected_units=expected_pages,
+            unit_name="页",
+        )
+        if reason:
+            raise RuntimeError(f"PDF 输出包含识别失败且有效正文过少: {reason}: {output_path}")
 
     @staticmethod
     def _cleanup_images(paths: list[str]):
