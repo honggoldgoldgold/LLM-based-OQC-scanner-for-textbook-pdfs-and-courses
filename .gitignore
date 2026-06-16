@@ -30,6 +30,7 @@ conda-meta/
 *.swp
 *.swo
 *~
+*.sync-conflict-*
 
 # AI Assistant files
 .claude/
