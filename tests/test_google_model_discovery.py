@@ -87,12 +87,12 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                 )
                 self.assertEqual(
                     [m.name for m in summary.audio],
-                    ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-pro-exp", "gemini-3.1-flash-lite"],
+                    ["gemini-2.0-pro-exp", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"],
                 )
                 self.assertTrue((Path(tmp) / ".OCRLLM" / "google_models.json").exists())
 
                 cached_audio = [m.name for m in model_catalog.load_google_audio_models()]
-                self.assertEqual(cached_audio, ["gemini-3.5-flash", "gemini-2.5-flash", "gemini-2.0-pro-exp", "gemini-3.1-flash-lite"])
+                self.assertEqual(cached_audio, ["gemini-2.0-pro-exp", "gemini-3.5-flash", "gemini-2.5-flash", "gemini-3.1-flash-lite"])
 
     def test_google_sdk_client_receives_model_fetch_timeout(self):
         with patch("google.genai.Client") as client_cls:

@@ -18,6 +18,7 @@ from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.core.incremental_writer import IncrementalMDWriter
 from OCRLLM.core.llm_client import LLMClient
 from OCRLLM.core.output_quality import failed_placeholder_quality_reason
+from OCRLLM.core.provider_errors import is_provider_setup_error
 from OCRLLM.core.task_runner import CancelledError, ProgressReporter
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.utils import (
@@ -374,6 +375,9 @@ class PDFProcessor(BaseProcessor):
                     except CancelledError:
                         raise
                     except Exception as e:
+                        if is_provider_setup_error(e):
+                            logger.error("[PDF] Provider 环境错误，中止大模型识别: %s", e)
+                            raise
                         logger.error("[PDF] 批次 %d 异常: %s", batch_idx, e)
                         self.tracker.increment_error()
             finally:
@@ -453,6 +457,8 @@ class PDFProcessor(BaseProcessor):
         except CancelledError:
             raise
         except Exception as e:
+            if is_provider_setup_error(e):
+                raise
             logger.error("[PDF] 批次 %s 失败: %s", page_str, e)
             safe_err = str(e).replace("--", "\u2014")
             return f"\n\n<!-- 第 {page_str} 页识别失败: {safe_err} -->\n\n", False
@@ -520,6 +526,8 @@ class PDFProcessor(BaseProcessor):
             except CancelledError:
                 raise
             except Exception as e:
+                if is_provider_setup_error(e):
+                    raise
                 logger.error("[PDF] 第 %d 页逐页识别失败: %s", page_num, e)
                 safe_err = str(e).replace("--", "\u2014")
                 return idx, f"\n\n<!-- 第 {page_num} 页识别失败: {safe_err} -->\n\n", False

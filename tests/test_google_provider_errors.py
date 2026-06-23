@@ -1,4 +1,6 @@
+import builtins
 import unittest
+from unittest.mock import patch
 
 import httpx
 from pathlib import Path
@@ -16,6 +18,40 @@ from OCRLLM.config import AppConfig
 
 
 class GoogleProviderErrorTests(unittest.TestCase):
+    def test_missing_google_genai_reports_current_python_and_install_command(self):
+        cfg = AppConfig().with_updates(google_api={"enabled": True, "api_key": "AIza-test"})
+        client = GoogleProviderClient(cfg=cfg)
+        real_import = builtins.__import__
+
+        def fail_google_import(name, *args, **kwargs):
+            if name == "google" or name.startswith("google."):
+                raise ImportError("google SDK missing in this environment")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fail_google_import):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"(?s)当前 Python 环境.*python -m pip install -r requirements\.txt.*google-genai>=1\.53\.0",
+            ):
+                client._get_client()
+
+    def test_missing_google_types_reports_actionable_message_before_reading_image(self):
+        cfg = AppConfig().with_updates(google_api={"enabled": True, "api_key": "AIza-test"})
+        client = GoogleProviderClient(cfg=cfg)
+        real_import = builtins.__import__
+
+        def fail_google_types_import(name, *args, **kwargs):
+            if name == "google.genai":
+                raise ImportError("google.genai.types missing")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fail_google_types_import):
+            with self.assertRaisesRegex(
+                RuntimeError,
+                r"(?s)当前 Python 环境.*python -m pip install -r requirements\.txt.*google-genai>=1\.53\.0",
+            ):
+                client._make_image_part("D:/does/not/exist.jpg")
+
     def test_google_audio_default_chain_prefers_pro_before_flash_and_lite(self):
         cfg = AppConfig().with_updates(google_api={"enabled": True, "api_key": "AIza-test"})
         client = GoogleProviderClient(cfg=cfg)

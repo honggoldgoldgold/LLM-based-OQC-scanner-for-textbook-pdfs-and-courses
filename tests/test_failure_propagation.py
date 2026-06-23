@@ -158,6 +158,75 @@ class VisionFailurePropagationTests(unittest.TestCase):
             with open(board_md, encoding="utf-8") as f:
                 self.assertIn("批次 1 失败", f.read())
 
+    def test_video_phase4_propagates_provider_setup_errors_without_placeholders(self):
+        from OCRLLM.core.provider_errors import ProviderSetupError
+
+        class SetupFailingLLM:
+            def set_cancel_event(self, *_args):
+                pass
+
+            def chat_with_images(self, *_args, **_kwargs):
+                raise ProviderSetupError(
+                    "当前 Python 环境缺少可用 google-genai SDK；请运行 python -m pip install -r requirements.txt"
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            frame_path = os.path.join(tmp, "board_001_010s.jpg")
+            Image.new("RGB", (8, 8), "white").save(frame_path)
+            proc = VideoProcessor(
+                cfg=_cfg(tmp),
+                llm=SetupFailingLLM(),
+                reporter=ProgressReporter(),
+                tracker=ProgressTracker(),
+                api_pool=_SingleClientPool(),
+            )
+
+            with self.assertRaisesRegex(ProviderSetupError, "google-genai SDK"):
+                proc._phase4_llm(
+                    [{"path": frame_path, "timestamp": 10.0, "frame_idx": 1}],
+                    [frame_path],
+                    tmp,
+                    "lecture",
+                )
+
+            board_md = os.path.join(tmp, "lecture_板书识别.md")
+            if os.path.exists(board_md):
+                with open(board_md, encoding="utf-8") as f:
+                    self.assertNotIn("批次 1 失败", f.read())
+
+    def test_pdf_llm_propagates_provider_setup_errors_without_placeholders(self):
+        from OCRLLM.core.provider_errors import ProviderSetupError
+
+        class SetupFailingLLM:
+            def set_cancel_event(self, *_args):
+                pass
+
+            def chat_with_images(self, *_args, **_kwargs):
+                raise ProviderSetupError(
+                    "当前 Python 环境缺少可用 google-genai SDK；请运行 python -m pip install -r requirements.txt"
+                )
+
+        with tempfile.TemporaryDirectory() as tmp:
+            image_path = os.path.join(tmp, "page1.jpg")
+            Image.new("RGB", (8, 8), "white").save(image_path)
+            proc = PDFProcessor(
+                cfg=_cfg(tmp),
+                llm=SetupFailingLLM(),
+                reporter=ProgressReporter(),
+                tracker=ProgressTracker(),
+                api_pool=_SingleClientPool(),
+            )
+
+            with self.assertRaisesRegex(ProviderSetupError, "google-genai SDK"):
+                proc._do_batch_llm(
+                    SetupFailingLLM(),
+                    "read page",
+                    [image_path],
+                    "1-1",
+                    1,
+                    "read page {page_range}",
+                )
+
     def test_video_phase4_does_not_accept_hotword_only_response_as_board_content(self):
         with tempfile.TemporaryDirectory() as tmp:
             frame_path = os.path.join(tmp, "board_001_010s.jpg")

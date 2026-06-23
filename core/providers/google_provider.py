@@ -13,6 +13,7 @@ import mimetypes
 import os
 import re
 import shutil
+import sys
 import tempfile
 import time
 from dataclasses import dataclass
@@ -25,6 +26,7 @@ import httpx
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core import model_catalog
+from OCRLLM.core.provider_errors import ProviderSetupError
 from OCRLLM.core.task_runner import CancelledError
 
 logger = logging.getLogger(__name__)
@@ -63,6 +65,10 @@ class GoogleProviderFailure(RuntimeError):
         self.classified = classified
 
 
+class GoogleSDKDependencyError(ProviderSetupError):
+    """Google SDK is missing or too old in the active Python environment."""
+
+
 _NETWORK_ERRORS = (
     httpx.ConnectError,
     httpx.ReadError,
@@ -96,6 +102,40 @@ def _google_audio_model_class(model: str) -> int:
     elif "flash" in lowered:
         return 1
     return 3
+
+
+def _google_sdk_dependency_error(feature: str, exc: Exception | None = None) -> GoogleSDKDependencyError:
+    detail = f" ({type(exc).__name__}: {exc})" if exc else ""
+    return GoogleSDKDependencyError(
+        "当前 Python 环境缺少可用 google-genai SDK，无法使用 Google 模式"
+        f"（{feature}）。\n"
+        f"Python: {sys.executable}\n"
+        "请在 OCRLLM 启动使用的同一环境执行:\n"
+        "python -m pip install -r requirements.txt\n"
+        '或: python -m pip install "google-genai>=1.53.0"'
+        f"{detail}"
+    )
+
+
+def _load_google_genai():
+    try:
+        from google import genai
+    except Exception as exc:
+        raise _google_sdk_dependency_error("Client", exc) from exc
+    if not hasattr(genai, "Client"):
+        raise _google_sdk_dependency_error("Client")
+    return genai
+
+
+def _load_google_types():
+    try:
+        from google.genai import types
+    except Exception as exc:
+        raise _google_sdk_dependency_error("types.Part", exc) from exc
+    part = getattr(types, "Part", None)
+    if part is None or not hasattr(part, "from_bytes"):
+        raise _google_sdk_dependency_error("types.Part")
+    return types
 
 
 def prioritize_google_audio_models(models: list[str]) -> list[str]:
@@ -346,10 +386,7 @@ class GoogleProviderClient:
     def _get_client(self):
         if self._client is not None:
             return self._client
-        try:
-            from google import genai
-        except Exception as exc:
-            raise RuntimeError("缺少 google-genai SDK，请先安装 google-genai") from exc
+        genai = _load_google_genai()
         self._client = genai.Client(api_key=self.cfg.google_api.api_key)
         return self._client
 
@@ -470,10 +507,7 @@ class GoogleProviderClient:
         raise RuntimeError(f"Google {kind} 没有可用模型")
 
     def _make_image_part(self, image_path: str):
-        try:
-            from google.genai import types
-        except Exception as exc:
-            raise RuntimeError("缺少 google-genai types.Part，无法构造图片请求") from exc
+        types = _load_google_types()
         mime_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
         with open(image_path, "rb") as f:
             data = f.read()

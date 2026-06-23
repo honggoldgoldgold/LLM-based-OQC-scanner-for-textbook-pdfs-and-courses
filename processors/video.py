@@ -31,6 +31,7 @@ import numpy as np
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.provider_errors import is_provider_setup_error
 from OCRLLM.core.task_runner import ProgressReporter, CancelledError
 from OCRLLM.core.utils import (
     batch_list, ensure_dir, resize_image_if_needed, resolve_workers, strip_md_fence,
@@ -954,6 +955,9 @@ class VideoProcessor(BaseProcessor):
                 except CancelledError:
                     raise
                 except Exception as e:
+                    if is_provider_setup_error(e):
+                        logger.error("[VIDEO] Provider 环境错误，中止 Phase 4: %s", e)
+                        raise
                     logger.error("[VIDEO] 批次 %s 异常: %s", bi, e)
                     self.tracker.increment_error()
         finally:
@@ -1038,6 +1042,8 @@ class VideoProcessor(BaseProcessor):
             except CancelledError:
                 raise
             except Exception as e:
+                if is_provider_setup_error(e):
+                    raise
                 logger.error("[VIDEO] 逐帧回退失败: %s", e)
                 safe_err = str(e).replace("--", "\u2014")
                 normalized = (
@@ -1098,6 +1104,8 @@ class VideoProcessor(BaseProcessor):
         except CancelledError:
             raise
         except Exception as e:
+            if is_provider_setup_error(e):
+                raise
             logger.error("[VIDEO] 批次 %d 失败: %s", bi + 1, e)
             safe_err = str(e).replace("--", "\u2014")
             placeholder = f"\n\n<!-- 批次 {bi + 1} 失败: {safe_err} -->\n\n"
