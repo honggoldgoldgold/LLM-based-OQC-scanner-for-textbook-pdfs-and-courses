@@ -77,14 +77,27 @@ class CodexInspectionReport:
     version: str = ""
 
 
-def _run_probe(cmd: list[str], timeout: float = 20.0):
+def _run_codex_process(
+    cmd: list[str],
+    *,
+    timeout: float,
+    stdin=None,
+):
+    """Run Codex CLI with UTF-8 output decoding across Windows and Linux."""
     return subprocess.run(
         cmd,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         capture_output=True,
+        stdin=stdin,
         timeout=timeout,
         check=False,
     )
+
+
+def _run_probe(cmd: list[str], timeout: float = 20.0):
+    return _run_codex_process(cmd, timeout=timeout)
 
 
 def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
@@ -208,13 +221,10 @@ class CodexVisionRunner:
             )
             logger.info("[CODEX] 本机 Codex 识图: model=%s, 图片=%d", self.cfg.model, len(image_paths))
             try:
-                result = subprocess.run(
+                result = _run_codex_process(
                     cmd,
-                    text=True,
-                    capture_output=True,
                     stdin=subprocess.DEVNULL,
                     timeout=max(30, int(self.cfg.timeout_seconds or 600)),
-                    check=False,
                 )
             except subprocess.TimeoutExpired as exc:
                 raise CodexCLIUnavailableError(f"Codex 识图超时: {exc}") from exc

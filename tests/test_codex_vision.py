@@ -1,4 +1,5 @@
 import os
+import sys
 import tempfile
 import unittest
 from types import SimpleNamespace
@@ -10,6 +11,7 @@ from OCRLLM.core.codex_vision import (
     CODEX_VISION_MAX_PARALLEL,
     CodexCLIUnavailableError,
     CodexVisionRunner,
+    _run_probe,
     apply_codex_vision_runtime_limits,
     inspect_codex_cli,
 )
@@ -36,6 +38,8 @@ class CodexVisionRunnerTests(unittest.TestCase):
 
         def fake_run(cmd, **kwargs):
             calls.append(cmd)
+            self.assertEqual(kwargs["encoding"], "utf-8")
+            self.assertEqual(kwargs["errors"], "replace")
             output_path = cmd[cmd.index("--output-last-message") + 1]
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write("OCR TEXT")
@@ -99,6 +103,14 @@ class CodexVisionRunnerTests(unittest.TestCase):
         self.assertEqual(cfg.concurrency.llm_parallel_requests, CODEX_VISION_MAX_PARALLEL)
         self.assertEqual(cfg.processing.batch_size, CODEX_VISION_BATCH_SIZE)
         self.assertEqual(cfg.video.batch_size, CODEX_VISION_BATCH_SIZE)
+
+    def test_probe_decodes_utf8_output_when_locale_is_cp1252(self):
+        script = "import sys; sys.stdout.buffer.write('识图完成 ŝ'.encode('utf-8'))"
+
+        result = _run_probe([sys.executable, "-c", script])
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("识图完成 ŝ", result.stdout)
 
 
 class CodexInspectionTests(unittest.TestCase):
