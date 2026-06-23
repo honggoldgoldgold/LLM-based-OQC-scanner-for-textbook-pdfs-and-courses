@@ -36,12 +36,19 @@ try:
         CODEX_VISION_DEFAULT_REASONING,
         CODEX_VISION_BATCH_SIZE,
         CODEX_VISION_MAX_PARALLEL,
+        migrate_stored_codex_vision_model,
+        normalize_codex_vision_model,
     )
 except ImportError:
     CODEX_VISION_DEFAULT_MODEL = "codex"
     CODEX_VISION_DEFAULT_REASONING = ""
     CODEX_VISION_BATCH_SIZE = 5
     CODEX_VISION_MAX_PARALLEL = 2
+    def migrate_stored_codex_vision_model(model: str | None) -> str:
+        return normalize_codex_vision_model(model)
+
+    def normalize_codex_vision_model(model: str | None) -> str:
+        return (model or CODEX_VISION_DEFAULT_MODEL).strip()
 from OCRLLM.core.utils import ensure_dir, setup_logging
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.checkpoint import CheckpointManager
@@ -321,7 +328,7 @@ class QCRMainWindow(QMainWindow):
         google_info = " | 谷歌模式" if google_enabled else ""
         vision = (
             (s.value("ui/google_vision_model", type=str) if google_enabled else "")
-            or (s.value("ui/codex_model", type=str) if codex_enabled else "")
+            or (migrate_stored_codex_vision_model(s.value("ui/codex_model", type=str)) if codex_enabled else "")
             or s.value("ui/vision_model", type=str)
             or self._cfg.models.vision_model
             or "—"
@@ -372,7 +379,7 @@ class QCRMainWindow(QMainWindow):
         google_video_batch = _int("ui/google_video_frame_batch_size", self._cfg.google_api.video_frame_batch_size)
         codex_enabled = _bool("ui/codex_vision_enabled", self._cfg.codex_vision.enabled)
         codex_command = _str("ui/codex_command", self._cfg.codex_vision.command) or "codex"
-        codex_model = _str("ui/codex_model", self._cfg.codex_vision.model) or CODEX_VISION_DEFAULT_MODEL
+        codex_model = migrate_stored_codex_vision_model(_str("ui/codex_model", self._cfg.codex_vision.model))
         codex_reasoning = _str("ui/codex_reasoning_effort", self._cfg.codex_vision.reasoning_effort) or CODEX_VISION_DEFAULT_REASONING
         codex_timeout = _int("ui/codex_timeout_seconds", self._cfg.codex_vision.timeout_seconds)
         vis_enabled = _bool("ui/vision_api_enabled", self._cfg.vision_api.enabled)

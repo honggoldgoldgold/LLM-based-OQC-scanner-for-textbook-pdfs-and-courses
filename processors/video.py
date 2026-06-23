@@ -36,6 +36,7 @@ from OCRLLM.core.task_runner import ProgressReporter, CancelledError
 from OCRLLM.core.utils import (
     batch_list, ensure_dir, resize_image_if_needed, resolve_workers, strip_md_fence,
 )
+from OCRLLM.core.video_capture import open_video_capture
 from OCRLLM.core.progress_tracker import ProgressTracker
 from OCRLLM.core.incremental_writer import IncrementalMDWriter
 from OCRLLM.core.checkpoint import Checkpoint
@@ -324,26 +325,7 @@ class VideoProcessor(BaseProcessor):
 
     @staticmethod
     def _open_video_capture(video_path: str):
-        """在 Windows 上优先使用 MSMF，降低 FFmpeg 相关 DLL 弹窗风险。"""
-        if os.name != "nt":
-            return cv2.VideoCapture(video_path)
-
-        os.environ.setdefault("OPENCV_VIDEOIO_PRIORITY_MSMF", "1000")
-        os.environ.setdefault("OPENCV_VIDEOIO_PRIORITY_FFMPEG", "0")
-
-        backend_candidates = [
-            ("MSMF", cv2.CAP_MSMF),
-            ("ANY", cv2.CAP_ANY),
-        ]
-
-        for backend_name, backend_id in backend_candidates:
-            cap = cv2.VideoCapture(video_path, backend_id)
-            if cap.isOpened():
-                logger.info("[VIDEO] VideoCapture backend=%s", backend_name)
-                return cap
-            cap.release()
-
-        return cv2.VideoCapture(video_path)
+        return open_video_capture(video_path)
 
     # ---- Phase 2: 智能抽帧 ----
     def _phase2_extract(

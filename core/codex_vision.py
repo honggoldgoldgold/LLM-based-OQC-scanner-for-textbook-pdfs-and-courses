@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import shutil
 import subprocess
 import tempfile
@@ -16,23 +17,21 @@ from OCRLLM.config import (
     CodexVisionConfig,
     CODEX_VISION_RUNTIME_BATCH_SIZE,
     CODEX_VISION_RUNTIME_PARALLEL,
-    DEFAULT_CODEX_VISION_MODEL,
     DEFAULT_CODEX_VISION_REASONING_EFFORT,
+)
+from OCRLLM.core.codex_model_catalog import (
+    CODEX_VISION_DEFAULT_MODEL,
+    CODEX_VISION_MODEL_CHOICES,
+    migrate_stored_codex_vision_model,
+    normalize_codex_vision_model,
 )
 
 logger = logging.getLogger(__name__)
 
-CODEX_VISION_DEFAULT_MODEL = DEFAULT_CODEX_VISION_MODEL
 CODEX_VISION_DEFAULT_REASONING = DEFAULT_CODEX_VISION_REASONING_EFFORT
 CODEX_VISION_BATCH_SIZE = CODEX_VISION_RUNTIME_BATCH_SIZE
 CODEX_VISION_MAX_PARALLEL = CODEX_VISION_RUNTIME_PARALLEL
 CODEX_VISION_REASONING_LEVELS = ("low", "medium", "high", "xhigh")
-CODEX_VISION_MODEL_CHOICES = (
-    "gpt-5.4-mini",
-    "gpt-5.4",
-    "gpt-5.5",
-    "gpt-5.3-codex-spark",
-)
 
 _DISABLED_CODEX_FEATURES = (
     "shell_tool",
@@ -100,6 +99,17 @@ def _run_probe(cmd: list[str], timeout: float = 20.0):
     return _run_codex_process(cmd, timeout=timeout)
 
 
+def _codex_launch_failure_message(prefix: str, command: str, exc: BaseException) -> str:
+    message = f"{prefix}: {exc}"
+    resolved = shutil.which(command) or command
+    if os.name == "nt" and "WindowsApps" in str(resolved) and "OpenAI.Codex_" in str(resolved):
+        message += (
+            "；当前 PATH 命中 WindowsApps 中的 Codex Desktop 内部入口，普通 Python 进程无权执行。"
+            "请安装可独立调用的 Codex CLI，或在设置里填写该 CLI 的完整命令/路径。"
+        )
+    return message
+
+
 def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
     """检测 Codex CLI 是否支持当前识图配置。"""
     command = (cfg.command or "codex").strip()
@@ -109,14 +119,14 @@ def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
     try:
         version_result = _run_probe([command, "--version"])
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return CodexInspectionReport(False, f"Codex 版本检测失败: {exc}")
+        return CodexInspectionReport(False, _codex_launch_failure_message("Codex 版本检测失败", command, exc))
     version = (version_result.stdout or version_result.stderr or "").strip()
     if version_result.returncode != 0:
         return CodexInspectionReport(False, f"Codex 版本检测失败: {version}", version)
     try:
         root_help_result = _run_probe([command, "--help"])
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return CodexInspectionReport(False, f"Codex 全局参数检测失败: {exc}", version)
+        return CodexInspectionReport(False, _codex_launch_failure_message("Codex 全局参数检测失败", command, exc), version)
     root_help_text = f"{root_help_result.stdout}\n{root_help_result.stderr}"
     missing_root_flags = [flag for flag in _REQUIRED_ROOT_FLAGS if flag not in root_help_text]
     if missing_root_flags:
@@ -129,7 +139,7 @@ def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
     try:
         help_result = _run_probe([command, "exec", "--help"])
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return CodexInspectionReport(False, f"Codex exec 功能检测失败: {exc}", version)
+        return CodexInspectionReport(False, _codex_launch_failure_message("Codex exec 功能检测失败", command, exc), version)
     help_text = f"{help_result.stdout}\n{help_result.stderr}"
     if help_result.returncode != 0:
         return CodexInspectionReport(False, "当前 Codex 不支持非交互 exec 调用", version)
@@ -144,12 +154,12 @@ def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
     try:
         models_result = _run_probe([command, "debug", "models"], timeout=30.0)
     except (OSError, subprocess.TimeoutExpired) as exc:
-        return CodexInspectionReport(False, f"Codex 模型目录检测失败: {exc}", version)
+        return CodexInspectionReport(False, _codex_launch_failure_message("Codex 模型目录检测失败", command, exc), version)
     if models_result.returncode != 0:
         detail = (models_result.stderr or models_result.stdout or "").strip()
         return CodexInspectionReport(False, f"Codex 模型目录检测失败: {detail}", version)
 
-    model_name = (cfg.model or CODEX_VISION_DEFAULT_MODEL).strip()
+    model_name = normalize_codex_vision_model(cfg.model)
     try:
         raw = json.loads(models_result.stdout or "{}")
     except json.JSONDecodeError as exc:
@@ -183,7 +193,10 @@ def apply_codex_vision_runtime_limits(cfg: AppConfig) -> AppConfig:
     """Codex 视觉模式运行时限制：最多 2 个并行批次，每批 5 张图。"""
     if not cfg.codex_vision.enabled:
         return cfg
+    model = normalize_codex_vision_model(cfg.codex_vision.model)
     return cfg.with_updates(
+        codex_vision={"model": model},
+        models={"vision_model": model},
         concurrency={"llm_parallel_requests": CODEX_VISION_MAX_PARALLEL},
         processing={"batch_size": CODEX_VISION_BATCH_SIZE},
         video={"batch_size": CODEX_VISION_BATCH_SIZE},
@@ -219,7 +232,11 @@ class CodexVisionRunner:
                 cwd=tmp,
                 output_path=str(output_path),
             )
-            logger.info("[CODEX] 本机 Codex 识图: model=%s, 图片=%d", self.cfg.model, len(image_paths))
+            logger.info(
+                "[CODEX] 本机 Codex 识图: model=%s, 图片=%d",
+                normalize_codex_vision_model(self.cfg.model),
+                len(image_paths),
+            )
             try:
                 result = _run_codex_process(
                     cmd,
@@ -229,7 +246,7 @@ class CodexVisionRunner:
             except subprocess.TimeoutExpired as exc:
                 raise CodexCLIUnavailableError(f"Codex 识图超时: {exc}") from exc
             except OSError as exc:
-                raise CodexCLIUnavailableError(f"Codex 识图启动失败: {exc}") from exc
+                raise CodexCLIUnavailableError(_codex_launch_failure_message("Codex 识图启动失败", command, exc)) from exc
 
             if result.returncode != 0:
                 detail = (result.stderr or result.stdout or "").strip()
@@ -250,7 +267,7 @@ class CodexVisionRunner:
         cwd: str,
         output_path: str,
     ) -> list[str]:
-        model = (self.cfg.model or CODEX_VISION_DEFAULT_MODEL).strip()
+        model = normalize_codex_vision_model(self.cfg.model)
         effort = (self.cfg.reasoning_effort or CODEX_VISION_DEFAULT_REASONING).strip()
         cmd = [
             command,

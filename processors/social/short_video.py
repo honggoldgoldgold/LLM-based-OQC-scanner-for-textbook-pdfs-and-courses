@@ -22,6 +22,7 @@ from typing import Optional
 import cv2
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.video_capture import open_video_capture
 from OCRLLM.core.document_model import SourceType
 from OCRLLM.core.task_runner import CancelledError
 from OCRLLM.core.utils import batch_list, ensure_dir, strip_md_fence
@@ -140,7 +141,7 @@ class ShortVideoProcessor(BaseProcessor):
         Returns:
             {segment_index: [mid_frame_path, end_frame_path], ...}
         """
-        cap = cv2.VideoCapture(video_path)
+        cap = open_video_capture(video_path)
         if not cap.isOpened():
             raise RuntimeError(f"无法打开视频: {video_path}")
 

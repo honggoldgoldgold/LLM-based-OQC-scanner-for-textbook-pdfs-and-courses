@@ -8,22 +8,31 @@ from unittest.mock import patch
 from OCRLLM.config import AppConfig, CodexVisionConfig
 from OCRLLM.core.codex_vision import (
     CODEX_VISION_BATCH_SIZE,
+    CODEX_VISION_DEFAULT_MODEL,
     CODEX_VISION_MAX_PARALLEL,
     CodexCLIUnavailableError,
     CodexVisionRunner,
     _run_probe,
     apply_codex_vision_runtime_limits,
     inspect_codex_cli,
+    migrate_stored_codex_vision_model,
+    normalize_codex_vision_model,
 )
 from OCRLLM.core.llm_client import LLMClient
 
 
 class CodexVisionRunnerTests(unittest.TestCase):
-    def test_default_codex_vision_model_is_image_capable_mini(self):
+    def test_default_codex_vision_model_is_current_codex_default(self):
         cfg = CodexVisionConfig()
 
-        self.assertEqual(cfg.model, "gpt-5.4-mini")
+        self.assertEqual(cfg.model, "gpt-5.5")
         self.assertEqual(cfg.reasoning_effort, "medium")
+
+    def test_stored_old_default_migrates_to_current_default(self):
+        self.assertEqual(migrate_stored_codex_vision_model("gpt-5.4-mini"), CODEX_VISION_DEFAULT_MODEL)
+        self.assertEqual(normalize_codex_vision_model(""), CODEX_VISION_DEFAULT_MODEL)
+        self.assertEqual(normalize_codex_vision_model("gpt-5.3-codex-spark"), "gpt-5.3-codex-spark")
+        self.assertEqual(normalize_codex_vision_model("gpt-5.4-mini"), "gpt-5.4-mini")
 
     def test_runner_uses_read_only_ask_style_exec_without_tools(self):
         cfg = AppConfig(
@@ -99,7 +108,7 @@ class CodexVisionRunnerTests(unittest.TestCase):
             cfg = AppConfig.from_env()
 
         self.assertTrue(cfg.codex_vision.enabled)
-        self.assertEqual(cfg.models.vision_model, "gpt-5.4-mini")
+        self.assertEqual(cfg.models.vision_model, "gpt-5.5")
         self.assertEqual(cfg.concurrency.llm_parallel_requests, CODEX_VISION_MAX_PARALLEL)
         self.assertEqual(cfg.processing.batch_size, CODEX_VISION_BATCH_SIZE)
         self.assertEqual(cfg.video.batch_size, CODEX_VISION_BATCH_SIZE)
@@ -130,6 +139,60 @@ class CodexInspectionTests(unittest.TestCase):
 
         self.assertFalse(report.ok)
         self.assertIn("--disable", report.message)
+
+    def test_inspection_uses_current_default_for_empty_model(self):
+        models_payload = {
+            "models": [
+                {
+                    "slug": "gpt-5.5",
+                    "input_modalities": ["text", "image"],
+                    "supported_reasoning_levels": [{"effort": "medium"}],
+                }
+            ]
+        }
+
+        def fake_run(cmd, **_kwargs):
+            if cmd[-1] == "--version":
+                return SimpleNamespace(returncode=0, stdout="codex-cli 0.142.0", stderr="")
+            if cmd == ["codex", "--help"]:
+                return SimpleNamespace(returncode=0, stdout="Usage: codex\n  --ask-for-approval\n", stderr="")
+            if cmd[:2] == ["codex", "exec"]:
+                return SimpleNamespace(
+                    returncode=0,
+                    stdout=(
+                        "Usage: codex exec\n"
+                        "  --image\n  --model\n  --sandbox\n  --disable\n"
+                        "  --ephemeral\n  --ignore-user-config\n  --ignore-rules\n"
+                        "  --output-last-message\n"
+                    ),
+                    stderr="",
+                )
+            if cmd == ["codex", "debug", "models"]:
+                import json
+                return SimpleNamespace(returncode=0, stdout=json.dumps(models_payload), stderr="")
+            return SimpleNamespace(returncode=1, stdout="", stderr="unexpected command")
+
+        with patch("OCRLLM.core.codex_vision.shutil.which", return_value="/usr/bin/codex"), \
+                patch("OCRLLM.core.codex_vision.subprocess.run", side_effect=fake_run):
+            report = inspect_codex_cli(CodexVisionConfig(model=""))
+
+        self.assertTrue(report.ok)
+        self.assertIn("model=gpt-5.5", report.message)
+
+    def test_inspection_explains_windowsapps_codex_access_denied(self):
+        windowsapps_codex = (
+            r"C:\Program Files\WindowsApps\OpenAI.Codex_26.616.4196.0_x64__2p2nqsd0c76g0"
+            r"\app\resources\codex.exe"
+        )
+
+        with patch("OCRLLM.core.codex_vision.shutil.which", return_value=windowsapps_codex), \
+                patch("OCRLLM.core.codex_vision.os.name", "nt"), \
+                patch("OCRLLM.core.codex_vision.subprocess.run", side_effect=PermissionError("Access is denied")):
+            report = inspect_codex_cli(CodexVisionConfig())
+
+        self.assertFalse(report.ok)
+        self.assertIn("WindowsApps", report.message)
+        self.assertIn("Codex CLI", report.message)
 
     def test_runner_rejects_more_than_five_images(self):
         cfg = CodexVisionConfig(enabled=True)

@@ -28,12 +28,12 @@ class CodexSettingsDialogTests(unittest.TestCase):
             dlg = SettingsDialog(None, cfg)
             dlg._vision_provider_input.setText("ioasis")
             dlg._vision_url_input.setText("https://vision.example/v1")
-            dlg._vision_model_input.setText("qwen-vl-max")
+            dlg._vision_model_combo.setCurrentText("qwen-vl-max")
             dlg._pending_vision_model = "qwen-vl-max"
 
             dlg._codex_enabled_cb.setChecked(True)
 
-            self.assertEqual(dlg._pending_vision_model, "gpt-5.4-mini")
+            self.assertEqual(dlg._pending_vision_model, "gpt-5.5")
             self.assertEqual(dlg._vision_provider_input.text(), "ioasis")
             self.assertEqual(dlg._vision_url_input.text(), "https://vision.example/v1")
 
@@ -50,7 +50,6 @@ class CodexSettingsDialogTests(unittest.TestCase):
             dlg = SettingsDialog(None, cfg)
             dlg._api_key_input.setText("")
             dlg._codex_enabled_cb.setChecked(True)
-            dlg._codex_model_combo.setCurrentText("gpt-5.4-mini")
             dlg._codex_reasoning_combo.setCurrentText("medium")
 
             with patch("OCRLLM.gui.settings_dialog.inspect_codex_cli") as inspect, \
@@ -61,8 +60,22 @@ class CodexSettingsDialogTests(unittest.TestCase):
                 dlg._on_apply()
 
             inspect.assert_called_once()
+            self.assertEqual(inspect.call_args.args[0].model, "gpt-5.5")
             accept.assert_called_once()
             warning.assert_not_called()
+            dlg.deleteLater()
+            self._app.processEvents()
+
+    def test_settings_dialog_migrates_stored_codex_mini_default(self):
+        settings = QSettings("OCRLLM", "QCR")
+        settings.setValue("ui/codex_model", "gpt-5.4-mini")
+        settings.sync()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            dlg = SettingsDialog(None, cfg)
+
+            self.assertEqual(dlg._codex_model_combo.currentText(), "gpt-5.5")
             dlg.deleteLater()
             self._app.processEvents()
 

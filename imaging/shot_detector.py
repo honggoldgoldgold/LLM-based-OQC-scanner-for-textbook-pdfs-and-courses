@@ -14,7 +14,10 @@ import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
+import cv2
+
 from OCRLLM.config import AppConfig
+from OCRLLM.core.video_capture import open_video_capture
 
 logger = logging.getLogger(__name__)
 
@@ -152,10 +155,8 @@ def detect_shots(
     Returns:
         ShotDetectionResult 包含切换点列表和最终使用的参数。
     """
-    import cv2
-
     # 获取视频信息
-    cap = cv2.VideoCapture(video_path)
+    cap = open_video_capture(video_path)
     if not cap.isOpened():
         raise RuntimeError(f"无法打开视频: {video_path}")
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0

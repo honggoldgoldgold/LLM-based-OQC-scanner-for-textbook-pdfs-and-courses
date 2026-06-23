@@ -10,6 +10,11 @@ import os
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from OCRLLM.core.codex_model_catalog import (
+    CODEX_VISION_DEFAULT_MODEL as DEFAULT_CODEX_VISION_MODEL,
+    normalize_codex_vision_model,
+)
+
 
 # 历史遗留：旧 GUI / 旧测试可能 import VISION_MODEL_OPTIONS。
 # 真正的模型清单现在维护在 OCRLLM.core.model_catalog 里。
@@ -23,7 +28,6 @@ def _legacy_vision_options() -> tuple[str, ...]:
 
 VISION_MODEL_OPTIONS = _legacy_vision_options()
 
-DEFAULT_CODEX_VISION_MODEL = "gpt-5.4-mini"
 DEFAULT_CODEX_VISION_REASONING_EFFORT = "medium"
 CODEX_VISION_RUNTIME_BATCH_SIZE = 5
 CODEX_VISION_RUNTIME_PARALLEL = 2
@@ -297,6 +301,7 @@ class AppConfig:
             updates.setdefault("codex_vision", {})["command"] = codex_command
         codex_model = os.environ.get("OCRLLM_CODEX_MODEL")
         if codex_model:
+            codex_model = normalize_codex_vision_model(codex_model)
             updates.setdefault("codex_vision", {})["model"] = codex_model
             updates.setdefault("models", {})["vision_model"] = codex_model
         codex_reasoning = os.environ.get("OCRLLM_CODEX_REASONING_EFFORT")
@@ -336,7 +341,10 @@ class AppConfig:
         if google_audio_overlap is not None:
             updates.setdefault("google_api", {})["audio_overlap_seconds"] = max(0, google_audio_overlap)
         if updates.get("codex_vision", {}).get("enabled"):
-            codex_model_value = updates["codex_vision"].get("model", cfg.codex_vision.model)
+            codex_model_value = normalize_codex_vision_model(
+                updates["codex_vision"].get("model", cfg.codex_vision.model)
+            )
+            updates.setdefault("codex_vision", {})["model"] = codex_model_value
             updates.setdefault("models", {})["vision_model"] = codex_model_value
             updates.setdefault("concurrency", {})["llm_parallel_requests"] = CODEX_VISION_RUNTIME_PARALLEL
             updates.setdefault("processing", {})["batch_size"] = CODEX_VISION_RUNTIME_BATCH_SIZE

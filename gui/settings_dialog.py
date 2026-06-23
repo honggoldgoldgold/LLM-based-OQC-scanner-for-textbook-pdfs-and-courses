@@ -34,6 +34,8 @@ try:
         CODEX_VISION_MODEL_CHOICES,
         CODEX_VISION_REASONING_LEVELS,
         inspect_codex_cli,
+        migrate_stored_codex_vision_model,
+        normalize_codex_vision_model,
     )
     _HAS_CODEX = True
 except ImportError:
@@ -41,6 +43,11 @@ except ImportError:
     CODEX_VISION_DEFAULT_REASONING = ""
     CODEX_VISION_MODEL_CHOICES = ["codex"]
     CODEX_VISION_REASONING_LEVELS = ["", "low", "medium", "high"]
+    def migrate_stored_codex_vision_model(model: str | None) -> str:
+        return normalize_codex_vision_model(model)
+
+    def normalize_codex_vision_model(model: str | None) -> str:
+        return (model or CODEX_VISION_DEFAULT_MODEL).strip()
     _HAS_CODEX = False
 
     def inspect_codex_cli(cfg):  # type: ignore[no-redef]
@@ -647,7 +654,7 @@ class SettingsDialog(QDialog):
     # ---- Codex 本机识图 ----
 
     def _codex_model(self) -> str:
-        return self._codex_model_combo.currentText().strip() or CODEX_VISION_DEFAULT_MODEL
+        return normalize_codex_vision_model(self._codex_model_combo.currentText())
 
     def _on_codex_enabled_changed(self, checked: bool):
         if not self._restoring_settings:
@@ -658,6 +665,9 @@ class SettingsDialog(QDialog):
             current = self._vision_model_combo.currentText().strip() or self._pending_vision_model
             if checked and current and current != self._codex_model():
                 self._previous_non_codex_vision_model = current
+            elif not checked and self._previous_non_codex_vision_model:
+                self._pending_vision_model = self._previous_non_codex_vision_model
+                self._vision_model_combo.setCurrentText(self._pending_vision_model)
         self._apply_codex_ui_state()
 
     def _on_vision_enabled_changed(self, checked: bool):
@@ -874,7 +884,7 @@ class SettingsDialog(QDialog):
             self._codex_command_input.setText(self._settings.value("ui/codex_command", type=str) or "codex")
         codex_model = CODEX_VISION_DEFAULT_MODEL
         if self._settings.contains("ui/codex_model"):
-            codex_model = self._settings.value("ui/codex_model", type=str) or codex_model
+            codex_model = migrate_stored_codex_vision_model(self._settings.value("ui/codex_model", type=str))
         self._codex_model_combo.setCurrentText(codex_model)
         if self._settings.contains("ui/codex_reasoning_effort"):
             self._codex_reasoning_combo.setCurrentText(self._settings.value("ui/codex_reasoning_effort", type=str) or CODEX_VISION_DEFAULT_REASONING)
@@ -986,7 +996,7 @@ class SettingsDialog(QDialog):
         self._settings.setValue("ui/google_video_frame_batch_size", self._google_video_batch_input.value())
         self._settings.setValue("ui/codex_vision_enabled", self._codex_enabled_cb.isChecked())
         self._settings.setValue("ui/codex_command", self._codex_command_input.text())
-        self._settings.setValue("ui/codex_model", self._codex_model_combo.currentText().strip())
+        self._settings.setValue("ui/codex_model", self._codex_model())
         self._settings.setValue("ui/codex_reasoning_effort", self._codex_reasoning_combo.currentText().strip())
         self._settings.setValue("ui/codex_timeout_seconds", self._codex_timeout_input.value())
         self._settings.setValue("ui/vision_model_before_codex", self._previous_non_codex_vision_model)
