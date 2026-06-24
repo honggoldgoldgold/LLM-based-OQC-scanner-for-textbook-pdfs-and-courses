@@ -304,7 +304,12 @@ class IncompleteTasksDialog(QDialog):
         self._checkpoints = self._mgr.list_incomplete()
         self._table.setRowCount(len(self._checkpoints))
         for row, cp in enumerate(self._checkpoints):
-            type_text = "PDF" if cp.task_type == "pdf" else "视频" if cp.task_type == "video" else cp.task_type
+            type_text = (
+                "PDF" if cp.task_type == "pdf"
+                else "视频" if cp.task_type == "video"
+                else "音频" if cp.task_type == "audio"
+                else cp.task_type
+            )
             src_name = Path(cp.source_path).name
             updated = datetime.fromtimestamp(cp.updated_at).strftime("%m-%d %H:%M")
             output_short = cp.output_path

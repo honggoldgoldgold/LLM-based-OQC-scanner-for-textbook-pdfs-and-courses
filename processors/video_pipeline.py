@@ -30,6 +30,7 @@ class VideoProcessContext:
     selected_phases: list[int]
     skip_audio: bool
     prompt_template: str | None = None
+    audio_prompt_template: str | None = None
     audio_path: str | None = None
     frame_results: list[dict] | None = None
     processed_paths: list[str] | None = None
@@ -353,7 +354,13 @@ class AudioRecognizePhase(VideoPhase):
         if context.audio_path is None:
             context.audio_path = processor._phase1_audio_path(context.output_dir, context.stem)
         if os.path.exists(context.audio_path):
-            processor._phase5_asr(context.audio_path, context.hotwords, context.output_dir, context.stem)
+            processor._phase5_asr(
+                context.audio_path,
+                context.hotwords,
+                context.output_dir,
+                context.stem,
+                prompt_template=context.audio_prompt_template,
+            )
         else:
             logger.warning("[VIDEO] 音频文件不存在，跳过语音识别")
         return True

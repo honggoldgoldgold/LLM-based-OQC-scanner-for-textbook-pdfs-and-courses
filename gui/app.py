@@ -702,7 +702,12 @@ class QCRMainWindow(QMainWindow):
             cp = mgr.select_incomplete(preferred_key=preferred_key)
             if cp is not None:
                 self._pending_resume = cp
-                task_desc = "PDF" if cp.task_type == "pdf" else "视频"
+                task_desc = (
+                    "PDF" if cp.task_type == "pdf"
+                    else "视频" if cp.task_type == "video"
+                    else "音频" if cp.task_type == "audio"
+                    else cp.task_type
+                )
                 src_name = Path(cp.source_path).name
                 count = len(incomplete)
                 if count == 1:
@@ -734,6 +739,8 @@ class QCRMainWindow(QMainWindow):
             self._resume_pdf(cp)
         elif cp.task_type == "video":
             self._resume_video(cp)
+        elif cp.task_type == "audio":
+            self._resume_audio(cp)
 
     def _dismiss_resume(self):
         """忽略断点续传提示（不删除检查点）。"""
@@ -788,6 +795,13 @@ class QCRMainWindow(QMainWindow):
 
         self._start_worker_with_tracker(task)
 
+    def _resume_audio(self, cp):
+        """恢复音频任务。"""
+        def task(reporter):
+            return self._run_resume_checkpoint(cp, reporter)
+
+        self._start_worker_with_tracker(task)
+
     def _run_resume_checkpoint(self, cp, reporter) -> str:
         if cp.task_type == "pdf":
             from OCRLLM.processors.pdf import PDFProcessor
@@ -801,6 +815,12 @@ class QCRMainWindow(QMainWindow):
             proc = VideoProcessor(cfg=cfg, reporter=reporter, tracker=self._tracker)
             result = proc.process(**VideoProcessor.resume_options_from_checkpoint(cp))
             return f"视频续传完成: {result.get('output_dir', '')}"
+        if cp.task_type == "audio":
+            from OCRLLM.processors.audio import AudioProcessor
+            cfg = self._get_cfg()
+            proc = AudioProcessor(cfg=cfg, reporter=reporter, tracker=self._tracker)
+            result = proc.process(**AudioProcessor.resume_options_from_checkpoint(cp))
+            return f"音频续传完成: {result}"
         raise ValueError(f"不支持续传的任务类型: {cp.task_type}")
 
     # ---- Misc ----

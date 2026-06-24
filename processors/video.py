@@ -86,12 +86,14 @@ class VideoProcessor(BaseProcessor):
         phases: list[int],
         skip_audio: bool,
         prompt_template: str | None,
+        audio_prompt_template: str | None = None,
     ) -> dict:
         return {
             "stem": stem,
             "phases": list(phases),
             "skip_audio": skip_audio,
             "prompt_template": prompt_template,
+            "audio_prompt_template": audio_prompt_template,
         }
 
     @classmethod
@@ -106,6 +108,7 @@ class VideoProcessor(BaseProcessor):
             "phases": cls._normalize_phases(normalized_phases, skip_audio),
             "skip_audio": skip_audio,
             "prompt_template": extra.get("prompt_template") or None,
+            "audio_prompt_template": extra.get("audio_prompt_template") or None,
             "resume": True,
         }
 
@@ -116,6 +119,7 @@ class VideoProcessor(BaseProcessor):
         phases: list[int] = None,
         skip_audio: bool = False,
         prompt_template: str = None,
+        audio_prompt_template: str = None,
         resume: bool = False,
     ) -> dict:
         """执行录课视频处理管线（最多 5 阶段）。
@@ -157,6 +161,7 @@ class VideoProcessor(BaseProcessor):
             selected_phases=phases,
             skip_audio=skip_audio,
             prompt_template=prompt_template,
+            audio_prompt_template=audio_prompt_template,
         )
         phase_chain = build_video_phase_chain(context)
 
@@ -169,7 +174,13 @@ class VideoProcessor(BaseProcessor):
 
         checkpoint = None
         completed_phases = set()
-        checkpoint_extra = self._build_checkpoint_extra(stem, phases, skip_audio, prompt_template)
+        checkpoint_extra = self._build_checkpoint_extra(
+            stem,
+            phases,
+            skip_audio,
+            prompt_template,
+            audio_prompt_template,
+        )
         if resume:
             checkpoint = self.checkpoint_mgr.load("video", video_path)
             if checkpoint and checkpoint.is_compatible(
@@ -198,6 +209,9 @@ class VideoProcessor(BaseProcessor):
                 total_items=5,
                 extra=checkpoint_extra,
             )
+
+        checkpoint.replace_completed(completed_phases)
+        self.checkpoint_mgr.save(checkpoint)
 
         for phase in phase_chain:
             if not phase.run(self, context, checkpoint, completed_phases):
@@ -1096,7 +1110,12 @@ class VideoProcessor(BaseProcessor):
 
     # ---- Phase 5: 语音识别 ----
     def _phase5_asr(
-        self, audio_path: str, hotwords: list[str], output_dir: str, stem: str
+        self,
+        audio_path: str,
+        hotwords: list[str],
+        output_dir: str,
+        stem: str,
+        prompt_template: str | None = None,
     ):
         self._report(5, 5, "语音识别...")
         self.tracker.update_phase("phase5", 0, "准备语音识别...", total=1)
@@ -1124,7 +1143,12 @@ class VideoProcessor(BaseProcessor):
             api_pool=self.api_pool,
             llm=self.llm,
         )
-        proc.process(audio_path=audio_path, hotwords=hotwords, output_path=output_path)
+        proc.process(
+            audio_path=audio_path,
+            hotwords=hotwords,
+            output_path=output_path,
+            prompt_template=prompt_template,
+        )
 
     def _make_phase5_reporter(self) -> ProgressReporter:
         def _on_progress(current: int, total: int, msg: str):

@@ -287,6 +287,8 @@ class CheckpointManager:
                     if not self._file_nonempty(transcript):
                         return False
                 return True
+            if cp.task_type == "audio":
+                return self._file_nonempty(cp.output_path)
         except Exception as e:
             logger.debug("[CP] _looks_actually_done 检查失败 (%s)，按未完成处理: %s", cp.source_path, e)
         return False
@@ -336,6 +338,13 @@ class CheckpointManager:
                 logger.info("[CP] 已清理 PDF 输出文件: %s", output_path)
             except OSError as e:
                 logger.warning("[CP] 清理 PDF 输出失败: %s", e)
+
+        elif task_type == "audio" and os.path.isfile(output_path):
+            try:
+                os.remove(output_path)
+                logger.info("[CP] 已清理音频输出文件: %s", output_path)
+            except OSError as e:
+                logger.warning("[CP] 清理音频输出失败: %s", e)
 
         self.remove(checkpoint.task_type, checkpoint.source_path)
 

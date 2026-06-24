@@ -11,8 +11,10 @@ from PyQt5.QtWidgets import QApplication, QDialog, QMessageBox, QScrollArea
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.checkpoint import Checkpoint
+from OCRLLM.core.task_runner import ProgressReporter
 from OCRLLM.gui.app import QCRMainWindow
 from OCRLLM.gui.widgets import IncompleteTasksDialog
+from OCRLLM.gui.tabs.video_tab import VideoTab
 
 
 class _DummyWorker:
@@ -94,6 +96,71 @@ class GuiAppCloseTests(unittest.TestCase):
                 window._on_manage_tasks()
 
             resume_many.assert_called_once_with(checkpoints)
+            window.deleteLater()
+            self._app.processEvents()
+
+    def test_video_tab_passes_separate_audio_prompt_to_phase5(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            video_path = os.path.join(tmp, "lecture.mp4")
+            with open(video_path, "wb") as f:
+                f.write(b"fake video")
+
+            captured = {}
+
+            def start_worker(task):
+                task(ProgressReporter())
+                return True
+
+            tab = VideoTab(lambda: AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp}), start_worker)
+            tab._video_path.setText(video_path)
+            tab._board_prompt._current_text = "board prompt {image_names} {extra_instruction}"
+            tab._audio_prompt._current_text = "audio prompt {hotwords_instruction}"
+            for phase, checkbox in tab._phases.items():
+                checkbox.setChecked(phase in {1, 5})
+
+            def fake_process(self, **kwargs):
+                captured.update(kwargs)
+                return {"board_md": "", "frames_dir": "", "output_dir": tmp}
+
+            with patch("OCRLLM.processors.video.VideoProcessor.process", fake_process):
+                tab._run()
+
+            self.assertEqual(captured["prompt_template"], "board prompt {image_names} {extra_instruction}")
+            self.assertEqual(captured["audio_prompt_template"], "audio prompt {hotwords_instruction}")
+            tab.deleteLater()
+            self._app.processEvents()
+
+    def test_run_resume_checkpoint_supports_audio_tasks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            with open(source, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "lecture_录音识别.md")
+            cp = Checkpoint(
+                "audio",
+                source,
+                output_path,
+                2,
+                completed_indices={0},
+                extra={
+                    "hotwords": ["simplex"],
+                    "prompt_template": "audio prompt {hotwords_instruction}",
+                },
+            )
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+
+            with patch("OCRLLM.processors.audio.AudioProcessor.process", return_value=output_path) as process:
+                result = window._run_resume_checkpoint(cp, ProgressReporter())
+
+            self.assertIn("音频续传完成", result)
+            process.assert_called_once_with(
+                audio_path=source,
+                output_path=output_path,
+                hotwords=["simplex"],
+                prompt_template="audio prompt {hotwords_instruction}",
+                resume=True,
+            )
             window.deleteLater()
             self._app.processEvents()
 

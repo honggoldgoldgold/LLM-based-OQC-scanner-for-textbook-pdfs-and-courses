@@ -23,6 +23,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.ssl_ import create_urllib3_context
 
 from OCRLLM.core.task_runner import CancelledError
+from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.core.utils import ensure_dir, get_ffmpeg, get_ffprobe, resolve_workers, run_subprocess_cancellable, strip_md_fence
 from OCRLLM.processors.base import BaseProcessor
 from OCRLLM.core.document_model import SourceType
@@ -86,6 +87,11 @@ _TOPIC_TERM_STOPWORDS = {
 _TRANSCRIPT_TIMESTAMP_RE = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
 _HOTWORD_MARKER_RE = re.compile(r"(?:热词|术语|关键词|专业词)(?:表|列表)?")
 _SENTENCE_PUNCT_RE = re.compile(r"[。！？!?]")
+_MODEL_SEGMENT_RE = re.compile(
+    r"^<!--\s*meta:segment\s+(?P<attrs>.*?)\s*-->\s*$",
+    flags=re.IGNORECASE,
+)
+_MODEL_SEGMENT_TIME_RE = re.compile(r"\btime=(?P<time>\S+)")
 
 
 def build_fallback_audio_windows(
@@ -599,6 +605,7 @@ class AudioProcessor(BaseProcessor):
         poll_interval: float = 5.0,
         max_wait: float = 3600,
         prompt_template: str = None,
+        resume: bool = False,
     ) -> str:
         """执行语音识别：自动选择短音频或长音频异步模式。
 
@@ -619,6 +626,7 @@ class AudioProcessor(BaseProcessor):
                 hotwords=hotwords,
                 output_path=output_path,
                 prompt_template=prompt_template,
+                resume=resume,
             )
 
         if not self.cfg.api.api_key:
@@ -687,6 +695,7 @@ class AudioProcessor(BaseProcessor):
         hotwords: Optional[list[str]] = None,
         output_path: str = None,
         prompt_template: str = None,
+        resume: bool = False,
     ) -> str:
         """Google 模式走 Files API，并按录课友好的长片段切分后合并。"""
         if not self.cfg.google_api.api_key:
@@ -719,6 +728,18 @@ class AudioProcessor(BaseProcessor):
         if not chunks:
             raise RuntimeError("Google 长音频分割失败：没有可识别片段")
 
+        global_checkpoint = Checkpoint(
+            task_type="audio",
+            source_path=audio_path,
+            output_path=output_path,
+            total_items=len(chunks),
+            extra={
+                "provider": "google",
+                "hotwords": list(hotwords or []),
+                "prompt_template": prompt_template,
+            },
+        )
+
         checkpoint_path, checkpoint_meta = self._google_audio_checkpoint_path(
             audio_path=audio_path,
             output_path=output_path,
@@ -726,40 +747,54 @@ class AudioProcessor(BaseProcessor):
             chunks=chunks,
         )
         segment_text_by_index = self._load_google_audio_checkpoint(checkpoint_path, checkpoint_meta, chunks)
+        global_checkpoint.replace_completed({index - 1 for index in segment_text_by_index})
+        self.checkpoint_mgr.save(global_checkpoint)
         self._report(2, 4, f"上传并请求 Gemini 识别 {len(chunks)} 个音频片段...")
-        for idx, chunk in enumerate(chunks, start=1):
-            self._check_cancelled()
-            t1 = _ms_ts(int(chunk.logical_start * 1000))
-            t2 = _ms_ts(int(chunk.logical_end * 1000))
-            if idx in segment_text_by_index:
-                self._report(2, 4, f"复用 Google 已完成片段 {idx}/{len(chunks)} ({t1}~{t2})...")
-                continue
+        try:
+            for idx, chunk in enumerate(chunks, start=1):
+                self._check_cancelled()
+                t1 = _ms_ts(int(chunk.logical_start * 1000))
+                t2 = _ms_ts(int(chunk.logical_end * 1000))
+                if idx in segment_text_by_index:
+                    self._report(2, 4, f"复用 Google 已完成片段 {idx}/{len(chunks)} ({t1}~{t2})...")
+                    continue
 
-            segment_duration = max(0.0, chunk.logical_end - chunk.logical_start)
-            segment_prompt = self._build_google_segment_prompt(base_prompt, idx, chunk, len(chunks))
-            self._report(2, 4, f"Google 识别片段 {idx}/{len(chunks)} ({t1}~{t2})...")
-            text = self.llm.transcribe_long_audio(
-                audio_path=chunk.path,
-                system_prompt=segment_prompt,
-                model=self.cfg.google_api.audio_model,
-                text_validator=lambda value, dur=segment_duration: google_audio_transcript_invalid_reason(
-                    self._strip_model_segment_marker(strip_md_fence(value)),
-                    duration=dur,
-                ),
-            )
-            text = self._strip_model_segment_marker(strip_md_fence(text))
-            validate_google_audio_transcript(text, duration=segment_duration)
-            model_used = self.cfg.google_api.audio_model
-            last_successful_model = getattr(self.llm, "last_successful_model", None)
-            if callable(last_successful_model):
-                reported_model = last_successful_model("audio")
-                if isinstance(reported_model, str) and reported_model.strip():
-                    model_used = reported_model.strip()
-            segment_text_by_index[idx] = (chunk, text, model_used)
-            self._write_google_audio_checkpoint(checkpoint_path, checkpoint_meta, segment_text_by_index)
+                segment_duration = max(0.0, chunk.logical_end - chunk.logical_start)
+                segment_prompt = self._build_google_segment_prompt(base_prompt, idx, chunk, len(chunks))
+                self._report(2, 4, f"Google 识别片段 {idx}/{len(chunks)} ({t1}~{t2})...")
+                text = self.llm.transcribe_long_audio(
+                    audio_path=chunk.path,
+                    system_prompt=segment_prompt,
+                    model=self.cfg.google_api.audio_model,
+                    text_validator=lambda value, dur=segment_duration: google_audio_transcript_invalid_reason(
+                        self._strip_model_segment_marker(strip_md_fence(value)),
+                        duration=dur,
+                    ),
+                )
+                text = strip_md_fence(text).strip()
+                validate_google_audio_transcript(
+                    self._strip_model_segment_marker(text),
+                    duration=segment_duration,
+                )
+                model_used = self.cfg.google_api.audio_model
+                last_successful_model = getattr(self.llm, "last_successful_model", None)
+                if callable(last_successful_model):
+                    reported_model = last_successful_model("audio")
+                    if isinstance(reported_model, str) and reported_model.strip():
+                        model_used = reported_model.strip()
+                segment_text_by_index[idx] = (chunk, text, model_used)
+                self._write_google_audio_checkpoint(checkpoint_path, checkpoint_meta, segment_text_by_index)
+                global_checkpoint.mark_completed(idx - 1)
+                self.checkpoint_mgr.save(global_checkpoint)
+        except Exception:
+            self.checkpoint_mgr.save(global_checkpoint)
+            raise
 
         segment_texts = [segment_text_by_index[idx] for idx in range(1, len(chunks) + 1)]
-        merged_body = "\n\n".join(text for _, text, _model in segment_texts)
+        merged_body = "\n\n".join(
+            self._strip_model_segment_marker(text)
+            for _, text, _model in segment_texts
+        )
         try:
             validate_google_audio_transcript(merged_body, duration=duration, expected_terms=hotwords)
         except RuntimeError:
@@ -782,10 +817,22 @@ class AudioProcessor(BaseProcessor):
         if hotwords:
             md_lines.append(f"> 热词: {', '.join(hotwords)}\n")
         md_lines.append("")
-        for idx, (chunk, text, _model_used) in enumerate(segment_texts, start=1):
+        segment_index = 1
+        for chunk, text, _model_used in segment_texts:
+            fine_segments = self._parse_model_fine_segments(text)
+            if fine_segments:
+                for time_range, body in fine_segments:
+                    if time_range:
+                        md_lines.extend([f"<!-- meta:segment index={segment_index} time={time_range} -->\n", body, ""])
+                    else:
+                        md_lines.extend([f"<!-- meta:segment index={segment_index} -->\n", body, ""])
+                    segment_index += 1
+                continue
             t1 = _ms_ts(int(chunk.logical_start * 1000))
             t2 = _ms_ts(int(chunk.logical_end * 1000))
-            md_lines.extend([f"<!-- meta:segment index={idx} time={t1}~{t2} -->\n", text.strip(), ""])
+            body = self._strip_model_segment_marker(text)
+            md_lines.extend([f"<!-- meta:segment index={segment_index} time={t1}~{t2} -->\n", body, ""])
+            segment_index += 1
 
         self._report(3, 4, "写入 Markdown...")
         ensure_dir(os.path.dirname(output_path))
@@ -793,6 +840,7 @@ class AudioProcessor(BaseProcessor):
             f.write("\n".join(md_lines).strip() + "\n")
         self._report_content("\n\n".join(text for _, text, _model in segment_texts), "Google 长音频识别完成")
         self._report(4, 4, f"完成: {output_path}")
+        self.checkpoint_mgr.remove("audio", audio_path)
         return output_path
 
     def _google_audio_checkpoint_path(
@@ -875,7 +923,10 @@ class AudioProcessor(BaseProcessor):
             model = str(item.get("model") or self.cfg.google_api.audio_model).strip()
             duration = max(0.0, chunk.logical_end - chunk.logical_start)
             try:
-                validate_google_audio_transcript(text, duration=duration)
+                validate_google_audio_transcript(
+                    self._strip_model_segment_marker(text),
+                    duration=duration,
+                )
             except RuntimeError:
                 continue
             cached[index] = (chunk, text, model)
@@ -935,8 +986,11 @@ class AudioProcessor(BaseProcessor):
             f"{base_prompt}\n\n"
             "Google 录课音频分段格式要求：\n"
             f"- 这是第 {index}/{total} 个音频片段，逻辑时间范围为 {t1}~{t2}。\n"
-            f"- 输出第一行必须严格写成：{marker}\n"
-            "- 第一行之后只写这一片段的逐字转写正文。\n"
+            "- 请在这一片段内部标注更细的时间戳。优先每 1~3 分钟、话题切换、长停顿或板书切换处新开一段。\n"
+            "- 每个小段前必须单独写一行 HTML 注释，格式为：<!-- meta:segment index=序号 time=开始时间~结束时间 -->。\n"
+            f"- 如果无法可靠细分，只输出一个小段，第一行写成：{marker}\n"
+            "- 时间必须使用整段课程的绝对时间，不要使用片段内相对时间。\n"
+            "- meta 注释之后只写对应小段的逐字转写正文。\n"
             "- 不要省略 HTML 注释，不要把 meta 注释放进代码块，不要输出 Markdown 围栏。\n"
             "- 如果音频开头或结尾听到与相邻片段重复的上下文，只保留属于上述逻辑时间范围的内容。"
         )
@@ -953,6 +1007,47 @@ class AudioProcessor(BaseProcessor):
             if not re.match(r"^<!--\s*meta:segment\b.*-->\s*$", line.strip(), flags=re.IGNORECASE)
         ]
         return "\n".join(lines).strip()
+
+    @staticmethod
+    def _parse_model_fine_segments(text: str) -> list[tuple[str | None, str]]:
+        segments: list[tuple[str | None, str]] = []
+        current_time: str | None = None
+        current_lines: list[str] = []
+        saw_marker = False
+        saw_body_before_marker = False
+
+        def flush():
+            nonlocal current_time, current_lines
+            body = "\n".join(current_lines).strip()
+            if body:
+                segments.append((current_time, body))
+            current_time = None
+            current_lines = []
+
+        for line in text.strip().splitlines():
+            marker_match = _MODEL_SEGMENT_RE.match(line.strip())
+            if marker_match:
+                if not saw_marker and any(part.strip() for part in current_lines):
+                    saw_body_before_marker = True
+                saw_marker = True
+                flush()
+                time_match = _MODEL_SEGMENT_TIME_RE.search(marker_match.group("attrs") or "")
+                current_time = time_match.group("time") if time_match else None
+                continue
+            current_lines.append(line)
+        flush()
+        return segments if saw_marker and segments and not saw_body_before_marker else []
+
+    @staticmethod
+    def resume_options_from_checkpoint(checkpoint: Checkpoint) -> dict:
+        extra = checkpoint.extra or {}
+        return {
+            "audio_path": checkpoint.source_path,
+            "output_path": checkpoint.output_path,
+            "hotwords": extra.get("hotwords") or None,
+            "prompt_template": extra.get("prompt_template") or None,
+            "resume": True,
+        }
 
     def _short_asr(self, audio_path: str, hotwords, output_path: str,
                    prompt_template: str = None, duration: float = None,

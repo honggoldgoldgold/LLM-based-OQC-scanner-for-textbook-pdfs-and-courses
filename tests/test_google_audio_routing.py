@@ -111,6 +111,47 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             self.assertIn("first transcript", md)
             self.assertIn("second transcript", md)
 
+    def test_google_mode_preserves_model_emitted_fine_segment_markers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            with open(source, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-2.5-pro",
+                    "audio_chunk_seconds": 1800,
+                    "audio_overlap_seconds": 30,
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = (
+                "<!-- meta:segment index=1 time=00:00~05:00 -->\n"
+                "第一小段老师讲线性规划。" + "继续讲解。" * 300 + "\n\n"
+                "<!-- meta:segment index=2 time=05:00~10:00 -->\n"
+                "第二小段老师讲椭球法。" + "继续分析。" * 300
+            )
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=600.0)
+            processor._split_google_audio = Mock(return_value=[
+                AudioChunk(source, 0.0, 600.0, 0.0, 600.0),
+            ])
+
+            processor.process(source, output_path=output_path)
+
+            prompt = llm.transcribe_long_audio.call_args.kwargs["system_prompt"]
+            self.assertIn("更细的时间戳", prompt)
+            with open(output_path, encoding="utf-8") as f:
+                md = f.read()
+            self.assertEqual(md.count("<!-- meta:segment"), 2)
+            self.assertIn("<!-- meta:segment index=1 time=00:00~05:00 -->", md)
+            self.assertIn("<!-- meta:segment index=2 time=05:00~10:00 -->", md)
+            self.assertNotIn("<!-- meta:segment index=1 time=00:00~10:00 -->", md)
+
     def test_google_mode_resumes_cached_segments_after_quota_failure(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = os.path.join(tmp, "lecture.mp3")
@@ -162,6 +203,49 @@ class GoogleAudioRoutingTests(unittest.TestCase):
                 md = f.read()
             self.assertIn("first cached transcript", md)
             self.assertIn("second resumed transcript", md)
+
+    def test_google_audio_failure_is_listed_as_incomplete_audio_task(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            part1 = os.path.join(tmp, "part001.mp3")
+            part2 = os.path.join(tmp, "part002.mp3")
+            for path in (source, part1, part2):
+                with open(path, "wb") as f:
+                    f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-2.5-pro",
+                    "audio_chunk_seconds": 1800,
+                    "audio_overlap_seconds": 30,
+                },
+            )
+            chunks = [
+                AudioChunk(part1, 0.0, 1830.0, 0.0, 1800.0),
+                AudioChunk(part2, 1770.0, 3605.0, 1800.0, 3605.0),
+            ]
+            llm = Mock()
+            llm.transcribe_long_audio.side_effect = [
+                "first cached transcript " + "老师继续讲解课程内容。" * 900,
+                RuntimeError("network eof"),
+            ]
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=3605.0)
+            processor._split_google_audio = Mock(return_value=chunks)
+
+            with self.assertRaisesRegex(RuntimeError, "network eof"):
+                processor.process(source, output_path=output_path)
+
+            incomplete = processor.checkpoint_mgr.list_incomplete()
+            self.assertEqual(len(incomplete), 1)
+            self.assertEqual(incomplete[0].task_type, "audio")
+            self.assertEqual(incomplete[0].source_path, source)
+            self.assertEqual(incomplete[0].output_path, output_path)
+            self.assertEqual(incomplete[0].completed_indices, {0})
 
     def test_google_mode_removes_model_emitted_segment_markers_from_body(self):
         with tempfile.TemporaryDirectory() as tmp:
