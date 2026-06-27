@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
+from OCRLLM import prompts
 from OCRLLM.config import AppConfig
 from OCRLLM.core.providers.google_provider import GoogleProviderClient
 from OCRLLM.processors.audio import (
@@ -19,6 +20,14 @@ from OCRLLM.processors.video_pipeline import AudioRecognizePhase, VideoProcessCo
 
 
 class GoogleAudioRoutingTests(unittest.TestCase):
+    def test_default_audio_prompt_requires_fine_segment_metadata(self):
+        prompt = prompts.AUDIO_TRANSCRIBE
+
+        self.assertIn("必须按时间顺序分成若干小段", prompt)
+        self.assertIn("<!-- meta:segment index=序号 time=开始时间~结束时间 -->", prompt)
+        self.assertIn("时间必须使用整段课程的绝对时间", prompt)
+        self.assertIn("{hotwords_instruction}", prompt)
+
     def test_google_audio_windows_default_to_30_minutes_with_overlap_context(self):
         windows = build_google_audio_windows(duration=3700, chunk_seconds=1800, overlap_seconds=30)
 
