@@ -740,99 +740,138 @@ class AudioProcessor(BaseProcessor):
             },
         )
 
-        checkpoint_path, checkpoint_meta = self._google_audio_checkpoint_path(
-            audio_path=audio_path,
-            output_path=output_path,
-            base_prompt=base_prompt,
-            chunks=chunks,
-        )
-        segment_text_by_index = self._load_google_audio_checkpoint(checkpoint_path, checkpoint_meta, chunks)
-        global_checkpoint.replace_completed({index - 1 for index in segment_text_by_index})
-        self.checkpoint_mgr.save(global_checkpoint)
-        self._report(2, 4, f"上传并请求 Gemini 识别 {len(chunks)} 个音频片段...")
-        try:
-            for idx, chunk in enumerate(chunks, start=1):
-                self._check_cancelled()
+        model_candidates = self._google_audio_model_candidates()
+        last_false_success_reason = None
+        md_lines = []
+        segment_texts: list[tuple[AudioChunk, str, str]] = []
+
+        for model_pos, active_model in enumerate(model_candidates):
+            checkpoint_path, checkpoint_meta = self._google_audio_checkpoint_path(
+                audio_path=audio_path,
+                output_path=output_path,
+                base_prompt=base_prompt,
+                chunks=chunks,
+                audio_model=active_model,
+            )
+            segment_text_by_index = self._load_google_audio_checkpoint(checkpoint_path, checkpoint_meta, chunks)
+            global_checkpoint.replace_completed({index - 1 for index in segment_text_by_index})
+            self.checkpoint_mgr.save(global_checkpoint)
+            self._report(
+                2,
+                4,
+                f"上传并请求 Gemini 识别 {len(chunks)} 个音频片段... 模型={active_model}",
+            )
+
+            false_success_reason = None
+            try:
+                for idx, chunk in enumerate(chunks, start=1):
+                    self._check_cancelled()
+                    t1 = _ms_ts(int(chunk.logical_start * 1000))
+                    t2 = _ms_ts(int(chunk.logical_end * 1000))
+                    if idx in segment_text_by_index:
+                        self._report(2, 4, f"复用 Google 已完成片段 {idx}/{len(chunks)} ({t1}~{t2})...")
+                        continue
+
+                    segment_duration = max(0.0, chunk.logical_end - chunk.logical_start)
+                    segment_prompt = self._build_google_segment_prompt(base_prompt, idx, chunk, len(chunks))
+                    self._report(2, 4, f"Google 识别片段 {idx}/{len(chunks)} ({t1}~{t2})...")
+                    text = self.llm.transcribe_long_audio(
+                        audio_path=chunk.path,
+                        system_prompt=segment_prompt,
+                        model=active_model,
+                        text_validator=lambda value, dur=segment_duration, terms=hotwords: google_audio_transcript_invalid_reason(
+                            self._strip_model_segment_marker(strip_md_fence(value)),
+                            duration=dur,
+                            expected_terms=terms,
+                        ),
+                    )
+                    text = strip_md_fence(text).strip()
+                    false_success_reason = google_audio_transcript_invalid_reason(
+                        self._strip_model_segment_marker(text),
+                        duration=segment_duration,
+                        expected_terms=hotwords,
+                    )
+                    if false_success_reason:
+                        break
+
+                    model_used = active_model
+                    last_successful_model = getattr(self.llm, "last_successful_model", None)
+                    if callable(last_successful_model):
+                        reported_model = last_successful_model("audio")
+                        if isinstance(reported_model, str) and reported_model.strip():
+                            model_used = reported_model.strip()
+                    segment_text_by_index[idx] = (chunk, text, model_used)
+                    self._write_google_audio_checkpoint(checkpoint_path, checkpoint_meta, segment_text_by_index)
+                    global_checkpoint.mark_completed(idx - 1)
+                    self.checkpoint_mgr.save(global_checkpoint)
+            except Exception:
+                self.checkpoint_mgr.save(global_checkpoint)
+                raise
+
+            if false_success_reason is None:
+                segment_texts = [segment_text_by_index[idx] for idx in range(1, len(chunks) + 1)]
+                merged_body = "\n\n".join(
+                    self._strip_model_segment_marker(text)
+                    for _, text, _model in segment_texts
+                )
+                false_success_reason = google_audio_transcript_invalid_reason(
+                    merged_body,
+                    duration=duration,
+                    expected_terms=hotwords,
+                )
+
+            if false_success_reason:
+                last_false_success_reason = false_success_reason
+                try:
+                    checkpoint_path.unlink(missing_ok=True)
+                except OSError as exc:
+                    logger.warning("[ASR] Google invalid transcript checkpoint cleanup failed: %s", exc)
+                global_checkpoint.replace_completed(set())
+                self.checkpoint_mgr.save(global_checkpoint)
+                if model_pos + 1 < len(model_candidates):
+                    next_model = model_candidates[model_pos + 1]
+                    logger.warning(
+                        "[ASR] Google 模型疑似假成功，切换下一音频模型: %s -> %s (%s)",
+                        active_model,
+                        next_model,
+                        false_success_reason,
+                    )
+                    continue
+                raise RuntimeError(f"Google 长音频识别疑似假成功: {false_success_reason}")
+
+            md_lines = [f"<!-- meta:audio title={stem} -->\n"]
+            md_lines.append(f"> Provider: Google Gemini SDK\n")
+            md_lines.append(f"> 模型优先级起点: {self.cfg.google_api.audio_model}\n")
+            actual_models = list(dict.fromkeys(model for _, _, model in segment_texts if model))
+            if actual_models:
+                md_lines.append(f"> 实际使用模型: {', '.join(actual_models)}\n")
+            md_lines.append(
+                f"> Google 切片: 逻辑 {self.cfg.google_api.audio_chunk_seconds}s，"
+                f"上下文重叠 {self.cfg.google_api.audio_overlap_seconds}s\n"
+            )
+            if hotwords:
+                md_lines.append(f"> 热词: {', '.join(hotwords)}\n")
+            md_lines.append("")
+            segment_index = 1
+            for chunk, text, _model_used in segment_texts:
+                fine_segments = self._parse_model_fine_segments(text)
+                if fine_segments:
+                    for time_range, body in fine_segments:
+                        if time_range:
+                            md_lines.extend([f"<!-- meta:segment index={segment_index} time={time_range} -->\n", body, ""])
+                        else:
+                            md_lines.extend([f"<!-- meta:segment index={segment_index} -->\n", body, ""])
+                        segment_index += 1
+                    continue
                 t1 = _ms_ts(int(chunk.logical_start * 1000))
                 t2 = _ms_ts(int(chunk.logical_end * 1000))
-                if idx in segment_text_by_index:
-                    self._report(2, 4, f"复用 Google 已完成片段 {idx}/{len(chunks)} ({t1}~{t2})...")
-                    continue
+                body = self._strip_model_segment_marker(text)
+                md_lines.extend([f"<!-- meta:segment index={segment_index} time={t1}~{t2} -->\n", body, ""])
+                segment_index += 1
+            break
 
-                segment_duration = max(0.0, chunk.logical_end - chunk.logical_start)
-                segment_prompt = self._build_google_segment_prompt(base_prompt, idx, chunk, len(chunks))
-                self._report(2, 4, f"Google 识别片段 {idx}/{len(chunks)} ({t1}~{t2})...")
-                text = self.llm.transcribe_long_audio(
-                    audio_path=chunk.path,
-                    system_prompt=segment_prompt,
-                    model=self.cfg.google_api.audio_model,
-                    text_validator=lambda value, dur=segment_duration: google_audio_transcript_invalid_reason(
-                        self._strip_model_segment_marker(strip_md_fence(value)),
-                        duration=dur,
-                    ),
-                )
-                text = strip_md_fence(text).strip()
-                validate_google_audio_transcript(
-                    self._strip_model_segment_marker(text),
-                    duration=segment_duration,
-                )
-                model_used = self.cfg.google_api.audio_model
-                last_successful_model = getattr(self.llm, "last_successful_model", None)
-                if callable(last_successful_model):
-                    reported_model = last_successful_model("audio")
-                    if isinstance(reported_model, str) and reported_model.strip():
-                        model_used = reported_model.strip()
-                segment_text_by_index[idx] = (chunk, text, model_used)
-                self._write_google_audio_checkpoint(checkpoint_path, checkpoint_meta, segment_text_by_index)
-                global_checkpoint.mark_completed(idx - 1)
-                self.checkpoint_mgr.save(global_checkpoint)
-        except Exception:
-            self.checkpoint_mgr.save(global_checkpoint)
-            raise
-
-        segment_texts = [segment_text_by_index[idx] for idx in range(1, len(chunks) + 1)]
-        merged_body = "\n\n".join(
-            self._strip_model_segment_marker(text)
-            for _, text, _model in segment_texts
-        )
-        try:
-            validate_google_audio_transcript(merged_body, duration=duration, expected_terms=hotwords)
-        except RuntimeError:
-            try:
-                checkpoint_path.unlink(missing_ok=True)
-            except OSError as exc:
-                logger.warning("[ASR] Google invalid transcript checkpoint cleanup failed: %s", exc)
-            raise
-
-        md_lines = [f"<!-- meta:audio title={stem} -->\n"]
-        md_lines.append(f"> Provider: Google Gemini SDK\n")
-        md_lines.append(f"> 模型优先级起点: {self.cfg.google_api.audio_model}\n")
-        actual_models = list(dict.fromkeys(model for _, _, model in segment_texts if model))
-        if actual_models:
-            md_lines.append(f"> 实际使用模型: {', '.join(actual_models)}\n")
-        md_lines.append(
-            f"> Google 切片: 逻辑 {self.cfg.google_api.audio_chunk_seconds}s，"
-            f"上下文重叠 {self.cfg.google_api.audio_overlap_seconds}s\n"
-        )
-        if hotwords:
-            md_lines.append(f"> 热词: {', '.join(hotwords)}\n")
-        md_lines.append("")
-        segment_index = 1
-        for chunk, text, _model_used in segment_texts:
-            fine_segments = self._parse_model_fine_segments(text)
-            if fine_segments:
-                for time_range, body in fine_segments:
-                    if time_range:
-                        md_lines.extend([f"<!-- meta:segment index={segment_index} time={time_range} -->\n", body, ""])
-                    else:
-                        md_lines.extend([f"<!-- meta:segment index={segment_index} -->\n", body, ""])
-                    segment_index += 1
-                continue
-            t1 = _ms_ts(int(chunk.logical_start * 1000))
-            t2 = _ms_ts(int(chunk.logical_end * 1000))
-            body = self._strip_model_segment_marker(text)
-            md_lines.extend([f"<!-- meta:segment index={segment_index} time={t1}~{t2} -->\n", body, ""])
-            segment_index += 1
+        if not md_lines:
+            raise RuntimeError(f"Google 长音频识别疑似假成功: {last_false_success_reason or '所有候选模型均未产出有效转写'}")
 
         self._report(3, 4, "写入 Markdown...")
         ensure_dir(os.path.dirname(output_path))
@@ -849,6 +888,7 @@ class AudioProcessor(BaseProcessor):
         output_path: str,
         base_prompt: str,
         chunks: list[AudioChunk],
+        audio_model: str | None = None,
     ) -> tuple[Path, dict]:
         chunk_meta = [
             {
@@ -874,7 +914,7 @@ class AudioProcessor(BaseProcessor):
             "source_size": source_size,
             "source_mtime_ns": source_mtime_ns,
             "output": str(Path(output_path).resolve()),
-            "audio_model": self.cfg.google_api.audio_model,
+            "audio_model": audio_model or self.cfg.google_api.audio_model,
             "chunk_seconds": int(self.cfg.google_api.audio_chunk_seconds),
             "overlap_seconds": int(self.cfg.google_api.audio_overlap_seconds),
             "prompt_hash": hashlib.sha256(base_prompt.encode("utf-8")).hexdigest(),
@@ -888,6 +928,23 @@ class AudioProcessor(BaseProcessor):
             safe_stem = "google_audio"
         checkpoint_dir = Path(ensure_dir(os.path.join(self.cfg.paths.temp_dir, "google_audio_checkpoints")))
         return checkpoint_dir / f"{safe_stem[:80]}.{digest}.json", meta
+
+    def _google_audio_model_candidates(self) -> list[str]:
+        from OCRLLM.core import model_catalog
+        from OCRLLM.core.providers.google_provider import prioritize_google_audio_models
+
+        primary = (self.cfg.google_api.audio_model or "").strip()
+        chain = prioritize_google_audio_models(
+            self.cfg.google_api.audio_model_queue or model_catalog.google_free_audio_chain()
+        )
+        candidates = []
+        for model in [primary, *chain]:
+            model = (model or "").strip()
+            if model and model not in candidates:
+                candidates.append(model)
+        if not candidates:
+            raise RuntimeError("Google 音频识别没有可用模型，请在设置中选择 Google 音频模型")
+        return candidates
 
     def _load_google_audio_checkpoint(
         self,

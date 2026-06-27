@@ -78,6 +78,56 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             self.assertIn("hello from google", md)
             processor._short_asr.assert_not_called()
 
+    def test_google_segment_validator_uses_hotwords_for_topic_mismatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "short.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-2.5-pro",
+                },
+            )
+            llm = Mock()
+            llm.transcribe_long_audio.return_value = (
+                "老师今天继续讲数据库系统中的并发控制、日志恢复、查询优化和索引结构。"
+                "这里会把事务调度和恢复流程放在同一个例子里解释。"
+            ) * 120 + (
+                "本节术语包括 transaction、isolation level、dirty read、phantom read、"
+                "SQL、B+ tree、LSM tree、query optimizer、row lock、deadlock。"
+            )
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=3600.0)
+            processor._split_google_audio = Mock(return_value=[
+                AudioChunk(audio_path, 0.0, 3600.0, 0.0, 3600.0),
+            ])
+            hotwords = [
+                "transaction",
+                "isolation level",
+                "dirty read",
+                "phantom read",
+                "SQL",
+                "B+ tree",
+                "LSM tree",
+                "query optimizer",
+                "row lock",
+                "deadlock",
+            ]
+
+            processor.process(audio_path, hotwords=hotwords, output_path=output_path)
+
+            validator = llm.transcribe_long_audio.call_args.kwargs["text_validator"]
+            wrong_transcript = (
+                "The lecture discusses sparse signal recovery, LASSO, ISTA, FISTA, "
+                "ADMM, compressed sensing, nuclear norm minimization, and linear regression. "
+            ) * 260
+            self.assertIn("topic mismatch", validator(wrong_transcript))
+
     def test_google_mode_writes_one_meta_segment_per_audio_chunk(self):
         with tempfile.TemporaryDirectory() as tmp:
             source = os.path.join(tmp, "lecture.mp3")
@@ -119,6 +169,77 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             self.assertIn("<!-- meta:segment index=2 time=30:00~01:00:05 -->", md)
             self.assertIn("first transcript", md)
             self.assertIn("second transcript", md)
+
+    def test_google_mode_switches_model_when_merged_transcript_is_false_success(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = os.path.join(tmp, "lecture.mp3")
+            part1 = os.path.join(tmp, "part001.mp3")
+            part2 = os.path.join(tmp, "part002.mp3")
+            for path in (source, part1, part2):
+                with open(path, "wb") as f:
+                    f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                google_api={
+                    "enabled": True,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-bad",
+                    "audio_model_queue": ["gemini-good"],
+                    "audio_chunk_seconds": 1000,
+                    "audio_overlap_seconds": 0,
+                },
+            )
+            chunks = [
+                AudioChunk(part1, 0.0, 1000.0, 0.0, 1000.0),
+                AudioChunk(part2, 1000.0, 2000.0, 1000.0, 2000.0),
+            ]
+            wrong_chunk = (
+                "The lecture discusses sparse signal recovery, LASSO, ISTA, FISTA, "
+                "ADMM, compressed sensing, nuclear norm minimization, and linear regression. "
+            ) * 25
+            right_chunk = (
+                "老师今天继续讲数据库系统中的并发控制、日志恢复、查询优化和索引结构。"
+                "这里会把事务调度和恢复流程放在同一个例子里解释。"
+            ) * 80 + (
+                "本节术语包括 transaction、isolation level、dirty read、phantom read、"
+                "SQL、B+ tree、LSM tree、query optimizer、row lock、deadlock。"
+            )
+            calls: list[str] = []
+
+            def fake_transcribe_long_audio(**kwargs):
+                calls.append(kwargs["model"])
+                if kwargs["model"] == "gemini-bad":
+                    return wrong_chunk
+                return right_chunk
+
+            llm = Mock()
+            llm.transcribe_long_audio.side_effect = fake_transcribe_long_audio
+            processor = AudioProcessor(cfg=cfg, llm=llm)
+            processor._get_cached_duration = Mock(return_value=2000.0)
+            processor._split_google_audio = Mock(return_value=chunks)
+            hotwords = [
+                "transaction",
+                "isolation level",
+                "dirty read",
+                "phantom read",
+                "SQL",
+                "B+ tree",
+                "LSM tree",
+                "query optimizer",
+                "row lock",
+                "deadlock",
+            ]
+
+            processor.process(source, hotwords=hotwords, output_path=output_path)
+
+            self.assertEqual(calls, ["gemini-bad", "gemini-bad", "gemini-good", "gemini-good"])
+            with open(output_path, encoding="utf-8") as f:
+                md = f.read()
+            self.assertIn("实际使用模型: gemini-good", md)
+            self.assertIn("dirty read", md)
+            self.assertNotIn("sparse signal recovery", md)
 
     def test_google_mode_preserves_model_emitted_fine_segment_markers(self):
         with tempfile.TemporaryDirectory() as tmp:
