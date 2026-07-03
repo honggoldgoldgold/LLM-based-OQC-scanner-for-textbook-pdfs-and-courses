@@ -1,4 +1,16 @@
-# OCRLLM v3
+# OCRLLM Architecture
+
+> **Current status**: suspended future plan.
+>
+> The Rust/PyO3 v3 rewrite below is no longer the active implementation plan.
+> It is kept as a future architecture reference only. The active decision is to
+> extract a small Python-first library package in `src/ocrllm`, preserve the old
+> app under `legacy_app/`, and prove the import contract before moving engines
+> or rewriting internals.
+>
+> Active decision record: `docs/library_migration_decision.md`.
+
+# Suspended Future Plan: OCRLLM v3
 
 > **策略**: contract-first strangler。先冻结 Python API → Python 跑通首个处理器 →
 > golden test 兜底 → 逐个用 Rust 替换引擎。Rust 是实现细节，API 是第一原则。

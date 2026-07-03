@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "ocrllm"
+version = "0.1.0"
+description = "Importable OCRLLM library facade for multimodal course content recognition."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+authors = [{ name = "OCRLLM maintainers" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+image = []
+pdf = []
+audio = []
+video = []
+all = []
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/ocrllm"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
