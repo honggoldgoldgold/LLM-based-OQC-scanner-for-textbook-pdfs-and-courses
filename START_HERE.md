@@ -18,6 +18,7 @@ Read next:
 
 - `src/ocrllm/README_ACTIVE_LIBRARY.md`
 - `src/ocrllm/AGENTS.md`
+- `docs/ocrllm_module_target_design.md`
 
 Public import shape:
 
@@ -76,6 +77,7 @@ Need to add a downstream import feature    -> src/ocrllm/ and tests/
 Need to fix GUI/start.bat/Codex/Google UI  -> legacy_app/
 Need to compare old product behavior       -> legacy_app/
 Need to record migration state             -> MIGRATION_STATUS.md
+Need to design the completed module shape  -> docs/ocrllm_module_target_design.md
 Need to revisit future Rust/PyO3 design    -> Architecture.md
 ```
 

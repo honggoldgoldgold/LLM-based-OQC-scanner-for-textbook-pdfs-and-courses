@@ -20,6 +20,7 @@ src/ocrllm/AGENTS.md                  Active package editing rules.
 legacy_app/README_LEGACY.md           Legacy app boundary.
 legacy_app/AGENTS.md                  Legacy app editing rules.
 docs/library_migration_decision.md    Library-making decision and rationale.
+docs/ocrllm_module_target_design.md   Target-state module design map.
 Architecture.md                       Suspended future architecture reference.
 ```
 
@@ -85,6 +86,14 @@ result = recognize("board.png", config=Config(provider=Provider()))
 
 No real DashScope, Google, PDF, audio, or video provider has been ported into
 the active library yet.
+
+## Target Module Design
+
+`docs/ocrllm_module_target_design.md` describes the intended completed Python
+library as if it already exists. It is a design map, not a frozen contract.
+
+The document is useful for rebuilding context after memory loss, but tests and
+real downstream imports decide the actual implementation.
 
 ## What Is Suspended
 
