@@ -31,6 +31,13 @@ import numpy as np
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.provider_selection import (
+    uses_google_for_vision,
+    visual_allows_high_parallel,
+    visual_parallel_requests,
+    visual_request_stagger_seconds,
+    visual_video_frame_batch_size,
+)
 from OCRLLM.core.provider_errors import is_provider_setup_error
 from OCRLLM.core.task_runner import ProgressReporter, CancelledError
 from OCRLLM.core.utils import (
@@ -246,28 +253,16 @@ class VideoProcessor(BaseProcessor):
         return weights
 
     def _phase4_batch_size(self) -> int:
-        return (
-            max(1, self.cfg.google_api.video_frame_batch_size)
-            if self.cfg.google_api.enabled
-            else self.cfg.video.batch_size
-        )
+        return visual_video_frame_batch_size(self.cfg)
 
     def _llm_parallel_requests(self) -> int:
-        return (
-            max(1, self.cfg.google_api.parallel_requests)
-            if self.cfg.google_api.enabled
-            else self.cfg.concurrency.llm_parallel_requests
-        )
+        return visual_parallel_requests(self.cfg)
 
     def _llm_request_stagger_seconds(self) -> float:
-        return (
-            max(0.0, self.cfg.google_api.request_stagger_seconds)
-            if self.cfg.google_api.enabled
-            else self.cfg.concurrency.llm_request_stagger_seconds
-        )
+        return visual_request_stagger_seconds(self.cfg)
 
     def _use_api_pool_for_llm(self) -> bool:
-        return (not self.cfg.google_api.enabled) and self.cfg.api.paid_mode and self.api_pool.pool_size > 1
+        return (not uses_google_for_vision(self.cfg)) and self.cfg.api.paid_mode and self.api_pool.pool_size > 1
 
     @staticmethod
     def _phase1_audio_path(output_dir: str, stem: str) -> str:
@@ -901,7 +896,7 @@ class VideoProcessor(BaseProcessor):
         last_batch_idx = total_batches - 1
 
         # 计算并行度（与 PDF 统一策略）
-        high_parallel_provider = self.cfg.google_api.enabled or self.cfg.codex_vision.enabled
+        high_parallel_provider = visual_allows_high_parallel(self.cfg)
         base_workers = resolve_workers(self._llm_parallel_requests(), total_batches, hard_cap=64 if high_parallel_provider else 8)
         if self._use_api_pool_for_llm() and total_batches > base_workers:
             workers = min(self.api_pool.max_parallel, total_batches, base_workers * self.api_pool.pool_size)

@@ -178,7 +178,7 @@ class SettingsDialog(QDialog):
         google_layout = QVBoxLayout(google_group)
 
         google_toggle_row = QHBoxLayout()
-        self._google_enabled_cb = QCheckBox("启用谷歌模式（视觉/视频帧/长音频走 Gemini SDK，千问主链路停用）")
+        self._google_enabled_cb = QCheckBox("启用谷歌 Gemini（长音频走 Google；视觉可由 Codex/独立 Provider 接管）")
         self._google_enabled_cb.toggled.connect(self._on_google_enabled_changed)
         google_toggle_row.addWidget(self._google_enabled_cb)
         google_toggle_row.addStretch()
@@ -240,8 +240,8 @@ class SettingsDialog(QDialog):
         google_layout.addLayout(google_perf_row)
 
         google_hint = QLabel(
-            "说明：Google 模式使用官方 google-genai SDK 和 Files API；短音频盲切回退暂不开放。"
-            "OpenAI-compatible 视觉 Provider 配置会保留，但 Google 模式运行时不走千问主链路。"
+            "说明：Google Gemini 使用官方 google-genai SDK 和 Files API；长音频优先走 Google。"
+            "图片和视频帧按优先级选择 Codex、OpenAI-compatible 视觉 Provider、Google。"
         )
         google_hint.setWordWrap(True)
         google_layout.addWidget(google_hint)
@@ -255,7 +255,7 @@ class SettingsDialog(QDialog):
 
         codex_toggle_row = QHBoxLayout()
         self._codex_enabled_cb = QCheckBox("启用本机 Codex 进行图片识别")
-        self._codex_enabled_cb.setToolTip("启用后视觉识别走本机 codex exec，只读、禁编辑；API Provider 配置保留但识别时忽略。")
+        self._codex_enabled_cb.setToolTip("启用后图片/视频帧识别走本机 codex exec；Google 长音频和 Provider 配置保留。")
         self._codex_enabled_cb.toggled.connect(self._on_codex_enabled_changed)
         codex_toggle_row.addWidget(self._codex_enabled_cb)
         codex_toggle_row.addStretch()
@@ -314,7 +314,7 @@ class SettingsDialog(QDialog):
         codex_perf_row.addWidget(self._codex_video_batch_input)
         codex_layout.addLayout(codex_perf_row)
 
-        codex_hint = QLabel("说明：Codex 模式的图片/视频帧批大小、并行数量和错峰间隔独立配置；切回 API 模式后恢复原视觉模型和原 Provider 设置。")
+        codex_hint = QLabel("说明：Codex 模式只接管图片/视频帧识别；长音频仍可走 Google，Provider 设置会保留。")
         codex_hint.setWordWrap(True)
         codex_layout.addWidget(codex_hint)
         body_layout.addWidget(codex_group)
@@ -682,10 +682,6 @@ class SettingsDialog(QDialog):
 
     def _on_codex_enabled_changed(self, checked: bool):
         if not self._restoring_settings:
-            if checked and self._vision_enabled_cb.isChecked():
-                self._vision_enabled_cb.setChecked(False)
-            if checked and self._google_enabled_cb.isChecked():
-                self._google_enabled_cb.setChecked(False)
             current = self._vision_model_combo.currentText().strip() or self._pending_vision_model
             if checked and current and current != self._codex_model():
                 self._previous_non_codex_vision_model = current
@@ -695,16 +691,11 @@ class SettingsDialog(QDialog):
         self._apply_codex_ui_state()
 
     def _on_vision_enabled_changed(self, checked: bool):
-        """视觉独立 Provider 与 Codex 互斥：开启视觉 Provider 时关闭 Codex。"""
-        if not self._restoring_settings:
-            if checked and self._codex_enabled_cb.isChecked():
-                self._codex_enabled_cb.setChecked(False)
+        """Refresh control state after the independent visual provider toggle changes."""
         self._apply_codex_ui_state()
 
     def _on_google_enabled_changed(self, checked: bool):
-        """Google 模式与 Codex/Qwen 主链路互斥，但保留 OpenAI-compatible Provider 配置。"""
-        if not self._restoring_settings and checked and self._codex_enabled_cb.isChecked():
-            self._codex_enabled_cb.setChecked(False)
+        """Refresh Google model discovery without changing the visual provider choice."""
         if (
             checked
             and not self._restoring_settings
@@ -720,37 +711,29 @@ class SettingsDialog(QDialog):
 
     def _apply_codex_ui_state(self):
         codex = self._codex_enabled_cb.isChecked()
-        vision = self._vision_enabled_cb.isChecked()
-        google = self._google_enabled_cb.isChecked()
+        self._codex_model_combo.setEnabled(True)
+        self._codex_reasoning_combo.setEnabled(True)
+        self._codex_command_input.setEnabled(True)
+        self._codex_timeout_input.setEnabled(True)
+        self._codex_parallel_input.setEnabled(True)
+        self._codex_stagger_input.setEnabled(True)
+        self._codex_vision_batch_input.setEnabled(True)
+        self._codex_video_batch_input.setEnabled(True)
+        self._codex_check_btn.setEnabled(True)
 
-        # 互斥：Codex 开启时禁用视觉 Provider 组；视觉 Provider 开启时禁用 Codex 组
-        # 两个都不开启时全部可用
-        codex_disabled = (vision or google) and not codex
-        vision_disabled = codex and not vision
+        self._api_key_input.setEnabled(True)
+        self._api_key_toggle.setEnabled(True)
+        self._base_url_input.setEnabled(True)
+        self._refresh_dashscope_models_btn.setEnabled(True)
 
-        self._codex_model_combo.setEnabled(not codex_disabled)
-        self._codex_reasoning_combo.setEnabled(not codex_disabled)
-        self._codex_command_input.setEnabled(not codex_disabled)
-        self._codex_timeout_input.setEnabled(not codex_disabled)
-        self._codex_parallel_input.setEnabled(not codex_disabled)
-        self._codex_stagger_input.setEnabled(not codex_disabled)
-        self._codex_vision_batch_input.setEnabled(not codex_disabled)
-        self._codex_video_batch_input.setEnabled(not codex_disabled)
-        self._codex_check_btn.setEnabled(not codex_disabled)
-
-        self._api_key_input.setEnabled(not google)
-        self._api_key_toggle.setEnabled(not google)
-        self._base_url_input.setEnabled(not google)
-        self._refresh_dashscope_models_btn.setEnabled(not google)
-
-        self._vision_provider_input.setEnabled(not vision_disabled)
-        self._vision_wire_input.setEnabled(not vision_disabled)
-        self._vision_key_input.setEnabled(not vision_disabled)
-        self._vision_url_input.setEnabled(not vision_disabled)
-        self._vision_reasoning_input.setEnabled(not vision_disabled)
-        self._vision_network_cb.setEnabled(not vision_disabled)
-        self._vision_no_store_cb.setEnabled(not vision_disabled)
-        self._scan_models_btn.setEnabled(not vision_disabled)
+        self._vision_provider_input.setEnabled(True)
+        self._vision_wire_input.setEnabled(True)
+        self._vision_key_input.setEnabled(True)
+        self._vision_url_input.setEnabled(True)
+        self._vision_reasoning_input.setEnabled(True)
+        self._vision_network_cb.setEnabled(True)
+        self._vision_no_store_cb.setEnabled(True)
+        self._scan_models_btn.setEnabled(True)
 
         self._vision_model_combo.setEnabled(not codex)
         self._btn_pick_vision.setEnabled(not codex)
@@ -1136,7 +1119,7 @@ class SettingsDialog(QDialog):
         google_enabled = self._google_enabled_cb.isChecked()
         new_key = self._api_key_input.text().strip()
         new_url = self._base_url_input.text().strip()
-        vis_enabled = self._vision_enabled_cb.isChecked() and not codex_enabled
+        vis_enabled = self._vision_enabled_cb.isChecked()
         vis_provider = self._vision_provider_input.text().strip()
         vis_key = self._vision_key_input.text().strip()
         vis_url = self._vision_url_input.text().strip()
@@ -1264,14 +1247,14 @@ class SettingsDialog(QDialog):
                 return
             if not self._validate_google_environment_if_needed(force=True):
                 return
-        elif self._codex_enabled_cb.isChecked():
+        if self._codex_enabled_cb.isChecked():
             if not self._validate_codex_environment_if_needed(force=True):
                 return
-        elif not info["new_key"] and not info["vision_api_enabled"]:
+        if not info["google_api_enabled"] and not self._codex_enabled_cb.isChecked() and not info["new_key"] and not info["vision_api_enabled"]:
             QMessageBox.warning(self, "提示", "API Key 不能为空")
             return
 
-        if info["vision_api_enabled"] and not info["google_api_enabled"]:
+        if info["vision_api_enabled"] and not self._codex_enabled_cb.isChecked():
             if info["vision_wire_api"] not in {"chat", "responses"}:
                 QMessageBox.warning(self, "提示", "视觉 Wire API 只能是 chat 或 responses")
                 return

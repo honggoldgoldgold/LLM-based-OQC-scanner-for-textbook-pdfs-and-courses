@@ -2,6 +2,8 @@ import unittest
 from unittest.mock import patch
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.provider_selection import uses_google_for_vision
+from OCRLLM.core.providers.router import build_llm_client
 from OCRLLM.processors.pdf import PDFProcessor
 from OCRLLM.processors.video import VideoProcessor
 
@@ -63,6 +65,70 @@ class GoogleProcessingConfigTests(unittest.TestCase):
         self.assertEqual(processor._phase4_batch_size(), 24)
         self.assertEqual(processor._llm_parallel_requests(), 18)
         self.assertEqual(processor._llm_request_stagger_seconds(), 32.5)
+
+    def test_google_plus_openai_compatible_provider_uses_provider_visual_runtime(self):
+        cfg = AppConfig().with_updates(
+            google_api={
+                "enabled": True,
+                "api_key": "AIza-test",
+                "vision_batch_size": 23,
+                "video_frame_batch_size": 24,
+                "parallel_requests": 17,
+                "request_stagger_seconds": 31.5,
+            },
+            vision_api={
+                "enabled": True,
+                "api_key": "vision-key",
+                "base_url": "https://vision.example/v1",
+            },
+            processing={"batch_size": 3},
+            video={"batch_size": 4},
+            concurrency={"llm_parallel_requests": 2, "llm_request_stagger_seconds": 0.1},
+        )
+        pdf = PDFProcessor.__new__(PDFProcessor)
+        video = VideoProcessor.__new__(VideoProcessor)
+        pdf.cfg = cfg
+        video.cfg = cfg
+
+        self.assertFalse(uses_google_for_vision(cfg))
+        self.assertEqual(build_llm_client(cfg).__class__.__name__, "HybridGoogleProviderClient")
+        self.assertEqual(pdf._llm_batch_size(), 3)
+        self.assertEqual(video._phase4_batch_size(), 4)
+        self.assertEqual(pdf._llm_parallel_requests(), 2)
+        self.assertEqual(video._llm_request_stagger_seconds(), 0.1)
+
+    def test_google_plus_codex_uses_codex_visual_runtime(self):
+        cfg = AppConfig().with_updates(
+            google_api={
+                "enabled": True,
+                "api_key": "AIza-test",
+                "vision_batch_size": 23,
+                "video_frame_batch_size": 24,
+                "parallel_requests": 17,
+                "request_stagger_seconds": 31.5,
+            },
+            codex_vision={
+                "enabled": True,
+                "parallel_requests": 6,
+                "request_stagger_seconds": 2.5,
+                "vision_batch_size": 7,
+                "video_frame_batch_size": 8,
+            },
+            processing={"batch_size": 3},
+            video={"batch_size": 4},
+            concurrency={"llm_parallel_requests": 2, "llm_request_stagger_seconds": 0.1},
+        )
+        pdf = PDFProcessor.__new__(PDFProcessor)
+        video = VideoProcessor.__new__(VideoProcessor)
+        pdf.cfg = cfg
+        video.cfg = cfg
+
+        self.assertFalse(uses_google_for_vision(cfg))
+        self.assertEqual(build_llm_client(cfg).__class__.__name__, "HybridGoogleProviderClient")
+        self.assertEqual(pdf._llm_batch_size(), 7)
+        self.assertEqual(video._phase4_batch_size(), 8)
+        self.assertEqual(pdf._llm_parallel_requests(), 6)
+        self.assertEqual(video._llm_request_stagger_seconds(), 2.5)
 
 
 if __name__ == "__main__":

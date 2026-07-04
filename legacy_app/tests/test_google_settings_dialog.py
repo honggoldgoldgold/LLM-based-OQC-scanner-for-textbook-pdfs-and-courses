@@ -85,6 +85,43 @@ class GoogleSettingsDialogTests(unittest.TestCase):
         dlg.deleteLater()
         self._app.processEvents()
 
+    def test_google_codex_and_openai_compatible_provider_can_be_saved_together(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            dlg = SettingsDialog(None, cfg)
+            dlg._api_key_input.setText("")
+            dlg._google_key_input.setText("AIza-test")
+            with patch.object(dlg, "_refresh_google_models", return_value=True):
+                dlg._google_enabled_cb.setChecked(True)
+            dlg._codex_enabled_cb.setChecked(True)
+            dlg._vision_enabled_cb.setChecked(True)
+            dlg._vision_key_input.setText("openai-compatible-key")
+            dlg._vision_url_input.setText("https://vision.example/v1")
+
+            self.assertTrue(dlg._google_enabled_cb.isChecked())
+            self.assertTrue(dlg._codex_enabled_cb.isChecked())
+            self.assertTrue(dlg._vision_enabled_cb.isChecked())
+
+            with patch.object(SettingsDialog, "_validate_google_environment_if_needed", return_value=True), \
+                    patch("OCRLLM.gui.settings_dialog.inspect_codex_cli") as inspect, \
+                    patch.object(SettingsDialog, "accept") as accept, \
+                    patch.object(QMessageBox, "warning") as warning:
+                inspect.return_value.ok = True
+                inspect.return_value.message = "ok"
+                dlg._on_apply()
+
+            accept.assert_called_once()
+            warning.assert_not_called()
+            applied = dlg.apply_config()
+
+            self.assertTrue(applied.google_api.enabled)
+            self.assertTrue(applied.codex_vision.enabled)
+            self.assertTrue(applied.vision_api.enabled)
+            self.assertEqual(applied.google_api.api_key, "AIza-test")
+            self.assertEqual(applied.vision_api.api_key, "openai-compatible-key")
+            dlg.deleteLater()
+            self._app.processEvents()
+
     def test_settings_dialog_prefills_api_fields_from_current_config_when_no_saved_settings(self):
         cfg = AppConfig().with_updates(
             api={"api_key": "dash-key", "base_url": "https://dash.example/v1"},

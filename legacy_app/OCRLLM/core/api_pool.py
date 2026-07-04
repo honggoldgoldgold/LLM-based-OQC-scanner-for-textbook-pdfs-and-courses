@@ -14,6 +14,7 @@ from threading import Event
 from typing import Optional
 
 from OCRLLM.config import AppConfig
+from OCRLLM.core.provider_selection import uses_google_for_vision, visual_parallel_requests
 from OCRLLM.core.providers.router import build_llm_client
 
 logger = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ class APIPool:
                 key = key.strip()
                 if not key:
                     continue
-                if cfg.google_api.enabled:
+                if uses_google_for_vision(cfg):
                     # Google Gemini 限流按 project 而不是单个 API key 计算；
                     # 这里保留多 key 槽位接口，供后续接入项目级 API 池管理。
                     slot_cfg = cfg.with_updates(google_api={"api_key": key})
@@ -103,15 +104,12 @@ class APIPool:
         else:
             # 免费模式或只有一个 key: 单客户端
             client = build_llm_client(cfg)
-            slot_key = cfg.google_api.api_key if cfg.google_api.enabled else cfg.api.api_key
+            slot_key = cfg.google_api.api_key if uses_google_for_vision(cfg) else cfg.api.api_key
             self._slots = [APISlot(key=slot_key, client=client)]
             logger.info("[API池] 免费/单 key 模式")
 
         # 并发上限: 每个 slot 最多 llm_parallel_requests 个并发
-        self._max_per_slot = max(
-            1,
-            cfg.google_api.parallel_requests if cfg.google_api.enabled else cfg.concurrency.llm_parallel_requests,
-        )
+        self._max_per_slot = visual_parallel_requests(cfg)
 
     @property
     def pool_size(self) -> int:

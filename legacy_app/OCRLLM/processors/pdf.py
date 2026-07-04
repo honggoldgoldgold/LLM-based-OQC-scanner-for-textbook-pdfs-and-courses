@@ -18,6 +18,13 @@ from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.core.incremental_writer import IncrementalMDWriter
 from OCRLLM.core.llm_client import LLMClient
 from OCRLLM.core.output_quality import failed_placeholder_quality_reason
+from OCRLLM.core.provider_selection import (
+    uses_google_for_vision,
+    visual_allows_high_parallel,
+    visual_batch_size,
+    visual_parallel_requests,
+    visual_request_stagger_seconds,
+)
 from OCRLLM.core.provider_errors import is_provider_setup_error
 from OCRLLM.core.task_runner import CancelledError, ProgressReporter
 from OCRLLM.core.progress_tracker import ProgressTracker
@@ -75,28 +82,16 @@ class PDFProcessor(BaseProcessor):
         }
 
     def _llm_batch_size(self) -> int:
-        return (
-            max(1, self.cfg.google_api.vision_batch_size)
-            if self.cfg.google_api.enabled
-            else self.cfg.processing.batch_size
-        )
+        return visual_batch_size(self.cfg)
 
     def _llm_parallel_requests(self) -> int:
-        return (
-            max(1, self.cfg.google_api.parallel_requests)
-            if self.cfg.google_api.enabled
-            else self.cfg.concurrency.llm_parallel_requests
-        )
+        return visual_parallel_requests(self.cfg)
 
     def _llm_request_stagger_seconds(self) -> float:
-        return (
-            max(0.0, self.cfg.google_api.request_stagger_seconds)
-            if self.cfg.google_api.enabled
-            else self.cfg.concurrency.llm_request_stagger_seconds
-        )
+        return visual_request_stagger_seconds(self.cfg)
 
     def _use_api_pool_for_llm(self) -> bool:
-        return (not self.cfg.google_api.enabled) and self.cfg.api.paid_mode and self.api_pool.pool_size > 1
+        return (not uses_google_for_vision(self.cfg)) and self.cfg.api.paid_mode and self.api_pool.pool_size > 1
 
     @classmethod
     def resume_options_from_checkpoint(cls, checkpoint: Checkpoint) -> dict:
@@ -321,7 +316,7 @@ class PDFProcessor(BaseProcessor):
                 logger.info("[PDF] 断点续传直接恢复完成 -> %s", output_path)
                 return output_path
 
-            high_parallel_provider = self.cfg.google_api.enabled or self.cfg.codex_vision.enabled
+            high_parallel_provider = visual_allows_high_parallel(self.cfg)
             base_workers = resolve_workers(self._llm_parallel_requests(), pending_count, hard_cap=64 if high_parallel_provider else 8)
             if self._use_api_pool_for_llm() and pending_count > base_workers:
                 workers = min(self.api_pool.max_parallel, pending_count, base_workers * self.api_pool.pool_size)
@@ -507,7 +502,7 @@ class PDFProcessor(BaseProcessor):
             return {}
 
     def _rerun_per_page(self, batch: list[str], start_page: int, prompt_template: str) -> tuple[str, bool]:
-        high_parallel_provider = self.cfg.google_api.enabled or self.cfg.codex_vision.enabled
+        high_parallel_provider = visual_allows_high_parallel(self.cfg)
         workers = resolve_workers(self._llm_parallel_requests(), len(batch), hard_cap=64 if high_parallel_provider else 8)
         parts = [""] * len(batch)
         success = True

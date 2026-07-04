@@ -319,12 +319,13 @@ class QCRMainWindow(QMainWindow):
         vis_enabled = s.value("ui/vision_api_enabled", type=bool) if s.contains("ui/vision_api_enabled") else False
         codex_enabled = s.value("ui/codex_vision_enabled", type=bool) if s.contains("ui/codex_vision_enabled") else False
         vis_provider = s.value("ui/vision_provider", type=str) or ""
-        vis_info = f" | 视觉Provider: {vis_provider}" if vis_enabled and not codex_enabled else ""
+        vis_info = f" | 视觉Provider: {vis_provider}" if vis_enabled else ""
         codex_info = " | Codex ask模式" if codex_enabled else ""
         google_info = " | 谷歌模式" if google_enabled else ""
         vision = (
-            (s.value("ui/google_vision_model", type=str) if google_enabled else "")
-            or (migrate_stored_codex_vision_model(s.value("ui/codex_model", type=str)) if codex_enabled else "")
+            (migrate_stored_codex_vision_model(s.value("ui/codex_model", type=str)) if codex_enabled else "")
+            or (s.value("ui/vision_model", type=str) if vis_enabled else "")
+            or (s.value("ui/google_vision_model", type=str) if google_enabled else "")
             or s.value("ui/vision_model", type=str)
             or self._cfg.models.vision_model
             or "—"
@@ -553,12 +554,8 @@ class QCRMainWindow(QMainWindow):
         ):
             QMessageBox.warning(self, "提示", "API Key 不能为空，请在 API 设置中填入 Key 或视觉 Provider Key")
             return False
-        if (
-            not self._cfg.google_api.enabled
-            and
-            self._cfg.vision_api.enabled
-            and not self._cfg.codex_vision.enabled
-            and (not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url)
+        if self._cfg.vision_api.enabled and not self._cfg.codex_vision.enabled and (
+            not self._cfg.vision_api.api_key or not self._cfg.vision_api.base_url
         ):
             QMessageBox.warning(self, "提示", "视觉独立 Provider 已启用，但视觉 API Key 或 Base URL 为空")
             return False
