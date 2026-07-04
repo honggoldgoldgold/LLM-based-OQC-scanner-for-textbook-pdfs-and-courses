@@ -53,10 +53,16 @@ under `legacy_app/`, but new projects should depend only on `src/ocrllm`.
 ## Current Repo Shape
 
 ```text
-legacy_app/        Old application code and old tests/docs.
-src/ocrllm/        New importable library package.
-tests/             New import-contract tests for the library facade.
-Architecture.md    Suspended future Rust/PyO3 architecture reference.
+START_HERE.md                         One-screen active/legacy/suspended map.
+AGENTS.md                             Repo-level boundary instructions.
+src/ocrllm/                           New importable library package.
+src/ocrllm/README_ACTIVE_LIBRARY.md   Local active-library boundary.
+src/ocrllm/AGENTS.md                  Local active-library agent rules.
+tests/                                New import-contract tests.
+legacy_app/                           Old application code and old tests/docs.
+legacy_app/README_LEGACY.md           Local legacy-app boundary.
+legacy_app/AGENTS.md                  Local legacy-app agent rules.
+Architecture.md                       Suspended future Rust/PyO3 reference.
 ```
 
 ## Done Means

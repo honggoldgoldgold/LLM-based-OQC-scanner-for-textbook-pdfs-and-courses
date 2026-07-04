@@ -7,6 +7,22 @@ This file is the project memory aid. Read it before changing the repo.
 The old OCRLLM app has been moved to `legacy_app/`; the active project is now a
 new importable Python library in `src/ocrllm`.
 
+## First Files To Read
+
+Use these files to avoid confusing new work, old app code, and suspended future
+planning:
+
+```text
+START_HERE.md                         One-screen repo map.
+README.md                             Short public overview.
+src/ocrllm/README_ACTIVE_LIBRARY.md   Active package boundary.
+src/ocrllm/AGENTS.md                  Active package editing rules.
+legacy_app/README_LEGACY.md           Legacy app boundary.
+legacy_app/AGENTS.md                  Legacy app editing rules.
+docs/library_migration_decision.md    Library-making decision and rationale.
+Architecture.md                       Suspended future architecture reference.
+```
+
 ## Why This Happened
 
 The previous codebase had useful features, but it was not a clean dependency for
@@ -148,8 +164,11 @@ legacy_app/environment.yml
 
 ## Done Criteria For This Migration Step
 
+- `START_HERE.md` gives an immediate visual split between active, legacy, and
+  suspended areas.
 - Root `README.md` explains the active path.
 - `MIGRATION_STATUS.md` explains what changed and what to do next.
+- `src/ocrllm/` is clearly marked as the active importable package.
 - `Architecture.md` is clearly marked as suspended future planning.
 - `legacy_app/` is clearly marked as old app/reference code.
 - New tests prove the active import contract.

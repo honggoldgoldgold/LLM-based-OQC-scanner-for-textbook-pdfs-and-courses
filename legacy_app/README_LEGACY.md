@@ -5,6 +5,17 @@ This folder contains the old OCRLLM application code.
 It is preserved for reference, comparison, and gradual porting. It is not the
 active library package and should not be imported by new downstream projects.
 
+Read `legacy_app/AGENTS.md` before making changes in this directory.
+
+## Boundary Summary
+
+```text
+legacy_app/OCRLLM/     Old application package.
+legacy_app/tests/      Old application tests.
+legacy_app/docs/       Old application docs.
+legacy_app/start.bat   Old application launcher.
+```
+
 Use the root package instead:
 
 ```python

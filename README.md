@@ -1,7 +1,9 @@
 # OCRLLM
 
 Read this first if you are returning to the project after losing context:
-`MIGRATION_STATUS.md`.
+`START_HERE.md`.
+
+Then read `MIGRATION_STATUS.md` for the migration history and next steps.
 
 OCRLLM is now being extracted into a Python library that other projects can
 import as `ocrllm`. The previous application code was moved into
@@ -43,11 +45,18 @@ print(result.markdown)
 ## Repository Map
 
 ```text
-src/ocrllm/          Active importable library package.
-tests/               Active library import-contract tests.
-legacy_app/          Old GUI/CLI/FastAPI application and old tests/docs.
-docs/                Active migration decisions for the new library.
-Architecture.md      Suspended future architecture reference.
+START_HERE.md                         One-screen new/old/suspended repo map.
+AGENTS.md                             Repo-level boundary instructions.
+src/ocrllm/                           Active importable library package.
+src/ocrllm/README_ACTIVE_LIBRARY.md   Local active-library boundary.
+src/ocrllm/AGENTS.md                  Local active-library agent rules.
+tests/                                Active library import-contract tests.
+legacy_app/                           Old GUI/CLI/FastAPI application.
+legacy_app/README_LEGACY.md           Local legacy-app boundary.
+legacy_app/AGENTS.md                  Local legacy-app agent rules.
+docs/                                 Active migration decisions.
+Architecture.md                       Suspended future architecture reference.
+output/, temp/, ocrllm_social_e2e/    Runtime artifacts, not source.
 ```
 
 ## Rules For New Work
