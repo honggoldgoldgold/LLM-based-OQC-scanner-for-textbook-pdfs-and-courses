@@ -34,16 +34,12 @@ try:
     from OCRLLM.core.codex_vision import (
         CODEX_VISION_DEFAULT_MODEL,
         CODEX_VISION_DEFAULT_REASONING,
-        CODEX_VISION_BATCH_SIZE,
-        CODEX_VISION_MAX_PARALLEL,
         migrate_stored_codex_vision_model,
         normalize_codex_vision_model,
     )
 except ImportError:
     CODEX_VISION_DEFAULT_MODEL = "codex"
     CODEX_VISION_DEFAULT_REASONING = ""
-    CODEX_VISION_BATCH_SIZE = 5
-    CODEX_VISION_MAX_PARALLEL = 2
     def migrate_stored_codex_vision_model(model: str | None) -> str:
         return normalize_codex_vision_model(model)
 
@@ -382,6 +378,10 @@ class QCRMainWindow(QMainWindow):
         codex_model = migrate_stored_codex_vision_model(_str("ui/codex_model", self._cfg.codex_vision.model))
         codex_reasoning = _str("ui/codex_reasoning_effort", self._cfg.codex_vision.reasoning_effort) or CODEX_VISION_DEFAULT_REASONING
         codex_timeout = _int("ui/codex_timeout_seconds", self._cfg.codex_vision.timeout_seconds)
+        codex_parallel = max(1, _int("ui/codex_parallel_requests", self._cfg.codex_vision.parallel_requests))
+        codex_stagger = max(0.0, _float("ui/codex_request_stagger_seconds", self._cfg.codex_vision.request_stagger_seconds))
+        codex_vision_batch = max(1, _int("ui/codex_vision_batch_size", self._cfg.codex_vision.vision_batch_size))
+        codex_video_batch = max(1, _int("ui/codex_video_frame_batch_size", self._cfg.codex_vision.video_frame_batch_size))
         vis_enabled = _bool("ui/vision_api_enabled", self._cfg.vision_api.enabled)
         vis_provider = _str("ui/vision_provider", self._cfg.vision_api.provider)
         vis_key = _str("ui/vision_api_key", self._cfg.vision_api.api_key)
@@ -447,6 +447,10 @@ class QCRMainWindow(QMainWindow):
                 "model": codex_model,
                 "reasoning_effort": codex_reasoning,
                 "timeout_seconds": codex_timeout,
+                "parallel_requests": codex_parallel,
+                "request_stagger_seconds": codex_stagger,
+                "vision_batch_size": codex_vision_batch,
+                "video_frame_batch_size": codex_video_batch,
             },
             "vision_api": {
                 "enabled": vis_enabled,
@@ -460,19 +464,16 @@ class QCRMainWindow(QMainWindow):
                 "vision_model_queue": _queue("ui/vision_model_queue", self._cfg.vision_api.vision_model_queue),
             },
             "concurrency": {
-                "llm_parallel_requests": (
-                    CODEX_VISION_MAX_PARALLEL
-                    if codex_enabled
-                    else new_parallel if new_parallel > 0
-                    else self._cfg.concurrency.llm_parallel_requests
+                "llm_parallel_requests": codex_parallel if codex_enabled else (
+                    new_parallel if new_parallel > 0 else self._cfg.concurrency.llm_parallel_requests
                 ),
-                "llm_request_stagger_seconds": new_stagger,
+                "llm_request_stagger_seconds": codex_stagger if codex_enabled else new_stagger,
             },
             "processing": {
-                "batch_size": CODEX_VISION_BATCH_SIZE if codex_enabled else processing_batch,
+                "batch_size": codex_vision_batch if codex_enabled else processing_batch,
             },
             "video": {
-                "batch_size": CODEX_VISION_BATCH_SIZE if codex_enabled else video_batch,
+                "batch_size": codex_video_batch if codex_enabled else video_batch,
             },
         }
         if new_url:

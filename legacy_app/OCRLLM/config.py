@@ -31,6 +31,8 @@ VISION_MODEL_OPTIONS = _legacy_vision_options()
 DEFAULT_CODEX_VISION_REASONING_EFFORT = "medium"
 CODEX_VISION_RUNTIME_BATCH_SIZE = 5
 CODEX_VISION_RUNTIME_PARALLEL = 2
+CODEX_VISION_RUNTIME_STAGGER_SECONDS = 0.5
+CODEX_VISION_RUNTIME_VIDEO_BATCH_SIZE = 5
 
 
 @dataclass
@@ -76,6 +78,10 @@ class CodexVisionConfig:
     model: str = DEFAULT_CODEX_VISION_MODEL
     reasoning_effort: str = DEFAULT_CODEX_VISION_REASONING_EFFORT
     timeout_seconds: int = 600
+    parallel_requests: int = CODEX_VISION_RUNTIME_PARALLEL
+    request_stagger_seconds: float = CODEX_VISION_RUNTIME_STAGGER_SECONDS
+    vision_batch_size: int = CODEX_VISION_RUNTIME_BATCH_SIZE
+    video_frame_batch_size: int = CODEX_VISION_RUNTIME_VIDEO_BATCH_SIZE
 
 
 @dataclass
@@ -307,6 +313,18 @@ class AppConfig:
         codex_reasoning = os.environ.get("OCRLLM_CODEX_REASONING_EFFORT")
         if codex_reasoning:
             updates.setdefault("codex_vision", {})["reasoning_effort"] = codex_reasoning
+        codex_parallel = _env_int("OCRLLM_CODEX_PARALLEL_REQUESTS")
+        if codex_parallel is not None:
+            updates.setdefault("codex_vision", {})["parallel_requests"] = max(1, codex_parallel)
+        codex_stagger = _env_float("OCRLLM_CODEX_REQUEST_STAGGER_SECONDS")
+        if codex_stagger is not None:
+            updates.setdefault("codex_vision", {})["request_stagger_seconds"] = max(0.0, codex_stagger)
+        codex_vision_batch = _env_int("OCRLLM_CODEX_VISION_BATCH_SIZE")
+        if codex_vision_batch is not None:
+            updates.setdefault("codex_vision", {})["vision_batch_size"] = max(1, codex_vision_batch)
+        codex_video_batch = _env_int("OCRLLM_CODEX_VIDEO_FRAME_BATCH_SIZE")
+        if codex_video_batch is not None:
+            updates.setdefault("codex_vision", {})["video_frame_batch_size"] = max(1, codex_video_batch)
         google_enabled = _env_bool("OCRLLM_GOOGLE_MODE_ENABLED")
         if google_enabled is not None:
             updates.setdefault("google_api", {})["enabled"] = google_enabled
@@ -346,9 +364,23 @@ class AppConfig:
             )
             updates.setdefault("codex_vision", {})["model"] = codex_model_value
             updates.setdefault("models", {})["vision_model"] = codex_model_value
-            updates.setdefault("concurrency", {})["llm_parallel_requests"] = CODEX_VISION_RUNTIME_PARALLEL
-            updates.setdefault("processing", {})["batch_size"] = CODEX_VISION_RUNTIME_BATCH_SIZE
-            updates.setdefault("video", {})["batch_size"] = CODEX_VISION_RUNTIME_BATCH_SIZE
+            codex_updates = updates.get("codex_vision", {})
+            updates.setdefault("concurrency", {})["llm_parallel_requests"] = max(
+                1,
+                int(codex_updates.get("parallel_requests", cfg.codex_vision.parallel_requests)),
+            )
+            updates.setdefault("concurrency", {})["llm_request_stagger_seconds"] = max(
+                0.0,
+                float(codex_updates.get("request_stagger_seconds", cfg.codex_vision.request_stagger_seconds)),
+            )
+            updates.setdefault("processing", {})["batch_size"] = max(
+                1,
+                int(codex_updates.get("vision_batch_size", cfg.codex_vision.vision_batch_size)),
+            )
+            updates.setdefault("video", {})["batch_size"] = max(
+                1,
+                int(codex_updates.get("video_frame_batch_size", cfg.codex_vision.video_frame_batch_size)),
+            )
         return cfg.with_updates(**updates) if updates else cfg
 
     def with_updates(self, **kwargs) -> AppConfig:

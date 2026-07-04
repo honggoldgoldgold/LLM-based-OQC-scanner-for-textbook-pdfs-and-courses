@@ -290,7 +290,31 @@ class SettingsDialog(QDialog):
         codex_row2.addWidget(self._codex_timeout_input)
         codex_layout.addLayout(codex_row2)
 
-        codex_hint = QLabel("Codex 模式运行时固定为每批 5 张图片、最多 2 个识别批次并行；切回 API 模式后恢复原视觉模型和原 Provider 设置。")
+        codex_perf_row = QHBoxLayout()
+        codex_perf_row.addWidget(QLabel("Codex 并行数量:"))
+        self._codex_parallel_input = QSpinBox()
+        self._codex_parallel_input.setRange(1, 256)
+        self._codex_parallel_input.setToolTip("本机 Codex 模式独立并发；会映射到旧处理器的 LLM 并发数")
+        codex_perf_row.addWidget(self._codex_parallel_input)
+        codex_perf_row.addWidget(QLabel("Codex 间隔(秒):"))
+        self._codex_stagger_input = QDoubleSpinBox()
+        self._codex_stagger_input.setRange(0.0, 3600.0)
+        self._codex_stagger_input.setDecimals(1)
+        self._codex_stagger_input.setSingleStep(0.5)
+        codex_perf_row.addWidget(self._codex_stagger_input)
+        codex_perf_row.addWidget(QLabel("图片数量:"))
+        self._codex_vision_batch_input = QSpinBox()
+        self._codex_vision_batch_input.setRange(1, 200)
+        self._codex_vision_batch_input.setToolTip("PDF/板书每批传给 Codex 的图片数量")
+        codex_perf_row.addWidget(self._codex_vision_batch_input)
+        codex_perf_row.addWidget(QLabel("视频帧数量:"))
+        self._codex_video_batch_input = QSpinBox()
+        self._codex_video_batch_input.setRange(1, 200)
+        self._codex_video_batch_input.setToolTip("录课视频板书识别每批传给 Codex 的帧数量")
+        codex_perf_row.addWidget(self._codex_video_batch_input)
+        codex_layout.addLayout(codex_perf_row)
+
+        codex_hint = QLabel("说明：Codex 模式的图片/视频帧批大小、并行数量和错峰间隔独立配置；切回 API 模式后恢复原视觉模型和原 Provider 设置。")
         codex_hint.setWordWrap(True)
         codex_layout.addWidget(codex_hint)
         body_layout.addWidget(codex_group)
@@ -708,6 +732,10 @@ class SettingsDialog(QDialog):
         self._codex_reasoning_combo.setEnabled(not codex_disabled)
         self._codex_command_input.setEnabled(not codex_disabled)
         self._codex_timeout_input.setEnabled(not codex_disabled)
+        self._codex_parallel_input.setEnabled(not codex_disabled)
+        self._codex_stagger_input.setEnabled(not codex_disabled)
+        self._codex_vision_batch_input.setEnabled(not codex_disabled)
+        self._codex_video_batch_input.setEnabled(not codex_disabled)
         self._codex_check_btn.setEnabled(not codex_disabled)
 
         self._api_key_input.setEnabled(not google)
@@ -739,6 +767,10 @@ class SettingsDialog(QDialog):
             model=self._codex_model(),
             reasoning_effort=self._codex_reasoning_combo.currentText().strip() or CODEX_VISION_DEFAULT_REASONING,
             timeout_seconds=self._codex_timeout_input.value(),
+            parallel_requests=self._codex_parallel_input.value(),
+            request_stagger_seconds=self._codex_stagger_input.value(),
+            vision_batch_size=self._codex_vision_batch_input.value(),
+            video_frame_batch_size=self._codex_video_batch_input.value(),
         )
 
     def _codex_check_signature(self) -> str:
@@ -890,6 +922,24 @@ class SettingsDialog(QDialog):
             self._codex_reasoning_combo.setCurrentText(self._settings.value("ui/codex_reasoning_effort", type=str) or CODEX_VISION_DEFAULT_REASONING)
         if self._settings.contains("ui/codex_timeout_seconds"):
             self._codex_timeout_input.setValue(int(self._settings.value("ui/codex_timeout_seconds")))
+        else:
+            self._codex_timeout_input.setValue(self._cfg.codex_vision.timeout_seconds)
+        if self._settings.contains("ui/codex_parallel_requests"):
+            self._codex_parallel_input.setValue(int(self._settings.value("ui/codex_parallel_requests")))
+        else:
+            self._codex_parallel_input.setValue(self._cfg.codex_vision.parallel_requests)
+        if self._settings.contains("ui/codex_request_stagger_seconds"):
+            self._codex_stagger_input.setValue(float(self._settings.value("ui/codex_request_stagger_seconds")))
+        else:
+            self._codex_stagger_input.setValue(self._cfg.codex_vision.request_stagger_seconds)
+        if self._settings.contains("ui/codex_vision_batch_size"):
+            self._codex_vision_batch_input.setValue(int(self._settings.value("ui/codex_vision_batch_size")))
+        else:
+            self._codex_vision_batch_input.setValue(self._cfg.codex_vision.vision_batch_size)
+        if self._settings.contains("ui/codex_video_frame_batch_size"):
+            self._codex_video_batch_input.setValue(int(self._settings.value("ui/codex_video_frame_batch_size")))
+        else:
+            self._codex_video_batch_input.setValue(self._cfg.codex_vision.video_frame_batch_size)
         if self._settings.contains("ui/vision_model_before_codex"):
             self._previous_non_codex_vision_model = self._settings.value("ui/vision_model_before_codex", type=str) or ""
         # 视觉 Provider
@@ -999,6 +1049,10 @@ class SettingsDialog(QDialog):
         self._settings.setValue("ui/codex_model", self._codex_model())
         self._settings.setValue("ui/codex_reasoning_effort", self._codex_reasoning_combo.currentText().strip())
         self._settings.setValue("ui/codex_timeout_seconds", self._codex_timeout_input.value())
+        self._settings.setValue("ui/codex_parallel_requests", self._codex_parallel_input.value())
+        self._settings.setValue("ui/codex_request_stagger_seconds", self._codex_stagger_input.value())
+        self._settings.setValue("ui/codex_vision_batch_size", self._codex_vision_batch_input.value())
+        self._settings.setValue("ui/codex_video_frame_batch_size", self._codex_video_batch_input.value())
         self._settings.setValue("ui/vision_model_before_codex", self._previous_non_codex_vision_model)
         self._settings.setValue("ui/vision_api_enabled", self._vision_enabled_cb.isChecked())
         self._settings.setValue("ui/vision_provider", self._vision_provider_input.text())
@@ -1101,6 +1155,10 @@ class SettingsDialog(QDialog):
         google_key = self._google_key_input.text().strip()
         google_vision_model = self._google_vision_model_combo.currentText().strip() or self._pending_google_vision_model
         google_audio_model = self._google_audio_model_combo.currentText().strip() or self._pending_google_audio_model
+        codex_parallel = self._codex_parallel_input.value()
+        codex_stagger = self._codex_stagger_input.value()
+        codex_vision_batch = self._codex_vision_batch_input.value()
+        codex_video_batch = self._codex_video_batch_input.value()
 
         api_keys = [new_key] if new_key else []
         if extra_keys_text:
@@ -1146,6 +1204,10 @@ class SettingsDialog(QDialog):
                 "model": self._codex_model(),
                 "reasoning_effort": self._codex_reasoning_combo.currentText().strip() or CODEX_VISION_DEFAULT_REASONING,
                 "timeout_seconds": self._codex_timeout_input.value(),
+                "parallel_requests": codex_parallel,
+                "request_stagger_seconds": codex_stagger,
+                "vision_batch_size": codex_vision_batch,
+                "video_frame_batch_size": codex_video_batch,
             },
             "vision_api": {
                 "enabled": vis_enabled,
@@ -1159,14 +1221,14 @@ class SettingsDialog(QDialog):
                 "vision_model_queue": self._get_queue_items(),
             },
             "concurrency": {
-                "llm_parallel_requests": new_parallel,
-                "llm_request_stagger_seconds": new_stagger,
+                "llm_parallel_requests": codex_parallel if codex_enabled else new_parallel,
+                "llm_request_stagger_seconds": codex_stagger if codex_enabled else new_stagger,
             },
             "processing": {
-                "batch_size": processing_batch,
+                "batch_size": codex_vision_batch if codex_enabled else processing_batch,
             },
             "video": {
-                "batch_size": video_batch,
+                "batch_size": codex_video_batch if codex_enabled else video_batch,
             },
         }
         if new_url:
@@ -1187,7 +1249,8 @@ class SettingsDialog(QDialog):
             "vision_base_url": vis_url,
             "vision_wire_api": vis_wire,
             "auto_vision_model": False,
-            "new_parallel": new_parallel, "new_stagger": new_stagger,
+            "new_parallel": codex_parallel if codex_enabled else new_parallel,
+            "new_stagger": codex_stagger if codex_enabled else new_stagger,
             "paid_mode": paid_mode, "api_keys": api_keys,
         }
         return updates, info

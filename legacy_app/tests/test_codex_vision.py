@@ -27,6 +27,8 @@ class CodexVisionRunnerTests(unittest.TestCase):
 
         self.assertEqual(cfg.model, "gpt-5.5")
         self.assertEqual(cfg.reasoning_effort, "medium")
+        self.assertEqual(cfg.parallel_requests, CODEX_VISION_MAX_PARALLEL)
+        self.assertEqual(cfg.vision_batch_size, CODEX_VISION_BATCH_SIZE)
 
     def test_stored_old_default_migrates_to_current_default(self):
         self.assertEqual(migrate_stored_codex_vision_model("gpt-5.4-mini"), CODEX_VISION_DEFAULT_MODEL)
@@ -89,9 +91,15 @@ class CodexVisionRunnerTests(unittest.TestCase):
         self.assertEqual(result, "TEXT")
         runner_cls.return_value.recognize.assert_called_once_with("read", ["a.png"])
 
-    def test_runtime_limits_force_two_parallel_batches_and_five_images(self):
+    def test_runtime_limits_use_codex_specific_controls(self):
         cfg = AppConfig().with_updates(
-            codex_vision={"enabled": True},
+            codex_vision={
+                "enabled": True,
+                "parallel_requests": 7,
+                "request_stagger_seconds": 3.5,
+                "vision_batch_size": 8,
+                "video_frame_batch_size": 9,
+            },
             concurrency={"llm_parallel_requests": 99},
             processing={"batch_size": 20},
             video={"batch_size": 30},
@@ -99,19 +107,31 @@ class CodexVisionRunnerTests(unittest.TestCase):
 
         limited = apply_codex_vision_runtime_limits(cfg)
 
-        self.assertEqual(limited.concurrency.llm_parallel_requests, CODEX_VISION_MAX_PARALLEL)
-        self.assertEqual(limited.processing.batch_size, CODEX_VISION_BATCH_SIZE)
-        self.assertEqual(limited.video.batch_size, CODEX_VISION_BATCH_SIZE)
+        self.assertEqual(limited.concurrency.llm_parallel_requests, 7)
+        self.assertEqual(limited.concurrency.llm_request_stagger_seconds, 3.5)
+        self.assertEqual(limited.processing.batch_size, 8)
+        self.assertEqual(limited.video.batch_size, 9)
 
     def test_env_codex_mode_applies_runtime_limits_for_cli_entrypoints(self):
-        with patch.dict(os.environ, {"OCRLLM_CODEX_VISION_ENABLED": "1"}, clear=True):
+        with patch.dict(os.environ, {
+            "OCRLLM_CODEX_VISION_ENABLED": "1",
+            "OCRLLM_CODEX_PARALLEL_REQUESTS": "6",
+            "OCRLLM_CODEX_REQUEST_STAGGER_SECONDS": "2.5",
+            "OCRLLM_CODEX_VISION_BATCH_SIZE": "7",
+            "OCRLLM_CODEX_VIDEO_FRAME_BATCH_SIZE": "8",
+        }, clear=True):
             cfg = AppConfig.from_env()
 
         self.assertTrue(cfg.codex_vision.enabled)
         self.assertEqual(cfg.models.vision_model, "gpt-5.5")
-        self.assertEqual(cfg.concurrency.llm_parallel_requests, CODEX_VISION_MAX_PARALLEL)
-        self.assertEqual(cfg.processing.batch_size, CODEX_VISION_BATCH_SIZE)
-        self.assertEqual(cfg.video.batch_size, CODEX_VISION_BATCH_SIZE)
+        self.assertEqual(cfg.codex_vision.parallel_requests, 6)
+        self.assertEqual(cfg.codex_vision.request_stagger_seconds, 2.5)
+        self.assertEqual(cfg.codex_vision.vision_batch_size, 7)
+        self.assertEqual(cfg.codex_vision.video_frame_batch_size, 8)
+        self.assertEqual(cfg.concurrency.llm_parallel_requests, 6)
+        self.assertEqual(cfg.concurrency.llm_request_stagger_seconds, 2.5)
+        self.assertEqual(cfg.processing.batch_size, 7)
+        self.assertEqual(cfg.video.batch_size, 8)
 
     def test_probe_decodes_utf8_output_when_locale_is_cp1252(self):
         script = "import sys; sys.stdout.buffer.write('识图完成 ŝ'.encode('utf-8'))"
@@ -200,6 +220,13 @@ class CodexInspectionTests(unittest.TestCase):
 
         with self.assertRaises(CodexCLIUnavailableError):
             runner.recognize("read", [f"{i}.png" for i in range(CODEX_VISION_BATCH_SIZE + 1)])
+
+    def test_runner_uses_configured_image_limit(self):
+        cfg = CodexVisionConfig(enabled=True, vision_batch_size=7, video_frame_batch_size=7)
+        runner = CodexVisionRunner(cfg)
+
+        with self.assertRaises(CodexCLIUnavailableError):
+            runner.recognize("read", [f"{i}.png" for i in range(8)])
 
 
 if __name__ == "__main__":

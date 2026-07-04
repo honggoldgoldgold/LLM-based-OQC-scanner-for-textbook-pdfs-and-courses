@@ -321,7 +321,8 @@ class PDFProcessor(BaseProcessor):
                 logger.info("[PDF] 断点续传直接恢复完成 -> %s", output_path)
                 return output_path
 
-            base_workers = resolve_workers(self._llm_parallel_requests(), pending_count, hard_cap=64 if self.cfg.google_api.enabled else 8)
+            high_parallel_provider = self.cfg.google_api.enabled or self.cfg.codex_vision.enabled
+            base_workers = resolve_workers(self._llm_parallel_requests(), pending_count, hard_cap=64 if high_parallel_provider else 8)
             if self._use_api_pool_for_llm() and pending_count > base_workers:
                 workers = min(self.api_pool.max_parallel, pending_count, base_workers * self.api_pool.pool_size)
                 logger.info("[PDF] 付费模式: 并行度提升 %d → %d (API 池 %d 个 key)", base_workers, workers, self.api_pool.pool_size)
@@ -506,7 +507,8 @@ class PDFProcessor(BaseProcessor):
             return {}
 
     def _rerun_per_page(self, batch: list[str], start_page: int, prompt_template: str) -> tuple[str, bool]:
-        workers = resolve_workers(self._llm_parallel_requests(), len(batch), hard_cap=64 if self.cfg.google_api.enabled else 8)
+        high_parallel_provider = self.cfg.google_api.enabled or self.cfg.codex_vision.enabled
+        workers = resolve_workers(self._llm_parallel_requests(), len(batch), hard_cap=64 if high_parallel_provider else 8)
         parts = [""] * len(batch)
         success = True
 

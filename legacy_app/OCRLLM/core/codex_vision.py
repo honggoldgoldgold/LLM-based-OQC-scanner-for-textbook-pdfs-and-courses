@@ -17,6 +17,8 @@ from OCRLLM.config import (
     CodexVisionConfig,
     CODEX_VISION_RUNTIME_BATCH_SIZE,
     CODEX_VISION_RUNTIME_PARALLEL,
+    CODEX_VISION_RUNTIME_STAGGER_SECONDS,
+    CODEX_VISION_RUNTIME_VIDEO_BATCH_SIZE,
     DEFAULT_CODEX_VISION_REASONING_EFFORT,
 )
 from OCRLLM.core.codex_model_catalog import (
@@ -31,6 +33,8 @@ logger = logging.getLogger(__name__)
 CODEX_VISION_DEFAULT_REASONING = DEFAULT_CODEX_VISION_REASONING_EFFORT
 CODEX_VISION_BATCH_SIZE = CODEX_VISION_RUNTIME_BATCH_SIZE
 CODEX_VISION_MAX_PARALLEL = CODEX_VISION_RUNTIME_PARALLEL
+CODEX_VISION_STAGGER_SECONDS = CODEX_VISION_RUNTIME_STAGGER_SECONDS
+CODEX_VISION_VIDEO_BATCH_SIZE = CODEX_VISION_RUNTIME_VIDEO_BATCH_SIZE
 CODEX_VISION_REASONING_LEVELS = ("low", "medium", "high", "xhigh")
 
 _DISABLED_CODEX_FEATURES = (
@@ -190,16 +194,19 @@ def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
 
 
 def apply_codex_vision_runtime_limits(cfg: AppConfig) -> AppConfig:
-    """Codex 视觉模式运行时限制：最多 2 个并行批次，每批 5 张图。"""
+    """Apply Codex-specific runtime controls to the legacy processor fields."""
     if not cfg.codex_vision.enabled:
         return cfg
     model = normalize_codex_vision_model(cfg.codex_vision.model)
     return cfg.with_updates(
         codex_vision={"model": model},
         models={"vision_model": model},
-        concurrency={"llm_parallel_requests": CODEX_VISION_MAX_PARALLEL},
-        processing={"batch_size": CODEX_VISION_BATCH_SIZE},
-        video={"batch_size": CODEX_VISION_BATCH_SIZE},
+        concurrency={
+            "llm_parallel_requests": max(1, int(cfg.codex_vision.parallel_requests)),
+            "llm_request_stagger_seconds": max(0.0, float(cfg.codex_vision.request_stagger_seconds)),
+        },
+        processing={"batch_size": max(1, int(cfg.codex_vision.vision_batch_size))},
+        video={"batch_size": max(1, int(cfg.codex_vision.video_frame_batch_size))},
     )
 
 
@@ -210,9 +217,14 @@ class CodexVisionRunner:
         self.cfg = cfg
 
     def recognize(self, prompt: str, image_paths: list[str]) -> str:
-        if len(image_paths) > CODEX_VISION_BATCH_SIZE:
+        batch_limit = max(
+            1,
+            int(self.cfg.vision_batch_size),
+            int(self.cfg.video_frame_batch_size),
+        )
+        if len(image_paths) > batch_limit:
             raise CodexCLIUnavailableError(
-                f"Codex 模式单次最多识别 {CODEX_VISION_BATCH_SIZE} 张图片，当前 {len(image_paths)} 张"
+                f"Codex 模式单次最多识别 {batch_limit} 张图片，当前 {len(image_paths)} 张"
             )
         if not image_paths:
             raise CodexCLIUnavailableError("Codex 模式需要至少一张图片")

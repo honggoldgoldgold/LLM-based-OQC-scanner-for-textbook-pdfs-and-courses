@@ -901,7 +901,8 @@ class VideoProcessor(BaseProcessor):
         last_batch_idx = total_batches - 1
 
         # 计算并行度（与 PDF 统一策略）
-        base_workers = resolve_workers(self._llm_parallel_requests(), total_batches, hard_cap=64 if self.cfg.google_api.enabled else 8)
+        high_parallel_provider = self.cfg.google_api.enabled or self.cfg.codex_vision.enabled
+        base_workers = resolve_workers(self._llm_parallel_requests(), total_batches, hard_cap=64 if high_parallel_provider else 8)
         if self._use_api_pool_for_llm() and total_batches > base_workers:
             workers = min(self.api_pool.max_parallel, total_batches, base_workers * self.api_pool.pool_size)
             logger.info("[VIDEO] 付费模式: 并行度提升 %d → %d (API 池 %d 个 key)",

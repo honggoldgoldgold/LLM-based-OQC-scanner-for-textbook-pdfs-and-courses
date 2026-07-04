@@ -9,6 +9,7 @@ from PyQt5.QtCore import QSettings
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
 from OCRLLM.config import AppConfig
+from OCRLLM.gui.app import QCRMainWindow
 from OCRLLM.gui.settings_dialog import SettingsDialog
 
 
@@ -51,6 +52,10 @@ class CodexSettingsDialogTests(unittest.TestCase):
             dlg._api_key_input.setText("")
             dlg._codex_enabled_cb.setChecked(True)
             dlg._codex_reasoning_combo.setCurrentText("medium")
+            dlg._codex_parallel_input.setValue(6)
+            dlg._codex_stagger_input.setValue(2.5)
+            dlg._codex_vision_batch_input.setValue(7)
+            dlg._codex_video_batch_input.setValue(8)
 
             with patch("OCRLLM.gui.settings_dialog.inspect_codex_cli") as inspect, \
                     patch.object(SettingsDialog, "accept") as accept, \
@@ -61,8 +66,37 @@ class CodexSettingsDialogTests(unittest.TestCase):
 
             inspect.assert_called_once()
             self.assertEqual(inspect.call_args.args[0].model, "gpt-5.5")
+            self.assertEqual(inspect.call_args.args[0].parallel_requests, 6)
             accept.assert_called_once()
             warning.assert_not_called()
+            applied = dlg.apply_config()
+            self.assertEqual(applied.codex_vision.parallel_requests, 6)
+            self.assertEqual(applied.codex_vision.request_stagger_seconds, 2.5)
+            self.assertEqual(applied.codex_vision.vision_batch_size, 7)
+            self.assertEqual(applied.codex_vision.video_frame_batch_size, 8)
+            self.assertEqual(applied.concurrency.llm_parallel_requests, 6)
+            self.assertEqual(applied.concurrency.llm_request_stagger_seconds, 2.5)
+            self.assertEqual(applied.processing.batch_size, 7)
+            self.assertEqual(applied.video.batch_size, 8)
+            dlg.deleteLater()
+            self._app.processEvents()
+
+    def test_codex_runtime_controls_are_restored_from_qsettings(self):
+        settings = QSettings("OCRLLM", "QCR")
+        settings.setValue("ui/codex_parallel_requests", 11)
+        settings.setValue("ui/codex_request_stagger_seconds", 4.5)
+        settings.setValue("ui/codex_vision_batch_size", 12)
+        settings.setValue("ui/codex_video_frame_batch_size", 13)
+        settings.sync()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            dlg = SettingsDialog(None, cfg)
+
+            self.assertEqual(dlg._codex_parallel_input.value(), 11)
+            self.assertEqual(dlg._codex_stagger_input.value(), 4.5)
+            self.assertEqual(dlg._codex_vision_batch_input.value(), 12)
+            self.assertEqual(dlg._codex_video_batch_input.value(), 13)
             dlg.deleteLater()
             self._app.processEvents()
 
@@ -88,6 +122,32 @@ class CodexSettingsDialogTests(unittest.TestCase):
         self.assertGreaterEqual(dlg.minimumHeight(), 640)
         dlg.deleteLater()
         self._app.processEvents()
+
+    def test_main_window_sync_uses_codex_runtime_controls(self):
+        settings = QSettings("OCRLLM", "QCR")
+        settings.setValue("ui/codex_vision_enabled", True)
+        settings.setValue("ui/codex_parallel_requests", 9)
+        settings.setValue("ui/codex_request_stagger_seconds", 1.5)
+        settings.setValue("ui/codex_vision_batch_size", 10)
+        settings.setValue("ui/codex_video_frame_batch_size", 11)
+        settings.sync()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            window = QCRMainWindow(cfg=cfg)
+            window._sync_api_from_ui()
+
+            self.assertTrue(window._cfg.codex_vision.enabled)
+            self.assertEqual(window._cfg.codex_vision.parallel_requests, 9)
+            self.assertEqual(window._cfg.codex_vision.request_stagger_seconds, 1.5)
+            self.assertEqual(window._cfg.codex_vision.vision_batch_size, 10)
+            self.assertEqual(window._cfg.codex_vision.video_frame_batch_size, 11)
+            self.assertEqual(window._cfg.concurrency.llm_parallel_requests, 9)
+            self.assertEqual(window._cfg.concurrency.llm_request_stagger_seconds, 1.5)
+            self.assertEqual(window._cfg.processing.batch_size, 10)
+            self.assertEqual(window._cfg.video.batch_size, 11)
+            window.deleteLater()
+            self._app.processEvents()
 
 
 if __name__ == "__main__":
