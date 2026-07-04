@@ -503,6 +503,8 @@ class GoogleProviderClient:
                     continue
                 raise
         if last_error is not None:
+            if last_error.classified.kind in {GoogleErrorKind.RATE_LIMIT, GoogleErrorKind.QUOTA_EXHAUSTED}:
+                raise RuntimeError(f"Google {kind} 额度或限速耗尽: {last_error}") from last_error
             raise RuntimeError(f"Google {kind} 候选模型均不可用: {last_error}") from last_error
         raise RuntimeError(f"Google {kind} 没有可用模型")
 

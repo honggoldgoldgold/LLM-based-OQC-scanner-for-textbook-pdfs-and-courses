@@ -9,6 +9,7 @@ from OCRLLM import prompts
 from OCRLLM.config import AppConfig
 from OCRLLM.core.providers.google_provider import GoogleProviderClient
 from OCRLLM.processors.audio import (
+    ASRNoValidFragmentError,
     AudioChunk,
     AudioProcessor,
     AudioSignalStats,
@@ -646,13 +647,19 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             processor._should_use_short_asr = Mock(return_value=(False, 600.0))
             processor._upload_file = Mock(return_value="https://example.com/audio.mp3")
             processor._submit_task = Mock(return_value="task-id")
-            processor._wait_result = Mock(side_effect=RuntimeError("NO_VALID_FRAGMENT"))
+            processor._wait_result = Mock(
+                side_effect=ASRNoValidFragmentError("DashScope filetrans 返回 NO_VALID_FRAGMENT")
+            )
             processor._short_asr = Mock(side_effect=AssertionError("short fallback must not run"))
 
             with self.assertRaises(RuntimeError) as ctx:
                 processor.process(audio_path, output_path=output_path)
 
-            self.assertIn("已禁止自动回退短音频", str(ctx.exception))
+            message = str(ctx.exception)
+            self.assertIn("filetrans", message)
+            self.assertIn("NO_VALID_FRAGMENT", message)
+            self.assertNotIn("自动回退", message)
+            self.assertNotIn("分段短音频", message)
             processor._short_asr.assert_not_called()
 
     def test_video_phase5_uses_google_long_audio_route(self):

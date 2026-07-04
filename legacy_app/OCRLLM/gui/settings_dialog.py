@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import QSettings, Qt
 
-from OCRLLM.config import AppConfig
+from OCRLLM.config import AppConfig, normalize_google_ocr_vision_model
 from OCRLLM.core import model_catalog
 
 try:
@@ -552,11 +552,13 @@ class SettingsDialog(QDialog):
         vision_models = [m.name for m in model_catalog.load_google_vision_models()]
         audio_models = [m.name for m in model_catalog.load_google_audio_models()]
         if not vision_models:
-            vision_models = [self._cfg.google_api.vision_model, "gemini-3.5-flash", "gemini-3.1-pro"]
+            vision_models = [self._cfg.google_api.vision_model, "gemini-2.5-flash", "gemini-3.5-flash"]
         if not audio_models:
             audio_models = [self._cfg.google_api.audio_model, "gemini-3.5-flash", "gemini-3.1-pro"]
 
-        current_v = self._pending_google_vision_model or self._cfg.google_api.vision_model
+        current_v = normalize_google_ocr_vision_model(
+            self._pending_google_vision_model or self._cfg.google_api.vision_model
+        )
         current_a = self._pending_google_audio_model or self._cfg.google_api.audio_model
         self._google_vision_model_combo.blockSignals(True)
         self._google_audio_model_combo.blockSignals(True)
@@ -570,7 +572,9 @@ class SettingsDialog(QDialog):
         finally:
             self._google_vision_model_combo.blockSignals(False)
             self._google_audio_model_combo.blockSignals(False)
-        self._pending_google_vision_model = self._google_vision_model_combo.currentText().strip()
+        self._pending_google_vision_model = normalize_google_ocr_vision_model(
+            self._google_vision_model_combo.currentText().strip()
+        )
         self._pending_google_audio_model = self._google_audio_model_combo.currentText().strip()
 
     def _test_google_reachable(self, timeout: float) -> None:
@@ -1021,7 +1025,7 @@ class SettingsDialog(QDialog):
         self._settings.setValue("ui/base_url", self._base_url_input.text())
         self._settings.setValue("ui/google_api_enabled", self._google_enabled_cb.isChecked())
         self._settings.setValue("ui/google_api_key", self._google_key_input.text())
-        self._settings.setValue("ui/google_vision_model", self._pending_google_vision_model)
+        self._settings.setValue("ui/google_vision_model", normalize_google_ocr_vision_model(self._pending_google_vision_model))
         self._settings.setValue("ui/google_audio_model", self._pending_google_audio_model)
         self._settings.setValue("ui/google_parallel_requests", self._google_parallel_input.value())
         self._settings.setValue("ui/google_request_stagger_seconds", self._google_stagger_input.value())
@@ -1136,7 +1140,9 @@ class SettingsDialog(QDialog):
         paid_mode = self._paid_mode_cb.isChecked()
         extra_keys_text = self._extra_keys_input.text().strip()
         google_key = self._google_key_input.text().strip()
-        google_vision_model = self._google_vision_model_combo.currentText().strip() or self._pending_google_vision_model
+        google_vision_model = normalize_google_ocr_vision_model(
+            self._google_vision_model_combo.currentText().strip() or self._pending_google_vision_model
+        )
         google_audio_model = self._google_audio_model_combo.currentText().strip() or self._pending_google_audio_model
         codex_parallel = self._codex_parallel_input.value()
         codex_stagger = self._codex_stagger_input.value()

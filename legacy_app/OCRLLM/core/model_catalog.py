@@ -441,16 +441,16 @@ def _google_priority(model: GoogleModel, *, purpose: str) -> tuple[int, int, str
                 model_class = 3
             return (model_class, version_rank, model.name)
         return (9, version_rank, model.name)
-    if model.kind == "image_preview":
-        return (0, version_rank, model.name)
-    if model.kind == "snapshot":
-        return (1, version_rank, model.name)
-    if model.kind == "experimental":
-        return (2, version_rank, model.name)
     if model.kind == "audio_long":
-        return (3, version_rank, model.name)
+        return (0, version_rank, model.name)
     if model.kind == "vision_general":
-        return (4, version_rank, model.name)
+        return (1, version_rank, model.name)
+    if model.kind == "snapshot":
+        return (2, version_rank, model.name)
+    if model.kind == "experimental":
+        return (3, version_rank, model.name)
+    if model.kind == "image_preview":
+        return (9, version_rank, model.name)
     return (8, version_rank, model.name)
 
 
@@ -855,8 +855,8 @@ def free_audio_chain(kind: AudioKind | None = None) -> list[str]:
 
 
 def google_free_vision_chain() -> list[str]:
-    """Google 视觉免费优先链：image/preview/snapshot/experimental 在前，长音频模型最后兜底。"""
-    return [m.name for m in load_google_vision_models() if m.free_quota]
+    """Google OCR vision fallback chain, excluding image-generation models."""
+    return [m.name for m in load_google_vision_models() if m.free_quota and m.kind != "image_preview"]
 
 
 def google_free_audio_chain() -> list[str]:

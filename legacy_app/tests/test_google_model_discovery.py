@@ -77,12 +77,12 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
                 self.assertEqual(
                     [m.name for m in summary.vision],
                     [
-                        "gemini-2.5-flash-image-preview",
-                        "gemini-2.0-pro-exp",
                         "gemini-3.5-flash",
                         "gemini-3.1-flash-lite",
                         "gemini-2.5-flash",
                         "gemini-1.5-pro",
+                        "gemini-2.0-pro-exp",
+                        "gemini-2.5-flash-image-preview",
                     ],
                 )
                 self.assertEqual(
@@ -132,7 +132,7 @@ class GoogleModelDiscoveryTests(unittest.TestCase):
 
                 self.assertEqual(
                     model_catalog.google_free_vision_chain(),
-                    ["gemini-2.5-flash-image-preview", "gemini-3.5-flash"],
+                    ["gemini-3.5-flash"],
                 )
                 self.assertEqual(model_catalog.google_free_audio_chain(), ["gemini-3.5-flash"])
 

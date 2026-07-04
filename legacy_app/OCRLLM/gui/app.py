@@ -28,7 +28,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QSettings, QTimer, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QFont
 
-from OCRLLM.config import AppConfig
+from OCRLLM.config import AppConfig, normalize_google_ocr_vision_model
 from OCRLLM.core import model_catalog
 try:
     from OCRLLM.core.codex_vision import (
@@ -368,7 +368,9 @@ class QCRMainWindow(QMainWindow):
         new_url = _str("ui/base_url", self._cfg.api.base_url)
         google_enabled = _bool("ui/google_api_enabled", self._cfg.google_api.enabled)
         google_key = _str("ui/google_api_key", self._cfg.google_api.api_key)
-        google_vision_model = _str("ui/google_vision_model") or self._cfg.google_api.vision_model
+        google_vision_model = normalize_google_ocr_vision_model(
+            _str("ui/google_vision_model") or self._cfg.google_api.vision_model
+        )
         google_audio_model = _str("ui/google_audio_model") or self._cfg.google_api.audio_model
         google_parallel = _int("ui/google_parallel_requests", self._cfg.google_api.parallel_requests)
         google_stagger = _float("ui/google_request_stagger_seconds", self._cfg.google_api.request_stagger_seconds)

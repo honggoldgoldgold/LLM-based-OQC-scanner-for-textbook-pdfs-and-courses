@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 from OCRLLM.config import AppConfig
 from OCRLLM.gui.app import QCRMainWindow
 from OCRLLM.gui.settings_dialog import SettingsDialog
+from qsettings_test_isolation import use_isolated_qsettings
 
 
 class GoogleSettingsDialogTests(unittest.TestCase):
@@ -19,9 +20,7 @@ class GoogleSettingsDialogTests(unittest.TestCase):
         cls._app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        settings = QSettings("OCRLLM", "QCR")
-        settings.clear()
-        settings.sync()
+        use_isolated_qsettings(self)
 
     def test_google_mode_applies_without_dashscope_key_and_is_independent_from_openai_provider(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -30,7 +29,7 @@ class GoogleSettingsDialogTests(unittest.TestCase):
             dlg._api_key_input.setText("")
             dlg._google_enabled_cb.setChecked(True)
             dlg._google_key_input.setText("AIza-test")
-            dlg._google_vision_model_combo.setCurrentText("gemini-2.5-flash-image-preview")
+            dlg._google_vision_model_combo.setCurrentText("gemini-2.5-flash")
             dlg._google_audio_model_combo.setCurrentText("gemini-3.5-flash")
             dlg._vision_enabled_cb.setChecked(True)
             dlg._vision_key_input.setText("openai-compatible-key")
@@ -47,12 +46,23 @@ class GoogleSettingsDialogTests(unittest.TestCase):
 
             self.assertTrue(applied.google_api.enabled)
             self.assertEqual(applied.google_api.api_key, "AIza-test")
-            self.assertEqual(applied.google_api.vision_model, "gemini-2.5-flash-image-preview")
+            self.assertEqual(applied.google_api.vision_model, "gemini-2.5-flash")
             self.assertEqual(applied.google_api.audio_model, "gemini-3.5-flash")
             self.assertTrue(applied.vision_api.enabled)
             self.assertEqual(applied.vision_api.api_key, "openai-compatible-key")
             dlg.deleteLater()
             self._app.processEvents()
+
+    def test_google_image_generation_vision_model_is_migrated_for_ocr(self):
+        cfg = AppConfig().with_updates(
+            google_api={"vision_model": "gemini-2.5-flash-image-preview"}
+        )
+        dlg = SettingsDialog(None, cfg)
+
+        self.assertEqual(dlg._google_vision_model_combo.currentText(), "gemini-2.5-flash")
+        self.assertEqual(dlg.apply_config().google_api.vision_model, "gemini-2.5-flash")
+        dlg.deleteLater()
+        self._app.processEvents()
 
     def test_google_parallel_delay_and_batch_settings_are_saved_to_google_config(self):
         cfg = AppConfig()

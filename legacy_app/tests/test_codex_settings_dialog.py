@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import QApplication, QMessageBox
 from OCRLLM.config import AppConfig
 from OCRLLM.gui.app import QCRMainWindow
 from OCRLLM.gui.settings_dialog import SettingsDialog
+from qsettings_test_isolation import isolated_settings, use_isolated_qsettings
 
 
 class CodexSettingsDialogTests(unittest.TestCase):
@@ -19,9 +20,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
         cls._app = QApplication.instance() or QApplication([])
 
     def setUp(self):
-        settings = QSettings("OCRLLM", "QCR")
-        settings.clear()
-        settings.sync()
+        use_isolated_qsettings(self)
 
     def test_codex_toggle_only_swaps_visual_model_and_can_restore(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -82,7 +81,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
             self._app.processEvents()
 
     def test_codex_runtime_controls_are_restored_from_qsettings(self):
-        settings = QSettings("OCRLLM", "QCR")
+        settings = isolated_settings()
         settings.setValue("ui/codex_parallel_requests", 11)
         settings.setValue("ui/codex_request_stagger_seconds", 4.5)
         settings.setValue("ui/codex_vision_batch_size", 12)
@@ -101,7 +100,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
             self._app.processEvents()
 
     def test_settings_dialog_migrates_stored_codex_mini_default(self):
-        settings = QSettings("OCRLLM", "QCR")
+        settings = isolated_settings()
         settings.setValue("ui/codex_model", "gpt-5.4-mini")
         settings.sync()
 
@@ -124,7 +123,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
         self._app.processEvents()
 
     def test_main_window_sync_uses_codex_runtime_controls(self):
-        settings = QSettings("OCRLLM", "QCR")
+        settings = isolated_settings()
         settings.setValue("ui/codex_vision_enabled", True)
         settings.setValue("ui/codex_parallel_requests", 9)
         settings.setValue("ui/codex_request_stagger_seconds", 1.5)

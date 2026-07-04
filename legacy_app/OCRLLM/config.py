@@ -28,11 +28,22 @@ def _legacy_vision_options() -> tuple[str, ...]:
 
 VISION_MODEL_OPTIONS = _legacy_vision_options()
 
+DEFAULT_GOOGLE_OCR_VISION_MODEL = "gemini-2.5-flash"
 DEFAULT_CODEX_VISION_REASONING_EFFORT = "medium"
 CODEX_VISION_RUNTIME_BATCH_SIZE = 5
 CODEX_VISION_RUNTIME_PARALLEL = 2
 CODEX_VISION_RUNTIME_STAGGER_SECONDS = 0.5
 CODEX_VISION_RUNTIME_VIDEO_BATCH_SIZE = 5
+
+
+def normalize_google_ocr_vision_model(model: str | None) -> str:
+    value = (model or "").strip()
+    if not value:
+        return DEFAULT_GOOGLE_OCR_VISION_MODEL
+    lowered = value.lower()
+    if "image" in lowered or "imagen" in lowered or "nano-banana" in lowered:
+        return DEFAULT_GOOGLE_OCR_VISION_MODEL
+    return value
 
 
 @dataclass
@@ -100,7 +111,7 @@ class GoogleAPIConfig:
         )
     )
     text_model: str = "gemini-3.5-flash"
-    vision_model: str = "gemini-2.5-flash-image-preview"
+    vision_model: str = DEFAULT_GOOGLE_OCR_VISION_MODEL
     audio_model: str = "gemini-3.1-pro-preview"
     vision_model_queue: list[str] = field(default_factory=list)
     audio_model_queue: list[str] = field(default_factory=list)
@@ -125,7 +136,7 @@ class ModelConfig:
     `asr_model`    ：长录音异步识别（filetrans）模型。GUI 中的"音频模型"下拉控制此项。
     `asr_short_model` ：短录音同步模型，用于 <5min 音频；GUI 不直接暴露，
                        由系统在 audio_model 选定后自动派生（asr_long → 默认 short_model）。
-    `allow_asr_short_fallback` ：长音频失败时是否允许回退分段短 ASR（默认禁用）。
+    `allow_asr_short_fallback` ：旧保留开关。filetrans 的长音频失败不会自动转成短 ASR。
     """
     vision_model: str = "qwen-vl-max"
     text_model: str = "qwen-vl-plus"
@@ -333,7 +344,7 @@ class AppConfig:
             updates.setdefault("google_api", {})["api_key"] = google_key
         google_vision = os.environ.get("OCRLLM_GOOGLE_VISION_MODEL")
         if google_vision:
-            updates.setdefault("google_api", {})["vision_model"] = google_vision
+            updates.setdefault("google_api", {})["vision_model"] = normalize_google_ocr_vision_model(google_vision)
         google_audio = os.environ.get("OCRLLM_GOOGLE_AUDIO_MODEL")
         if google_audio:
             updates.setdefault("google_api", {})["audio_model"] = google_audio

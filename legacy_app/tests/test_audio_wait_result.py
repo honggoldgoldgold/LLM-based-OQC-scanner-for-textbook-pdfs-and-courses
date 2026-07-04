@@ -6,7 +6,12 @@ from unittest.mock import Mock, patch
 from OCRLLM.config import AppConfig
 from OCRLLM.core.utils import setup_logging
 from OCRLLM.core.llm_client import LLMClient
-from OCRLLM.processors.audio import AudioProcessor, _TLS12HttpAdapter, build_fallback_audio_windows
+from OCRLLM.processors.audio import (
+    ASRNoValidFragmentError,
+    AudioProcessor,
+    _TLS12HttpAdapter,
+    build_fallback_audio_windows,
+)
 
 
 class AudioWaitResultTests(unittest.TestCase):
@@ -61,6 +66,50 @@ class AudioWaitResultTests(unittest.TestCase):
             processor._wait_result("task-id", poll_interval=1.0, max_wait=5.0)
 
         self.assertIn("InvalidFile.DownloadFailed", str(ctx.exception))
+
+    def test_wait_result_classifies_failed_no_valid_fragment_as_filetrans_error(self):
+        processor = AudioProcessor.__new__(AudioProcessor)
+        processor._check_cancelled = lambda: None
+        processor._sleep = lambda _: None
+        processor._report = lambda current, total, msg: None
+        processor._poll_headers = lambda: {}
+        processor._http_session = Mock()
+        processor.cfg = AppConfig()
+
+        response = Mock(status_code=200)
+        response.json.return_value = {
+            "output": {
+                "task_status": "FAILED",
+                "code": "NO_VALID_FRAGMENT",
+                "message": "No valid speech fragment.",
+            }
+        }
+        processor._http_session.get.return_value = response
+
+        with self.assertRaises(ASRNoValidFragmentError) as ctx:
+            processor._wait_result("task-id", poll_interval=1.0, max_wait=5.0)
+
+        self.assertIn("filetrans", str(ctx.exception))
+        self.assertIn("NO_VALID_FRAGMENT", str(ctx.exception))
+
+    def test_wait_result_classifies_success_with_no_valid_fragment_as_filetrans_error(self):
+        processor = AudioProcessor.__new__(AudioProcessor)
+        processor._check_cancelled = lambda: None
+        processor._sleep = lambda _: None
+        processor._report = lambda current, total, msg: None
+        processor._poll_headers = lambda: {}
+        processor._http_session = Mock()
+        processor.cfg = AppConfig()
+
+        response = Mock(status_code=200)
+        response.json.return_value = {"output": {"task_status": "SUCCESS_WITH_NO_VALID_FRAGMENT"}}
+        processor._http_session.get.return_value = response
+
+        with self.assertRaises(ASRNoValidFragmentError) as ctx:
+            processor._wait_result("task-id", poll_interval=1.0, max_wait=5.0)
+
+        self.assertIn("filetrans", str(ctx.exception))
+        self.assertIn("SUCCESS_WITH_NO_VALID_FRAGMENT", str(ctx.exception))
 
     def test_result_to_md_raises_when_no_transcripts(self):
         processor = AudioProcessor.__new__(AudioProcessor)
@@ -130,6 +179,14 @@ class AudioWaitResultTests(unittest.TestCase):
         self.assertEqual(result, "transcript")
         client._transcribe_short_audio_dashscope_sdk.assert_called_once()
         client._transcribe_short_audio_openai_compatible.assert_called_once()
+
+    def test_filetrans_input_summary_removes_remote_url_query(self):
+        summary = AudioProcessor._filetrans_input_summary(
+            "https://example.com/audio.mp3?token=secret#frag",
+            duration=None,
+        )
+
+        self.assertEqual(summary, "url=https://example.com/audio.mp3, duration=unknown")
 
     def test_setup_logging_suppresses_requests_debug_noise(self):
         setup_logging(logging.DEBUG)

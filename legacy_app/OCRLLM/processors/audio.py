@@ -20,6 +20,7 @@ from typing import Optional
 
 import requests
 from requests.adapters import HTTPAdapter
+from urllib.parse import urlsplit, urlunsplit
 from urllib3.util.ssl_ import create_urllib3_context
 
 from OCRLLM.core.task_runner import CancelledError
@@ -30,6 +31,11 @@ from OCRLLM.core.document_model import SourceType
 from OCRLLM import prompts
 
 logger = logging.getLogger(__name__)
+
+
+class ASRNoValidFragmentError(RuntimeError):
+    """DashScope filetrans accepted the task but found no valid speech fragment."""
+
 
 _DASHSCOPE_NATIVE_FORMATS = {".wav", ".mp3", ".m4a", ".flac", ".opus", ".aac", ".amr"}
 
@@ -597,6 +603,29 @@ class AudioProcessor(BaseProcessor):
                 cache.pop(oldest_key, None)
         return duration
 
+    @staticmethod
+    def _filetrans_input_summary(audio_path: str, duration: float | None) -> str:
+        if _is_remote(audio_path):
+            parsed = urlsplit(audio_path)
+            safe_url = urlunsplit((parsed.scheme, parsed.netloc, parsed.path, "", ""))
+            return f"url={safe_url}, duration=unknown"
+
+        path = Path(audio_path)
+        parts = [
+            f"path={path}",
+            f"ext={path.suffix.lower() or '<none>'}",
+        ]
+        try:
+            parts.append(f"size={path.stat().st_size / (1024 * 1024):.2f}MB")
+        except OSError as exc:
+            parts.append(f"size=unavailable({exc})")
+
+        if duration is None:
+            parts.append("duration=unknown")
+        else:
+            parts.append(f"duration={duration:.1f}s")
+        return ", ".join(parts)
+
     def process(
         self,
         audio_path: str,
@@ -649,8 +678,15 @@ class AudioProcessor(BaseProcessor):
         else:
             duration = None
 
+        filetrans_input_summary = self._filetrans_input_summary(actual_path, duration)
+
         try:
             self._report(1, 5, f"使用长音频异步模型: {self.cfg.models.asr_model}")
+            logger.info(
+                "[ASR] filetrans input: model=%s, %s",
+                self.cfg.models.asr_model,
+                filetrans_input_summary,
+            )
             if _is_remote(actual_path):
                 file_url = actual_path
             else:
@@ -681,10 +717,17 @@ class AudioProcessor(BaseProcessor):
                 logger.warning(f"[ASR] 无法计算音频时长用于成本预估: {e}")
             self._report(5, 5, f"完成: {output_path}")
             return output_path
-        except Exception as e:
-            logger.error("[ASR] 长音频异步处理失败: %s", e)
+        except ASRNoValidFragmentError as e:
+            logger.error("[ASR] filetrans 未检测到有效语音片段: %s; input=%s", e, filetrans_input_summary)
             raise RuntimeError(
-                f"长音频异步识别失败，且已禁止自动回退短音频。原始错误: {e}"
+                "长音频 filetrans 返回 NO_VALID_FRAGMENT。"
+                "filetrans 本应支持长音频；请检查上传前音频、转码后文件、声道/编码是否被服务端接受。"
+                f"输入: {filetrans_input_summary}。原始错误: {e}"
+            ) from e
+        except Exception as e:
+            logger.error("[ASR] 长音频异步处理失败: %s; input=%s", e, filetrans_input_summary)
+            raise RuntimeError(
+                f"长音频异步识别失败。输入: {filetrans_input_summary}。原始错误: {e}"
             ) from e
         finally:
             self._close_http_session()
@@ -1561,14 +1604,14 @@ class AudioProcessor(BaseProcessor):
                 msg = data.get("output", {}).get("message", "未知错误")
                 if code and "NO_VALID_FRAGMENT" in str(code):
                     logger.warning("[ASR] 文件转写未检测到有效语音 (NO_VALID_FRAGMENT)，耗时 %.1fs", elapsed)
-                    raise RuntimeError("ASR 未检测到有效语音片段，将尝试分段短音频识别")
+                    raise ASRNoValidFragmentError(f"DashScope filetrans 返回 {code}: {msg}")
                 if code:
                     msg = f"{code}: {msg}"
                 logger.error("[ASR] 任务失败: %s", msg)
                 raise RuntimeError(f"ASR 失败: {msg}")
             if status == "SUCCESS_WITH_NO_VALID_FRAGMENT":
                 logger.warning("[ASR] 文件转写未检测到有效语音，耗时 %.1fs", elapsed)
-                raise RuntimeError("ASR 未检测到有效语音片段，将尝试分段短音频识别")
+                raise ASRNoValidFragmentError("DashScope filetrans 返回 SUCCESS_WITH_NO_VALID_FRAGMENT")
             if status == "UNKNOWN":
                 logger.error("[ASR] 异常状态: UNKNOWN, response=%s", json.dumps(data, ensure_ascii=False)[:500])
                 raise RuntimeError("ASR 状态异常: UNKNOWN")
