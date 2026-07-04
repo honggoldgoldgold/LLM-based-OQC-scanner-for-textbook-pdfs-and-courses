@@ -75,7 +75,10 @@ set DASHSCOPE_API_KEY=your_key_here
 
 ## 运行
 
-说明：仓库根目录本身就是 Python 包 `OCRLLM`。下面所有 `python -m OCRLLM...` 命令，都要在“包含 OCRLLM 文件夹的上一级目录”里执行。
+说明：旧应用现在位于 `legacy_app/OCRLLM`。从仓库根目录启动旧 GUI 时运行根目录
+`start.bat`；从 `legacy_app/` 内部启动时运行 `legacy_app/start.bat`。
+旧应用的 Python 命令应在 `legacy_app/` 目录执行，因为该目录才是包含
+`OCRLLM` 包的上一级目录。
 
 ### GUI
 
@@ -85,10 +88,10 @@ set DASHSCOPE_API_KEY=your_key_here
 start.bat
 ```
 
-或者在仓库根目录执行：
+或者在 `legacy_app/` 目录执行：
 
 ```bash
-python main.py
+python -m OCRLLM.main
 ```
 
 ### CLI
