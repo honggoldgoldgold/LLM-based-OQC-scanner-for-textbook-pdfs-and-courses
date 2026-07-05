@@ -1,4 +1,4 @@
-# OCRLLM Legacy App
+﻿# OCRLLM Legacy App
 
 > This is the old application README. The active importable library now lives at
 > the repository root under `src/ocrllm`. Read root `MIGRATION_STATUS.md` before
@@ -75,8 +75,8 @@ set DASHSCOPE_API_KEY=your_key_here
 
 ## 运行
 
-说明：旧应用现在位于 `legacy_app/OCRLLM`。从仓库根目录启动旧 GUI 时运行根目录
-`start.bat`；从 `legacy_app/` 内部启动时运行 `legacy_app/start.bat`。
+说明：旧应用现在位于 `legacy_app/OCRLLM`。从仓库根目录启动旧 GUI 时运行
+`legacy_app\launch_gui.bat`；从 `legacy_app/` 内部启动时运行 `launch_gui.bat`。
 旧应用的 Python 命令应在 `legacy_app/` 目录执行，因为该目录才是包含
 `OCRLLM` 包的上一级目录。
 
@@ -85,7 +85,7 @@ set DASHSCOPE_API_KEY=your_key_here
 在 Windows 上最简单的方式是直接运行：
 
 ```bash
-start.bat
+legacy_app\launch_gui.bat
 ```
 
 或者在 `legacy_app/` 目录执行：

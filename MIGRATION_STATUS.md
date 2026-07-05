@@ -115,16 +115,23 @@ The old app package moved from repo root to:
 legacy_app/OCRLLM/
 ```
 
-The legacy GUI launcher is still supported through compatibility batch files:
+The old root launcher aliases were removed to avoid confusing the migrated repo
+layout with the pre-migration app layout:
 
 ```text
-start.bat          Calls legacy_app/start.bat from the repo root.
-ocrllmstart.bat    Alias kept for old Desktop shortcuts and muscle memory.
+start.bat
+ocrllmstart.bat
 legacy_app/start.bat
 ```
 
-`legacy_app/start.bat` must run `python -m OCRLLM.main`, not `python main.py`,
-because `main.py` now lives at `legacy_app/OCRLLM/main.py`.
+The maintained GUI launcher is now:
+
+```text
+legacy_app/launch_gui.bat
+```
+
+That launcher runs `python -m OCRLLM.main` from `legacy_app/`, not
+`python main.py`, because `main.py` lives at `legacy_app/OCRLLM/main.py`.
 
 The old tests/docs/scripts moved to:
 

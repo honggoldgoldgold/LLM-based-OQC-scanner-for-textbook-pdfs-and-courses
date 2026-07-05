@@ -33,7 +33,7 @@ Path: `legacy_app/`
 Use for:
 
 - Old GUI, CLI, FastAPI, processors, and launchers
-- Compatibility fixes for `start.bat` and `ocrllmstart.bat`
+- GUI launcher fixes for `legacy_app/launch_gui.bat`
 - Behavior reference while porting one tested vertical slice at a time
 - Legacy test suite under `legacy_app/tests/`
 
@@ -74,7 +74,7 @@ Do not infer architecture from generated output or temporary files.
 ```text
 Need to change the public library API      -> src/ocrllm/ and tests/
 Need to add a downstream import feature    -> src/ocrllm/ and tests/
-Need to fix GUI/start.bat/Codex/Google UI  -> legacy_app/
+Need to fix GUI launcher/Codex/Google UI   -> legacy_app/
 Need to compare old product behavior       -> legacy_app/
 Need to record migration state             -> MIGRATION_STATUS.md
 Need to design the completed module shape  -> docs/ocrllm_module_target_design.md

@@ -13,7 +13,8 @@ Read `legacy_app/AGENTS.md` before making changes in this directory.
 legacy_app/OCRLLM/     Old application package.
 legacy_app/tests/      Old application tests.
 legacy_app/docs/       Old application docs.
-legacy_app/start.bat   Old application launcher.
+legacy_app/launch_gui.bat
+                       Current launcher for the old GUI compatibility app.
 ```
 
 Use the root package instead:

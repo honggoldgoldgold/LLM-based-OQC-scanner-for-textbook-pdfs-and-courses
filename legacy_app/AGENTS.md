@@ -5,7 +5,7 @@ This directory contains the old OCRLLM application and compatibility surface.
 ## Allowed Work Here
 
 - Fixing old GUI behavior.
-- Fixing `start.bat`, `ocrllmstart.bat`, and legacy launch flow.
+- Fixing `launch_gui.bat` and legacy launch flow.
 - Maintaining old Codex, Google, DashScope, and OpenAI-compatible mode routing.
 - Reading old processors as behavior references.
 - Running or updating legacy tests when maintaining the old app.
