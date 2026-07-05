@@ -25,6 +25,7 @@ from urllib3.util.ssl_ import create_urllib3_context
 
 from OCRLLM.core.task_runner import CancelledError
 from OCRLLM.core.checkpoint import Checkpoint
+from OCRLLM.core.provider_selection import uses_google_for_audio
 from OCRLLM.core.utils import ensure_dir, get_ffmpeg, get_ffprobe, resolve_workers, run_subprocess_cancellable, strip_md_fence
 from OCRLLM.processors.base import BaseProcessor
 from OCRLLM.core.document_model import SourceType
@@ -669,7 +670,15 @@ class AudioProcessor(BaseProcessor):
         Returns:
             输出文件路径。
         """
-        if self.cfg.google_api.enabled:
+        use_google_audio = uses_google_for_audio(self.cfg)
+        logger.info(
+            "[ASR] route=%s google_enabled=%s audio_model=%s google_audio_model=%s",
+            "google" if use_google_audio else "filetrans",
+            self.cfg.google_api.enabled,
+            self.cfg.models.asr_model,
+            self.cfg.google_api.audio_model,
+        )
+        if use_google_audio:
             return self._process_google_long_audio(
                 audio_path,
                 hotwords=hotwords,

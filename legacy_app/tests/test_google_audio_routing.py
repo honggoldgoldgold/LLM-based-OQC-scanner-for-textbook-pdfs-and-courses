@@ -79,6 +79,50 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             self.assertIn("hello from google", md)
             processor._short_asr.assert_not_called()
 
+    def test_qwen_filetrans_route_ignores_google_key_when_google_mode_is_off(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"fake audio")
+            output_path = os.path.join(tmp, "out.md")
+
+            cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                api={"api_key": "sk-test"},
+                google_api={
+                    "enabled": False,
+                    "api_key": "AIza-test",
+                    "audio_model": "gemini-3.5-flash",
+                },
+                models={"asr_model": "qwen3-asr-flash-filetrans"},
+            )
+            processor = AudioProcessor.__new__(AudioProcessor)
+            processor.cfg = cfg
+            processor.reporter = Mock()
+            processor.reporter.cancel_event = None
+            processor._report = Mock()
+            processor._report_content = Mock()
+            processor._close_http_session = Mock()
+            processor._process_google_long_audio = Mock(
+                side_effect=AssertionError("google audio route must not run")
+            )
+            processor._ensure_upload_format = Mock(return_value=audio_path)
+            processor._should_use_short_asr = Mock(return_value=(False, 600.0))
+            processor._upload_file = Mock(return_value="https://example.com/audio.mp3")
+            processor._submit_task = Mock(return_value="task-id")
+            processor._wait_result = Mock(return_value={"transcripts": []})
+            processor._result_to_md = Mock(return_value="filetrans transcript")
+            processor._raise_if_filetrans_text_too_short = Mock()
+            processor._get_duration = Mock(return_value=600.0)
+
+            result = processor.process(audio_path, output_path=output_path)
+
+            self.assertEqual(result, output_path)
+            processor._process_google_long_audio.assert_not_called()
+            processor._submit_task.assert_called_once()
+            with open(output_path, encoding="utf-8") as f:
+                self.assertIn("filetrans transcript", f.read())
+
     def test_google_segment_validator_uses_hotwords_for_topic_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             audio_path = os.path.join(tmp, "short.mp3")

@@ -157,6 +157,15 @@ class GoogleProviderErrorTests(unittest.TestCase):
         self.assertFalse(classified.should_switch_model)
         self.assertTrue(classified.should_retry_same_model)
 
+    def test_ssl_unexpected_eof_text_is_retryable_network_error(self):
+        classified = classify_google_error(RuntimeError(
+            "[SSL: UNEXPECTED_EOF_WHILE_READING] EOF occurred in violation of protocol (_ssl.c:1017)"
+        ))
+
+        self.assertEqual(classified.kind, GoogleErrorKind.NETWORK)
+        self.assertFalse(classified.should_switch_model)
+        self.assertTrue(classified.should_retry_same_model)
+
     def test_google_503_high_demand_retries_same_model(self):
         classified = classify_google_error(RuntimeError(
             "503 UNAVAILABLE. {'error': {'code': 503, 'message': "

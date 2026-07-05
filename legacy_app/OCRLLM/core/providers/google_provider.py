@@ -85,6 +85,16 @@ _NETWORK_ERRORS = (
     TimeoutError,
 )
 
+_NETWORK_ERROR_TEXT_MARKERS = (
+    "unexpected_eof_while_reading",
+    "eof occurred in violation of protocol",
+    "ssleoferror",
+    "server disconnected without sending a response",
+    "remote end closed connection",
+    "connection reset",
+    "connection aborted",
+)
+
 _AUDIO_RETRY_EXHAUSTED_SWITCH_KINDS = {
     GoogleErrorKind.RATE_LIMIT,
     GoogleErrorKind.CONCURRENCY,
@@ -158,6 +168,9 @@ def classify_google_error(exc: Exception) -> ClassifiedGoogleError:
     lowered = message.lower()
 
     if isinstance(exc, _NETWORK_ERRORS):
+        return ClassifiedGoogleError(GoogleErrorKind.NETWORK, False, True, message)
+
+    if any(marker in lowered for marker in _NETWORK_ERROR_TEXT_MARKERS):
         return ClassifiedGoogleError(GoogleErrorKind.NETWORK, False, True, message)
 
     json_error = _google_json_error_payload(message)
