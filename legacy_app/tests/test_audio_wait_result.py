@@ -1,12 +1,14 @@
 import logging
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from OCRLLM.config import AppConfig
 from OCRLLM.core.utils import setup_logging
-from OCRLLM.core.llm_client import LLMClient
+from OCRLLM.core.llm_client import LLMClient, dashscope_local_file_uri
 from OCRLLM.processors.audio import (
+    ASRLowContentError,
     ASRNoValidFragmentError,
     AudioProcessor,
     _TLS12HttpAdapter,
@@ -180,6 +182,11 @@ class AudioWaitResultTests(unittest.TestCase):
         client._transcribe_short_audio_dashscope_sdk.assert_called_once()
         client._transcribe_short_audio_openai_compatible.assert_called_once()
 
+    def test_dashscope_local_file_uri_uses_windows_sdk_format(self):
+        with patch("OCRLLM.core.llm_client.sys.platform", "win32"):
+            with patch("OCRLLM.core.llm_client.Path.resolve", return_value=Path("D:/audio/test.mp3")):
+                self.assertEqual(dashscope_local_file_uri("D:/audio/test.mp3"), "file://D:/audio/test.mp3")
+
     def test_filetrans_input_summary_removes_remote_url_query(self):
         summary = AudioProcessor._filetrans_input_summary(
             "https://example.com/audio.mp3?token=secret#frag",
@@ -187,6 +194,19 @@ class AudioWaitResultTests(unittest.TestCase):
         )
 
         self.assertEqual(summary, "url=https://example.com/audio.mp3, duration=unknown")
+
+    def test_filetrans_quality_gate_rejects_near_empty_long_result(self):
+        markdown = "<!-- meta:audio title=lecture -->\n\n<!-- meta:segment index=1 time=06:32~06:32 -->\n\n是。\n"
+
+        with self.assertRaises(ASRLowContentError) as ctx:
+            AudioProcessor._raise_if_filetrans_text_too_short(markdown, duration=3140.0)
+
+        self.assertIn("识别文本过短", str(ctx.exception))
+
+    def test_filetrans_quality_gate_allows_short_audio(self):
+        markdown = "<!-- meta:audio title=short -->\n\n<!-- meta:segment index=1 time=00:00~00:01 -->\n\n是。\n"
+
+        AudioProcessor._raise_if_filetrans_text_too_short(markdown, duration=30.0)
 
     def test_setup_logging_suppresses_requests_debug_noise(self):
         setup_logging(logging.DEBUG)

@@ -37,6 +37,10 @@ class ASRNoValidFragmentError(RuntimeError):
     """DashScope filetrans accepted the task but found no valid speech fragment."""
 
 
+class ASRLowContentError(RuntimeError):
+    """DashScope filetrans returned far too little transcript text for the input duration."""
+
+
 _DASHSCOPE_NATIVE_FORMATS = {".wav", ".mp3", ".m4a", ".flac", ".opus", ".aac", ".amr"}
 
 _DASHSCOPE_RESULT_HOSTS = {
@@ -626,6 +630,22 @@ class AudioProcessor(BaseProcessor):
             parts.append(f"duration={duration:.1f}s")
         return ", ".join(parts)
 
+    @staticmethod
+    def _filetrans_visible_text_chars(markdown: str) -> int:
+        without_meta = re.sub(r"<!--.*?-->", "", markdown, flags=re.DOTALL)
+        return len(re.findall(r"[\w\u4e00-\u9fff]", without_meta, flags=re.UNICODE))
+
+    @classmethod
+    def _raise_if_filetrans_text_too_short(cls, markdown: str, duration: float | None) -> None:
+        if duration is None or duration < 10 * 60:
+            return
+        visible_chars = cls._filetrans_visible_text_chars(markdown)
+        threshold = max(80, min(500, int((duration / 60.0) * 5)))
+        if visible_chars < threshold:
+            raise ASRLowContentError(
+                f"识别文本过短: {visible_chars} 字符，音频 {duration:.1f}s，最低期望 {threshold} 字符"
+            )
+
     def process(
         self,
         audio_path: str,
@@ -701,6 +721,7 @@ class AudioProcessor(BaseProcessor):
 
             self._report(5, 5, "生成 Markdown...")
             md = self._result_to_md(result, stem)
+            self._raise_if_filetrans_text_too_short(md, duration)
             self._report_content(md, "语音识别完成")
 
             ensure_dir(os.path.dirname(output_path))
@@ -722,6 +743,12 @@ class AudioProcessor(BaseProcessor):
             raise RuntimeError(
                 "长音频 filetrans 返回 NO_VALID_FRAGMENT。"
                 "filetrans 本应支持长音频；请检查上传前音频、转码后文件、声道/编码是否被服务端接受。"
+                f"输入: {filetrans_input_summary}。原始错误: {e}"
+            ) from e
+        except ASRLowContentError as e:
+            logger.error("[ASR] filetrans 返回内容过少: %s; input=%s", e, filetrans_input_summary)
+            raise RuntimeError(
+                "长音频 filetrans 返回内容过少，已判定本次识别失败。"
                 f"输入: {filetrans_input_summary}。原始错误: {e}"
             ) from e
         except Exception as e:

@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 import logging
 import os
+import sys
 import time
 from pathlib import Path
 from threading import Event
@@ -32,6 +33,13 @@ _NETWORK_ERRORS = (
     ConnectionError, ConnectionResetError, OSError, TimeoutError,
 )
 _RETRIABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def dashscope_local_file_uri(path: str) -> str:
+    resolved = Path(path).resolve()
+    if sys.platform == "win32":
+        return "file://" + resolved.as_posix()
+    return resolved.as_uri()
 
 
 class EmptyResponseError(RuntimeError):
@@ -711,7 +719,7 @@ class LLMClient:
             if audio_path.startswith(("http://", "https://", "data:")):
                 audio_ref = audio_path
             else:
-                audio_ref = Path(audio_path).resolve().as_uri()
+                audio_ref = dashscope_local_file_uri(audio_path)
 
             asr_options = {"enable_itn": enable_itn}
             if language:
