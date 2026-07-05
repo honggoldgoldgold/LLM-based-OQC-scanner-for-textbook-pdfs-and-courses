@@ -17,6 +17,13 @@ from OCRLLM.processors.audio import (
 
 
 class AudioWaitResultTests(unittest.TestCase):
+    def tearDown(self):
+        root = logging.getLogger()
+        for handler in list(root.handlers):
+            if getattr(handler, "_ocrllm_persistent_log", False):
+                root.removeHandler(handler)
+                handler.close()
+
     def test_tls_adapter_forces_minimum_tls12(self):
         context = _TLS12HttpAdapter._build_context()
 
@@ -209,10 +216,32 @@ class AudioWaitResultTests(unittest.TestCase):
         AudioProcessor._raise_if_filetrans_text_too_short(markdown, duration=30.0)
 
     def test_setup_logging_suppresses_requests_debug_noise(self):
-        setup_logging(logging.DEBUG)
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        setup_logging(logging.DEBUG, log_file=Path(tmp.name) / "ocrllm.log")
 
         self.assertGreaterEqual(logging.getLogger("urllib3").level, logging.WARNING)
         self.assertGreaterEqual(logging.getLogger("requests").level, logging.WARNING)
+
+    def test_setup_logging_writes_persistent_log_file_once(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        log_path = Path(tmp.name) / "ocrllm.log"
+        setup_logging(logging.INFO, log_file=log_path)
+        logging.getLogger("ocrllm-test").info("persistent log smoke")
+
+        for handler in logging.getLogger().handlers:
+            handler.flush()
+
+        self.assertTrue(log_path.exists())
+        self.assertIn("persistent log smoke", log_path.read_text(encoding="utf-8"))
+
+        setup_logging(logging.DEBUG, log_file=log_path)
+        persistent_handlers = [
+            handler for handler in logging.getLogger().handlers
+            if getattr(handler, "_ocrllm_persistent_log", False)
+        ]
+        self.assertEqual(len(persistent_handlers), 1)
 
 
 if __name__ == "__main__":

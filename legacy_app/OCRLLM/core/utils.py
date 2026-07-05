@@ -10,11 +10,14 @@ import subprocess
 import sys
 import threading
 import time
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 from PIL import Image
 
 logger = logging.getLogger(__name__)
+
+_PERSISTENT_LOG_MARKER = "_ocrllm_persistent_log"
 
 
 def ensure_dir(path: str) -> str:
@@ -389,7 +392,14 @@ def get_ffprobe() -> str:
     )
 
 
-def setup_logging(level=logging.INFO):
+def _default_log_file() -> Path:
+    override = os.environ.get("OCRLLM_LOG_FILE", "").strip()
+    if override:
+        return Path(override)
+    return Path.cwd() / "logs" / "ocrllm.log"
+
+
+def setup_logging(level=logging.INFO, log_file: str | os.PathLike | None = None):
     """配置全局日志格式，并降低 httpx/openai 等第三方库的日志级别。
 
     Args:
@@ -400,6 +410,36 @@ def setup_logging(level=logging.INFO):
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         datefmt="%H:%M:%S",
     )
+    root = logging.getLogger()
+    root.setLevel(level)
+
+    log_path = Path(log_file) if log_file is not None else _default_log_file()
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    resolved_log_path = log_path.resolve()
+
+    for handler in list(root.handlers):
+        if getattr(handler, _PERSISTENT_LOG_MARKER, False):
+            current = Path(getattr(handler, "baseFilename", "")).resolve()
+            if current == resolved_log_path:
+                handler.setLevel(level)
+                break
+            root.removeHandler(handler)
+            handler.close()
+    else:
+        handler = RotatingFileHandler(
+            resolved_log_path,
+            maxBytes=5 * 1024 * 1024,
+            backupCount=3,
+            encoding="utf-8",
+        )
+        setattr(handler, _PERSISTENT_LOG_MARKER, True)
+        handler.setLevel(level)
+        handler.setFormatter(logging.Formatter(
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            "%Y-%m-%d %H:%M:%S",
+        ))
+        root.addHandler(handler)
+        logger.info("[LOG] persistent log file: %s", resolved_log_path)
     # 抑制第三方网络库的 DEBUG 日志，避免 GUI 轮询时刷屏。
     for noisy in ("httpx", "openai", "httpcore", "urllib3", "requests", "charset_normalizer"):
         logging.getLogger(noisy).setLevel(max(level, logging.WARNING))
