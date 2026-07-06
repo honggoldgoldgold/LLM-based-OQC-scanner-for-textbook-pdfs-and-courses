@@ -3,9 +3,6 @@
 from __future__ import annotations
 
 CODEX_VISION_DEFAULT_MODEL = "gpt-5.5"
-CODEX_VISION_STALE_DEFAULT_MODELS = frozenset({
-    "gpt-5.4-mini",
-})
 CODEX_VISION_MODEL_CHOICES = (
     CODEX_VISION_DEFAULT_MODEL,
     "gpt-5.4-mini",
@@ -22,7 +19,4 @@ def normalize_codex_vision_model(model: str | None) -> str:
 
 
 def migrate_stored_codex_vision_model(model: str | None) -> str:
-    value = normalize_codex_vision_model(model)
-    if value in CODEX_VISION_STALE_DEFAULT_MODELS:
-        return CODEX_VISION_DEFAULT_MODEL
-    return value
+    return normalize_codex_vision_model(model)

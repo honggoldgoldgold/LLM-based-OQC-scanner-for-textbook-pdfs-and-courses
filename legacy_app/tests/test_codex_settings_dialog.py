@@ -99,7 +99,7 @@ class CodexSettingsDialogTests(unittest.TestCase):
             dlg.deleteLater()
             self._app.processEvents()
 
-    def test_settings_dialog_migrates_stored_codex_mini_default(self):
+    def test_settings_dialog_preserves_stored_codex_model(self):
         settings = isolated_settings()
         settings.setValue("ui/codex_model", "gpt-5.4-mini")
         settings.sync()
@@ -108,8 +108,44 @@ class CodexSettingsDialogTests(unittest.TestCase):
             cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
             dlg = SettingsDialog(None, cfg)
 
-            self.assertEqual(dlg._codex_model_combo.currentText(), "gpt-5.5")
+            self.assertEqual(dlg._codex_model_combo.currentText(), "gpt-5.4-mini")
             dlg.deleteLater()
+            self._app.processEvents()
+
+    def test_codex_model_apply_survives_dialog_reopen_and_main_window_sync(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = AppConfig().with_updates(paths={"output_dir": tmp, "temp_dir": tmp})
+            dlg = SettingsDialog(None, cfg)
+            dlg._api_key_input.setText("")
+            dlg._codex_enabled_cb.setChecked(True)
+            dlg._codex_model_combo.setCurrentText("gpt-5.4-mini")
+
+            with patch("OCRLLM.gui.settings_dialog.inspect_codex_cli") as inspect, \
+                    patch.object(SettingsDialog, "accept") as accept, \
+                    patch.object(QMessageBox, "warning") as warning:
+                inspect.return_value.ok = True
+                inspect.return_value.message = "ok"
+                dlg._on_apply()
+
+            inspect.assert_called_once()
+            self.assertEqual(inspect.call_args.args[0].model, "gpt-5.4-mini")
+            accept.assert_called_once()
+            warning.assert_not_called()
+            dlg.deleteLater()
+            self._app.processEvents()
+
+            reopened = SettingsDialog(None, cfg)
+            self.assertTrue(reopened._codex_enabled_cb.isChecked())
+            self.assertEqual(reopened._codex_model_combo.currentText(), "gpt-5.4-mini")
+            reopened.deleteLater()
+            self._app.processEvents()
+
+            window = QCRMainWindow(cfg=cfg)
+            window._sync_api_from_ui()
+            self.assertTrue(window._cfg.codex_vision.enabled)
+            self.assertEqual(window._cfg.codex_vision.model, "gpt-5.4-mini")
+            self.assertEqual(window._cfg.models.vision_model, "gpt-5.4-mini")
+            window.deleteLater()
             self._app.processEvents()
 
     def test_settings_dialog_is_resizable_and_larger_by_default(self):

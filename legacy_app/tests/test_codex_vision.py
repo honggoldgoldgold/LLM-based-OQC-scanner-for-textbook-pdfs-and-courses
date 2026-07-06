@@ -30,8 +30,8 @@ class CodexVisionRunnerTests(unittest.TestCase):
         self.assertEqual(cfg.parallel_requests, CODEX_VISION_MAX_PARALLEL)
         self.assertEqual(cfg.vision_batch_size, CODEX_VISION_BATCH_SIZE)
 
-    def test_stored_old_default_migrates_to_current_default(self):
-        self.assertEqual(migrate_stored_codex_vision_model("gpt-5.4-mini"), CODEX_VISION_DEFAULT_MODEL)
+    def test_stored_codex_model_is_preserved(self):
+        self.assertEqual(migrate_stored_codex_vision_model("gpt-5.4-mini"), "gpt-5.4-mini")
         self.assertEqual(normalize_codex_vision_model(""), CODEX_VISION_DEFAULT_MODEL)
         self.assertEqual(normalize_codex_vision_model("gpt-5.3-codex-spark"), "gpt-5.3-codex-spark")
         self.assertEqual(normalize_codex_vision_model("gpt-5.4-mini"), "gpt-5.4-mini")
