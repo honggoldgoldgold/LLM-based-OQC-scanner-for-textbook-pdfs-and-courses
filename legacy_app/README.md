@@ -101,8 +101,29 @@ python -m OCRLLM.cli pdf input.pdf --formula
 python -m OCRLLM.cli board img1.jpg img2.png
 python -m OCRLLM.cli video lecture.mp4 --phases 1 2 3 4 5
 python -m OCRLLM.cli audio lecture.mp3 --hotwords "矩阵,sigma"
+python -m OCRLLM.cli social_long "https://www.bilibili.com/video/BVxxxxx?p=1" --parts 1-33 --resume
 python -m OCRLLM.cli auto input_file
 ```
+
+### B站多分P课程
+
+B站多分P课程仍属于旧应用兼容流程，不是新的 `ocrllm` 公共库 API。详细的
+2026-07-06 CS231n 实跑问题、修复点、恢复命令和验收命令记录在：
+
+```text
+../docs/legacy_bilibili_social_long_debug_record.md
+```
+
+该流程的干净输出要求是每个分P目录恰好包含：
+
+```text
+*_板书识别.md
+*_录音识别.md
+```
+
+课程级评论、资源链接和逐分P弹幕写入 `bilibili_social_context.md`。再次运行
+`social_long --parts ... --resume` 会复用已下载 MP4、已完成的视频阶段产物和
+已保存的 DashScope FileTrans 任务 ID。
 
 ### FastAPI 服务
 

@@ -21,6 +21,10 @@ legacy_app/README_LEGACY.md           Legacy app boundary.
 legacy_app/AGENTS.md                  Legacy app editing rules.
 docs/library_migration_decision.md    Library-making decision and rationale.
 docs/ocrllm_module_target_design.md   Target-state module design map.
+docs/legacy_bilibili_social_long_debug_record.md
+                                      Legacy Bilibili course robustness record.
+docs/legacy_filetrans_codex_debug_record.md
+                                      Legacy Filetrans/Codex runtime record.
 Architecture.md                       Suspended future architecture reference.
 ```
 
@@ -92,6 +96,13 @@ the active library yet.
 The Bilibili/social downloader still lives under `legacy_app/OCRLLM/`. It is a
 maintained compatibility workflow, not a public `ocrllm` library API.
 
+Detailed incident history, implementation map, verification commands, and
+operational rules are in:
+
+```text
+docs/legacy_bilibili_social_long_debug_record.md
+```
+
 For multi-part Bilibili courses, the reusable path is:
 
 ```powershell
@@ -118,6 +129,40 @@ This legacy path has resume support for existing downloads, completed video
 phases, and in-flight DashScope FileTrans task IDs. Keep new downstream
 projects importing `ocrllm`; do not expose this legacy processor as a new public
 library boundary.
+
+The 2026-07-06 Bilibili CS231n run exposed and fixed these legacy runtime
+problems:
+
+- Multi-part Bilibili pages must route to `social_long`, not short-video mode.
+- Requested part failures must fail the whole selected run instead of returning
+  a partial course.
+- Bilibili MP4 downloads need reusable `.part` downloads and existing-file
+  reuse.
+- Shared comments must be fetched once from the course AID; danmaku must be
+  fetched per part CID.
+- The old XML danmaku endpoint can return Bilibili 412/risk-control HTML, so
+  the fallback path uses the segmented protobuf danmaku API.
+- Each part is complete only with exactly `*_板书识别.md` and
+  `*_录音识别.md`.
+- FileTrans task IDs must survive process interruption so resume can continue
+  polling instead of resubmitting the same long audio.
+- Video resume must trust valid phase artifacts when a checkpoint was not
+  marked complete before process exit.
+- Social media GUI input must accept free-form text and Markdown-style pasted
+  links, not only lines beginning with `http`.
+
+Completion evidence from the supervised Bilibili course output:
+
+```text
+33 part directories
+33 downloaded MP4 files
+33 *_板书识别.md files
+33 *_录音识别.md files
+0 FileTrans task sidecars
+bilibili_social_context.md contained github.com/Divsigma/Courses and per-part danmaku
+Focused legacy tests: 40 passed
+Root active-library tests: 5 passed
+```
 
 ## Legacy Codex/Filetrans Robustness Status
 

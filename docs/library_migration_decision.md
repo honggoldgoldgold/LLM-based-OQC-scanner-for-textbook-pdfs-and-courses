@@ -62,6 +62,8 @@ tests/                                New import-contract tests.
 legacy_app/                           Old application code and old tests/docs.
 legacy_app/README_LEGACY.md           Local legacy-app boundary.
 legacy_app/AGENTS.md                  Local legacy-app agent rules.
+docs/legacy_bilibili_social_long_debug_record.md
+                                      Legacy Bilibili course runtime record.
 Architecture.md                       Suspended future Rust/PyO3 reference.
 ```
 

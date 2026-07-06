@@ -216,13 +216,25 @@ The audit also found a separate board-only rerun bug:
 
 Fix committed:
 
-- Commit `afeb4ac` (`Preserve transcripts during board-only reruns`).
+- Commit `afeb4ac` (`Harden legacy Bilibili course recognition`) includes the
+  resume and artifact-preservation fixes that this audit depended on.
 - `legacy_app/OCRLLM/processors/video_pipeline.py` now computes artifact
   invalidation from the selected phases and `skip_audio`.
 - Phase 2/3/4 cleanup no longer deletes Phase 5 transcripts when audio is not
   part of the requested rerun.
 - `legacy_app/OCRLLM/processors/audio.py` forwards the resume flag to
   Filetrans wait logic, preserving saved task IDs across resume paths.
+
+Related Bilibili social-long note:
+
+- The later full 33-part Bilibili CS231n run used the same Filetrans resume
+  path for long per-part audio recognition.
+- In-flight DashScope task IDs are now persisted next to the intended audio
+  Markdown as `.filetrans_task.json` sidecars and cleared after the final audio
+  Markdown is written.
+- The Bilibili-specific download, comment/danmaku, two-Markdown contract, and
+  social tab input fixes are recorded in
+  `docs/legacy_bilibili_social_long_debug_record.md`.
 
 Focused verification passed:
 

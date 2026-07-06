@@ -66,22 +66,48 @@ workflow are legacy compatibility surfaces under `legacy_app/`. Current
 runtime incident notes live in:
 
 ```text
+docs/legacy_bilibili_social_long_debug_record.md
 docs/legacy_filetrans_codex_debug_record.md
 ```
 
-As of the 2026-07-06 robustness audit, the supervised legacy course runs were
-considered clean only when every target course folder had exactly these two
-Markdown artifacts and no known dirty failure markers:
+Use the Bilibili record first when touching multi-part Bilibili course
+downloads, comment/danmaku capture, `social_long --parts`, social URL input, or
+resume behavior for the legacy course workflow.
+
+As of the 2026-07-06 robustness audit, the supervised Bilibili CS231n course
+run was considered clean only when the output tree had all of the following:
 
 ```text
-*_æ¿ä¹¦è¯†åˆ«.md
-*_å½•éŸ³è¯†åˆ«.md
+33 part directories
+33 downloaded MP4 files
+33 *_板书识别.md files
+33 *_录音识别.md files
+0 FileTrans task sidecars
+bilibili_social_context.md with shared comments, resource links, and per-part danmaku
+```
+
+For any completed legacy course/video folder, the expected per-part recognition
+artifacts are exactly these two Markdown files:
+
+```text
+*_板书识别.md
+*_录音识别.md
 ```
 
 Known dirty markers include Codex batch/frame placeholders, `Reading additional
 input from stdin`, `[WinError 10061]`, embedded Codex diagnostic dumps, or a
 missing board/audio Markdown after the job has completed. These checks belong
 to the legacy workflow; they are not part of the public `ocrllm` library API.
+
+The reusable Bilibili course command is documented in
+`docs/legacy_bilibili_social_long_debug_record.md`; it intentionally runs
+through the legacy CLI:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <bilibili-url> `
+  --parts 1-33 --resume -o output\bilibili_cs231n_full
+```
 
 ## Rules For New Work
 
