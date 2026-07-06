@@ -49,6 +49,17 @@ class _HotwordOnlyWhenAskedLLM:
         return "Linux\nShell"
 
 
+class _CodexModeNoTextLLM:
+    def set_cancel_event(self, *_args):
+        pass
+
+    def chat_with_images(self, *_args, **_kwargs):
+        return "## Board\n\nScreen shows terminal commands and a shell prompt."
+
+    def chat_text(self, *_args, **_kwargs):
+        raise AssertionError("Codex mode must not call Qwen text hotword extraction")
+
+
 class _SparseThenClosedPDFLLM:
     def __init__(self):
         self.calls = 0
@@ -250,6 +261,30 @@ class VisionFailurePropagationTests(unittest.TestCase):
                 content = f.read()
             self.assertIn("Screen shows terminal commands", content)
             self.assertEqual(hotwords, ["Linux", "Shell"])
+
+    def test_video_phase4_codex_mode_skips_qwen_text_hotword_extraction(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            frame_path = os.path.join(tmp, "board_001_010s.jpg")
+            Image.new("RGB", (8, 8), "white").save(frame_path)
+            cfg = _cfg(tmp).with_updates(codex_vision={"enabled": True})
+            proc = VideoProcessor(
+                cfg=cfg,
+                llm=_CodexModeNoTextLLM(),
+                reporter=ProgressReporter(),
+                tracker=ProgressTracker(),
+                api_pool=_SingleClientPool(),
+            )
+
+            md_path, hotwords, _ = proc._phase4_llm(
+                [{"path": frame_path, "timestamp": 10.0, "frame_idx": 1}],
+                [frame_path],
+                tmp,
+                "lecture",
+            )
+
+            with open(md_path, encoding="utf-8") as f:
+                self.assertIn("Screen shows terminal commands", f.read())
+            self.assertEqual(hotwords, [])
 
 
 if __name__ == "__main__":

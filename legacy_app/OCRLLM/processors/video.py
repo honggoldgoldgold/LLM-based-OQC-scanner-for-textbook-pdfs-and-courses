@@ -963,7 +963,9 @@ class VideoProcessor(BaseProcessor):
             raise RuntimeError(f"视频板书识别全部 {total_batches} 个批次失败，输出文件只包含错误信息: {md_path}")
 
         # ---- 热词: 若没拿到，从文本中回退提取 ----
-        if not hotwords:
+        if not hotwords and self.cfg.codex_vision.enabled:
+            logger.info("[VIDEO] Codex 模式跳过 Qwen 文本热词提取")
+        elif not hotwords:
             logger.info("[VIDEO] 通过文本请求提取热词")
             self.tracker.start_phase("phase4_hotwords", "提取热词")
             try:
