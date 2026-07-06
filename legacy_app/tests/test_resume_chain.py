@@ -6,7 +6,13 @@ import unittest
 from OCRLLM.core.checkpoint import Checkpoint, CheckpointManager
 from OCRLLM.processors.pdf import PDFProcessor
 from OCRLLM.processors.video import VideoProcessor
-from OCRLLM.processors.video_pipeline import BoardRecognizePhase, VideoPhase, VideoProcessContext
+from OCRLLM.processors.video_pipeline import (
+    AudioRecognizePhase,
+    BoardRecognizePhase,
+    FrameExtractPhase,
+    VideoPhase,
+    VideoProcessContext,
+)
 
 
 class ResumeContractTests(unittest.TestCase):
@@ -58,6 +64,7 @@ class ResumeContractTests(unittest.TestCase):
                 "phases": [1, 2, 3, 4],
                 "skip_audio": True,
                 "prompt_template": "board-prompt",
+                "audio_prompt_template": None,
                 "resume": True,
             },
         )
@@ -167,6 +174,46 @@ class VideoPhase4ResumeTests(unittest.TestCase):
             self.assertFalse(BoardRecognizePhase().can_resume(processor, context))
 
 
+class VideoPhase5ResumeTests(unittest.TestCase):
+    class _DummyProcessor:
+        def __init__(self):
+            self.calls = []
+
+        def _phase1_audio_path(self, output_dir, stem):
+            return os.path.join(output_dir, f"{stem}.mp3")
+
+        def _phase5_asr(self, *args, **kwargs):
+            self.calls.append((args, kwargs))
+
+    def test_audio_phase_forwards_resume_flag_to_audio_processor(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = os.path.join(tmp, "lecture.mp3")
+            with open(audio_path, "wb") as f:
+                f.write(b"audio")
+
+            context = VideoProcessContext(
+                video_path="lecture.mp4",
+                output_dir=tmp,
+                frames_dir=os.path.join(tmp, "提取帧"),
+                debug_dir=tmp,
+                info_path=os.path.join(tmp, "frame_info.json"),
+                stem="lecture",
+                selected_phases=[5],
+                skip_audio=False,
+                audio_prompt_template="audio prompt",
+                resume=True,
+                audio_path=audio_path,
+            )
+            processor = self._DummyProcessor()
+
+            self.assertTrue(AudioRecognizePhase().execute(processor, context))
+
+            self.assertEqual(len(processor.calls), 1)
+            _args, kwargs = processor.calls[0]
+            self.assertEqual(kwargs["prompt_template"], "audio prompt")
+            self.assertTrue(kwargs["resume"])
+
+
 class VideoInvalidationTests(unittest.TestCase):
     class _DummyTracker:
         def start_phase(self, *args, **kwargs):
@@ -195,6 +242,14 @@ class VideoInvalidationTests(unittest.TestCase):
         def _clear_invalidated_phase_artifacts(self, output_dir, stem, invalidated):
             self.cleared.append((output_dir, stem, tuple(sorted(invalidated))))
 
+    class _FrameExtractProcessor(_DummyProcessor):
+        def _phase2_extract(self, video_path, frames_dir, debug_dir):
+            os.makedirs(frames_dir, exist_ok=True)
+            frame_path = os.path.join(frames_dir, "board_001_010s.jpg")
+            with open(frame_path, "w", encoding="utf-8") as f:
+                f.write("frame")
+            return [{"path": frame_path, "timestamp": 10.0, "frame_idx": 1}]
+
     class _DummyPhase(VideoPhase):
         phase_id = 3
         phase_key = "phase3"
@@ -204,6 +259,25 @@ class VideoInvalidationTests(unittest.TestCase):
             return False
 
         def execute(self, processor, context):
+            return True
+
+    class _ReusablePhase(VideoPhase):
+        phase_id = 4
+        phase_key = "phase4"
+        phase_name = "phase4"
+
+        def __init__(self):
+            self.executed = False
+            self.resumed = False
+
+        def can_resume(self, processor, context):
+            return True
+
+        def on_resume(self, processor, context):
+            self.resumed = True
+
+        def execute(self, processor, context):
+            self.executed = True
             return True
 
     def test_invalidated_video_phases_are_persisted_before_rerun(self):
@@ -228,6 +302,49 @@ class VideoInvalidationTests(unittest.TestCase):
         self.assertEqual(processor.checkpoint_mgr.saved[0], [1, 2])
         self.assertEqual(processor.checkpoint_mgr.saved[1], [1, 2, 3])
         self.assertEqual(processor.cleared, [("out_dir", "demo", (3, 4, 5))])
+
+    def test_resume_reuses_valid_artifact_even_when_checkpoint_was_not_marked(self):
+        processor = self._DummyProcessor()
+        checkpoint = Checkpoint("video", "src.mp4", "out_dir", 5, completed_indices={1, 2, 3})
+        context = VideoProcessContext(
+            video_path="src.mp4",
+            output_dir="out_dir",
+            frames_dir="frames",
+            debug_dir="debug",
+            info_path="info.json",
+            stem="demo",
+            selected_phases=[4, 5],
+            skip_audio=False,
+            resume=True,
+        )
+        phase = self._ReusablePhase()
+        completed = set(checkpoint.completed_indices)
+
+        self.assertTrue(phase.run(processor, context, checkpoint, completed))
+
+        self.assertTrue(phase.resumed)
+        self.assertFalse(phase.executed)
+        self.assertIn(4, completed)
+        self.assertIn(4, checkpoint.completed_indices)
+        self.assertEqual(processor.checkpoint_mgr.saved[-1], [1, 2, 3, 4])
+
+    def test_board_only_frame_extract_preserves_phase5_transcript_artifact(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            processor = self._FrameExtractProcessor()
+            context = VideoProcessContext(
+                video_path="src.mp4",
+                output_dir=tmp,
+                frames_dir=os.path.join(tmp, "frames"),
+                debug_dir=os.path.join(tmp, "debug"),
+                info_path=os.path.join(tmp, "frame_info.json"),
+                stem="demo",
+                selected_phases=[2, 3, 4],
+                skip_audio=True,
+            )
+
+            self.assertTrue(FrameExtractPhase().execute(processor, context))
+
+            self.assertEqual(processor.cleared, [(tmp, "demo", (3, 4))])
 
 
 if __name__ == "__main__":

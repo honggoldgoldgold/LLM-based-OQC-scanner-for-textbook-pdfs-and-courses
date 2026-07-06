@@ -67,9 +67,9 @@ def classify_video(
             info = probe_video_info(url, cfg)
             duration = float(info.get("duration") or 0)
             title = info.get("title", "")
-            entries = info.get("entries")
-            is_playlist = bool(entries)
-            part_count = len(entries) if entries else 1
+            entries = info.get("entries") or info.get("parts") or []
+            part_count = int(info.get("total_parts") or len(entries) or 1)
+            is_playlist = part_count > 1
         except Exception as exc:
             logger.warning("无法探测视频信息 (url=%s): %s — 默认为短视频", url, exc)
             duration = 0

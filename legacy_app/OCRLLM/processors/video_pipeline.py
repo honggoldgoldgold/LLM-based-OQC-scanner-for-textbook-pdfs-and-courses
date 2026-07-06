@@ -18,6 +18,14 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _artifact_invalidations_for_context(context: "VideoProcessContext", phases: set[int]) -> set[int]:
+    """Return artifact phases that may be cleared for the current run."""
+    invalidated = set(phases)
+    if 5 not in context.selected_phases or context.skip_audio:
+        invalidated.discard(5)
+    return invalidated
+
+
 @dataclass
 class VideoProcessContext:
     """视频处理阶段间数据传递容器。"""
@@ -31,6 +39,7 @@ class VideoProcessContext:
     skip_audio: bool
     prompt_template: str | None = None
     audio_prompt_template: str | None = None
+    resume: bool = False
     audio_path: str | None = None
     frame_results: list[dict] | None = None
     processed_paths: list[str] | None = None
@@ -105,7 +114,10 @@ class VideoPhase:
                 self.on_resume(processor, context)
                 return True
 
-            invalidated = {pid for pid in completed_phases if pid >= self.phase_id}
+            invalidated = _artifact_invalidations_for_context(
+                context,
+                {pid for pid in completed_phases if pid >= self.phase_id},
+            )
             completed_phases.difference_update(invalidated)
             processor._clear_invalidated_phase_artifacts(context.output_dir, context.stem, invalidated)
             checkpoint.replace_completed(completed_phases)
@@ -115,6 +127,13 @@ class VideoPhase:
                 self.phase_name,
                 sorted(invalidated or {self.phase_id}),
             )
+
+        if context.resume and self.phase_id not in completed_phases and self.can_resume(processor, context):
+            logger.info("[VIDEO] 发现可复用产物，跳过 %s", self.phase_name)
+            self.on_resume(processor, context)
+            completed_phases.add(self.phase_id)
+            processor.checkpoint_mgr.save_incremental(checkpoint, self.phase_id)
+            return True
 
         processor.tracker.start_phase(
             self.phase_key,
@@ -198,7 +217,11 @@ class FrameExtractPhase(VideoPhase):
         with open(context.info_path, "w", encoding="utf-8") as f:
             json.dump(context.frame_results, f, ensure_ascii=False, indent=2)
 
-        processor._clear_invalidated_phase_artifacts(context.output_dir, context.stem, {3, 4, 5})
+        processor._clear_invalidated_phase_artifacts(
+            context.output_dir,
+            context.stem,
+            _artifact_invalidations_for_context(context, {3, 4, 5}),
+        )
         context.processed_paths = None
         context.board_md = None
         context.hotwords = []
@@ -240,7 +263,11 @@ class FramePreprocessPhase(VideoPhase):
         """执行帧预处理。"""
         if context.frame_results is None:
             context.frame_results = processor._load_frame_info(context.info_path)
-        processor._clear_invalidated_phase_artifacts(context.output_dir, context.stem, {4, 5})
+        processor._clear_invalidated_phase_artifacts(
+            context.output_dir,
+            context.stem,
+            _artifact_invalidations_for_context(context, {4, 5}),
+        )
         context.board_md = None
         context.hotwords = []
         context.processed_paths = processor._phase3_preprocess(context.frame_results, context.output_dir)
@@ -302,7 +329,11 @@ class BoardRecognizePhase(VideoPhase):
             logger.warning("[VIDEO] 预处理产物缺失，重新执行 Phase 3 以保持识别一致性")
             context.processed_paths = processor._phase3_preprocess(context.frame_results, context.output_dir)
 
-        processor._clear_invalidated_phase_artifacts(context.output_dir, context.stem, {4, 5})
+        processor._clear_invalidated_phase_artifacts(
+            context.output_dir,
+            context.stem,
+            _artifact_invalidations_for_context(context, {4, 5}),
+        )
 
         board_md, hotwords, _ = processor._phase4_llm(
             context.frame_results,
@@ -360,6 +391,7 @@ class AudioRecognizePhase(VideoPhase):
                 context.output_dir,
                 context.stem,
                 prompt_template=context.audio_prompt_template,
+                resume=context.resume,
             )
         else:
             logger.warning("[VIDEO] 音频文件不存在，跳过语音识别")

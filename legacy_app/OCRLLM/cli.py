@@ -23,6 +23,17 @@ from OCRLLM.processors.registry import ProcessorSpec, create_processor, get_defa
 from OCRLLM.processors.routing import InputRoutingError, route_input_paths
 
 
+def _configure_stdio_encoding() -> None:
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        try:
+            reconfigure(encoding="utf-8", errors="replace")
+        except Exception:
+            pass
+
+
 def _make_reporter() -> ProgressReporter:
     def on_progress(current, total, msg):
         print(f"[{current}/{total}] {msg}")
@@ -58,6 +69,27 @@ def _normalize_hotwords(hotwords: str | None) -> list[str] | None:
         return None
     words = [word.strip() for word in hotwords.split(",") if word.strip()]
     return words or None
+
+
+def _normalize_part_indices(parts: str | None) -> list[int] | None:
+    if not parts:
+        return None
+    selected: list[int] = []
+    for token in parts.split(","):
+        token = token.strip()
+        if not token:
+            continue
+        if "-" in token:
+            start_text, end_text = token.split("-", 1)
+            start = int(start_text)
+            end = int(end_text)
+            if start > end:
+                raise ValueError(f"invalid part range: {token}")
+            selected.extend(range(start, end + 1))
+        else:
+            selected.append(int(token))
+    deduped = list(dict.fromkeys(selected))
+    return deduped or None
 
 
 def _run_pdf(proc, args, routed):
@@ -110,6 +142,10 @@ def _run_social_long(proc, args, routed):
     return proc.process(
         url=routed.paths[0],
         output_dir=getattr(args, "output", None),
+        phases=getattr(args, "phases", None),
+        skip_audio=5 not in (getattr(args, "phases", None) or [1, 2, 3, 4, 5]),
+        part_indices=_normalize_part_indices(getattr(args, "parts", None)),
+        resume=getattr(args, "resume", False),
     )
 
 
@@ -179,6 +215,11 @@ def _add_hotwords_argument(parser: argparse.ArgumentParser, *, auto: bool):
     parser.add_argument("--hotwords", help=help_text)
 
 
+def _add_parts_argument(parser: argparse.ArgumentParser, *, auto: bool):
+    help_text = "若识别为B站多P，则指定分P，例如 1,3,5-8" if auto else "B站分P，例如 1,3,5-8"
+    parser.add_argument("--parts", help=help_text)
+
+
 _CLI_OPTION_BUILDERS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "formula": _add_formula_argument,
     "page_range": _add_page_range_arguments,
@@ -186,6 +227,7 @@ _CLI_OPTION_BUILDERS: dict[str, Callable[[argparse.ArgumentParser], None]] = {
     "phases": _add_phases_argument,
     "resume": _add_resume_argument,
     "hotwords": _add_hotwords_argument,
+    "parts": _add_parts_argument,
 }
 
 _CLI_OPTION_ATTRS: dict[str, tuple[str, ...]] = {
@@ -195,6 +237,7 @@ _CLI_OPTION_ATTRS: dict[str, tuple[str, ...]] = {
     "phases": ("phases",),
     "resume": ("resume",),
     "hotwords": ("hotwords",),
+    "parts": ("parts",),
 }
 
 _CLI_OPTION_LABELS: dict[str, str] = {
@@ -204,6 +247,7 @@ _CLI_OPTION_LABELS: dict[str, str] = {
     "phases": "--phases",
     "resume": "--resume",
     "hotwords": "--hotwords",
+    "parts": "--parts",
 }
 
 
@@ -312,6 +356,14 @@ def _validate_routed_args(args, spec: ProcessorSpec):
     if getattr(args, "hotwords", None) is not None and not _normalize_hotwords(args.hotwords):
         _fail_cli("--hotwords 不能为空；请提供逗号分隔的非空热词")
 
+    if getattr(args, "parts", None) is not None:
+        try:
+            part_indices = _normalize_part_indices(args.parts)
+        except ValueError:
+            _fail_cli("--parts 只支持正整数和闭区间，例如: 1,3,5-8")
+        if not part_indices or any(part < 1 for part in part_indices):
+            _fail_cli("--parts 只支持从 1 开始的正整数")
+
 
 def _run_routed_command(args, cfg: AppConfig, routed=None):
     routed = routed or route_input_paths(args.input)
@@ -371,6 +423,7 @@ def main():
 
     支持注册表中声明的所有非实验处理器子命令，以及 auto 自动分发。
     """
+    _configure_stdio_encoding()
     _validate_cli_registry_contract()
     parser = argparse.ArgumentParser(description="OCRLLM CLI")
     parser.add_argument("-v", "--verbose", action="store_true")

@@ -28,6 +28,11 @@ from OCRLLM.core.checkpoint import Checkpoint
 from OCRLLM.core.provider_selection import uses_google_for_audio
 from OCRLLM.core.utils import ensure_dir, get_ffmpeg, get_ffprobe, resolve_workers, run_subprocess_cancellable, strip_md_fence
 from OCRLLM.processors.base import BaseProcessor
+from OCRLLM.processors.audio_filetrans_task_state import (
+    clear_filetrans_task_state,
+    load_filetrans_task_id,
+    save_filetrans_task_state,
+)
 from OCRLLM.core.document_model import SourceType
 from OCRLLM import prompts
 
@@ -730,14 +735,33 @@ class AudioProcessor(BaseProcessor):
                 self.cfg.models.asr_model,
                 filetrans_input_summary,
             )
-            if _is_remote(actual_path):
-                file_url = actual_path
-            else:
-                self._report(2, 5, "上传音频文件...")
-                file_url = self._upload_file(actual_path)
+            task_id = None
+            if resume:
+                task_id = load_filetrans_task_id(
+                    output_path,
+                    model=self.cfg.models.asr_model,
+                    audio_path=actual_path,
+                )
+                if task_id:
+                    logger.info("[ASR] 继续等待已有 filetrans 任务: task_id=%s", task_id)
+                    self._report(3, 5, f"继续等待语音识别任务: {task_id}")
 
-            self._report(3, 5, "提交语音识别任务...")
-            task_id = self._submit_task(file_url, hotwords)
+            if not task_id:
+                if _is_remote(actual_path):
+                    file_url = actual_path
+                else:
+                    self._report(2, 5, "上传音频文件...")
+                    file_url = self._upload_file(actual_path)
+
+                self._report(3, 5, "提交语音识别任务...")
+                task_id = self._submit_task(file_url, hotwords)
+                save_filetrans_task_state(
+                    output_path,
+                    task_id=task_id,
+                    model=self.cfg.models.asr_model,
+                    audio_path=actual_path,
+                    file_url=file_url,
+                )
 
             self._report(4, 5, "等待识别完成...")
             result = self._wait_result(task_id, poll_interval, max_wait)
@@ -759,6 +783,7 @@ class AudioProcessor(BaseProcessor):
             ensure_dir(os.path.dirname(output_path))
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(md)
+            clear_filetrans_task_state(output_path)
 
             try:
                 audio_duration = self._get_cached_duration(actual_path)
@@ -779,6 +804,7 @@ class AudioProcessor(BaseProcessor):
             ensure_dir(os.path.dirname(output_path))
             with open(output_path, "w", encoding="utf-8") as f:
                 f.write(md)
+            clear_filetrans_task_state(output_path)
 
             self._report(5, 5, f"完成（音频识别有警告）: {output_path}")
             return output_path

@@ -53,6 +53,7 @@ class DownloadPart:
     duration: float
     url: str = ""
     cid: int = 0            # B站 cid（弹幕/字幕用）
+    danmaku_texts: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -167,20 +168,23 @@ def _download_bilibili(
             raise ValueError(f"指定的分P {part_indices} 不存在，可用: 1-{info.total_parts}")
 
     # 5. 获取弹幕和评论
-    danmaku_texts: list[str] = []
+    danmaku_by_cid: dict[int, list[str]] = {}
     comment_texts: list[str] = []
 
     if cfg.social.fetch_danmaku and target_parts:
-        first_cid = target_parts[0].cid
-        danmaku_texts = fetch_danmaku(session, first_cid)
+        for part in target_parts:
+            danmaku_by_cid[part.cid] = fetch_danmaku(session, part.cid, duration=part.duration)
 
     if cfg.social.fetch_comments:
         comment_texts = fetch_comments(session, info.aid, max_pages=cfg.social.comment_max_pages)
+
+    danmaku_texts = _flatten_unique_danmaku(target_parts, danmaku_by_cid)
 
     # 6. 下载视频
     is_multi = len(target_parts) > 1
     total = len(target_parts)
     parts_result: list[DownloadPart] = []
+    download_failures: list[str] = []
 
     if is_multi:
         # 多P下载
@@ -199,15 +203,21 @@ def _download_bilibili(
                     index=part.page, title=part.part,
                     video_path=video_path, duration=part.duration,
                     cid=part.cid,
+                    danmaku_texts=danmaku_by_cid.get(part.cid, []),
                 ))
                 logger.info("[B站] P%d/%d 下载完成: %s", idx + 1, total, part.part)
             except Exception as exc:
                 logger.error("[B站] P%d 下载失败: %s — %s", part.page, part.part, exc)
+                download_failures.append(f"P{part.page} {part.part}: {exc}")
                 parts_result.append(DownloadPart(
                     index=part.page, title=part.part,
                     video_path="", duration=part.duration,
                     cid=part.cid,
+                    danmaku_texts=danmaku_by_cid.get(part.cid, []),
                 ))
+
+        if download_failures:
+            raise RuntimeError("部分分P下载失败:\n" + "\n".join(download_failures))
 
         return DownloadResult(
             title=info.title, platform="bilibili",
@@ -229,10 +239,6 @@ def _download_bilibili(
             session, bvid, part, output_dir, quality=quality,
         )
 
-        # 单P也获取弹幕
-        if cfg.social.fetch_danmaku and not danmaku_texts:
-            danmaku_texts = fetch_danmaku(session, part.cid)
-
         return DownloadResult(
             title=info.title, platform="bilibili",
             video_path=video_path, duration=part.duration,
@@ -244,8 +250,21 @@ def _download_bilibili(
                 index=part.page, title=part.part,
                 video_path=video_path, duration=part.duration,
                 cid=part.cid,
+                danmaku_texts=danmaku_by_cid.get(part.cid, []),
             )],
         )
+
+
+def _flatten_unique_danmaku(parts, danmaku_by_cid: dict[int, list[str]]) -> list[str]:
+    texts: list[str] = []
+    seen: set[str] = set()
+    for part in parts:
+        for text in danmaku_by_cid.get(part.cid, []):
+            if text in seen:
+                continue
+            seen.add(text)
+            texts.append(text)
+    return texts
 
 
 # ---------------------------------------------------------------------------

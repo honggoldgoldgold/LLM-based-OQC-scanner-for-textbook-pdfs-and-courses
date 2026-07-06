@@ -169,6 +169,7 @@ class VideoProcessor(BaseProcessor):
             skip_audio=skip_audio,
             prompt_template=prompt_template,
             audio_prompt_template=audio_prompt_template,
+            resume=resume,
         )
         phase_chain = build_video_phase_chain(context)
 
@@ -965,7 +966,7 @@ class VideoProcessor(BaseProcessor):
         # ---- 热词: 若没拿到，从文本中回退提取 ----
         if not hotwords and self.cfg.codex_vision.enabled:
             logger.info("[VIDEO] Codex 模式跳过 Qwen 文本热词提取")
-        elif not hotwords:
+        elif not hotwords and self.cfg.video.extract_hotwords_with_text_model:
             logger.info("[VIDEO] 通过文本请求提取热词")
             self.tracker.start_phase("phase4_hotwords", "提取热词")
             try:
@@ -985,6 +986,8 @@ class VideoProcessor(BaseProcessor):
             except Exception as e:
                 logger.warning("[VIDEO] 热词提取失败: %s", e)
             self.tracker.finish_phase("phase4_hotwords")
+        elif not hotwords:
+            logger.info("[VIDEO] 跳过文本模型热词提取")
 
         hw_path = self._phase4_hotword_path(output_dir, stem)
         with open(hw_path, "w", encoding="utf-8") as f:
@@ -1114,6 +1117,7 @@ class VideoProcessor(BaseProcessor):
         output_dir: str,
         stem: str,
         prompt_template: str | None = None,
+        resume: bool = False,
     ):
         self._report(5, 5, "语音识别...")
         self.tracker.update_phase("phase5", 0, "准备语音识别...", total=1)
@@ -1146,6 +1150,7 @@ class VideoProcessor(BaseProcessor):
             hotwords=hotwords,
             output_path=output_path,
             prompt_template=prompt_template,
+            resume=resume,
         )
 
     def _make_phase5_reporter(self) -> ProgressReporter:

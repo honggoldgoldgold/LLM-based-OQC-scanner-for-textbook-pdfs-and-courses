@@ -273,11 +273,12 @@ def _builtin_specs() -> list[ProcessorSpec]:
             supported_extensions=(),
             source_type=SourceType.SOCIAL_VIDEO,
             input_kind="url",
-            supports_resume=False,
+            supports_resume=True,
             description="B站/YouTube 长视频课程下载+识别（复用录课 Pipeline）。",
             output_target="directory",
             cli_input_help="视频页面 URL",
             cli_output_help="输出目录",
+            cli_option_groups=("phases", "resume", "parts"),
         ),
         ProcessorSpec(
             key="social_short",

@@ -191,6 +191,7 @@ class VideoConfig:
     board_roi_padding: int = 10
     board_roi_override: tuple | None = None
     batch_size: int = 4
+    extract_hotwords_with_text_model: bool = True
 
 
 @dataclass
@@ -228,6 +229,8 @@ class SocialConfig:
     fetch_danmaku: bool = True              # 获取弹幕
     fetch_comments: bool = True             # 获取评论
     comment_max_pages: int = 3              # 评论最大翻页数
+    long_video_llm_parallel_requests: int = 4
+    long_video_llm_request_stagger_seconds: float = 1.0
 
 
 @dataclass
@@ -369,6 +372,12 @@ class AppConfig:
         google_audio_overlap = _env_int("OCRLLM_GOOGLE_AUDIO_OVERLAP_SECONDS")
         if google_audio_overlap is not None:
             updates.setdefault("google_api", {})["audio_overlap_seconds"] = max(0, google_audio_overlap)
+        social_long_parallel = _env_int("OCRLLM_SOCIAL_LONG_LLM_PARALLEL_REQUESTS")
+        if social_long_parallel is not None:
+            updates.setdefault("social", {})["long_video_llm_parallel_requests"] = max(1, social_long_parallel)
+        social_long_stagger = _env_float("OCRLLM_SOCIAL_LONG_LLM_REQUEST_STAGGER_SECONDS")
+        if social_long_stagger is not None:
+            updates.setdefault("social", {})["long_video_llm_request_stagger_seconds"] = max(0.0, social_long_stagger)
         if updates.get("codex_vision", {}).get("enabled"):
             codex_model_value = normalize_codex_vision_model(
                 updates["codex_vision"].get("model", cfg.codex_vision.model)

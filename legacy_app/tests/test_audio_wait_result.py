@@ -13,6 +13,10 @@ from OCRLLM.processors.audio import (
     _TLS12HttpAdapter,
     build_fallback_audio_windows,
 )
+from OCRLLM.processors.audio_filetrans_task_state import (
+    filetrans_task_state_path,
+    save_filetrans_task_state,
+)
 
 
 class AudioWaitResultTests(unittest.TestCase):
@@ -281,6 +285,46 @@ class AudioWaitResultTests(unittest.TestCase):
             text = output_path.read_text(encoding="utf-8")
             self.assertIn("音频识别质量警告", text)
             self.assertIn("识别文本过短", text)
+
+    def test_filetrans_process_reuses_saved_task_id_on_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = Path(tmp) / "lecture.mp3"
+            audio_path.write_bytes(b"fake audio")
+            output_path = Path(tmp) / "out.md"
+            save_filetrans_task_state(
+                str(output_path),
+                task_id="saved-task-id",
+                model="qwen3-asr-flash-filetrans",
+                audio_path=str(audio_path),
+                file_url="oss://dashscope/audio.mp3",
+            )
+
+            processor = AudioProcessor.__new__(AudioProcessor)
+            processor.cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                api={"api_key": "sk-test"},
+                models={"asr_model": "qwen3-asr-flash-filetrans"},
+            )
+            processor.reporter = Mock()
+            processor.reporter.cancel_event = None
+            processor._report = Mock()
+            processor._report_content = Mock()
+            processor._close_http_session = Mock()
+            processor._ensure_upload_format = Mock(return_value=str(audio_path))
+            processor._should_use_short_asr = Mock(return_value=(False, 600.0))
+            processor._upload_file = Mock(side_effect=AssertionError("must not upload"))
+            processor._submit_task = Mock(side_effect=AssertionError("must not submit"))
+            processor._wait_result = Mock(return_value={"output": {"task_status": "SUCCEEDED"}})
+            processor._result_to_md = Mock(return_value="resumed transcript")
+            processor._filetrans_text_quality_warning = Mock(return_value=None)
+            processor._get_cached_duration = Mock(return_value=600.0)
+
+            result = processor.process(str(audio_path), output_path=str(output_path), resume=True)
+
+            self.assertEqual(result, str(output_path))
+            processor._wait_result.assert_called_once_with("saved-task-id", 5.0, 3600)
+            self.assertIn("resumed transcript", output_path.read_text(encoding="utf-8"))
+            self.assertFalse(filetrans_task_state_path(str(output_path)).exists())
 
     def test_filetrans_quality_gate_allows_short_audio(self):
         markdown = "<!-- meta:audio title=short -->\n\n<!-- meta:segment index=1 time=00:00~00:01 -->\n\n是。\n"

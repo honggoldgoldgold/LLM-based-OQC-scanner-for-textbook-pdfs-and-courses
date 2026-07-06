@@ -28,6 +28,7 @@ from PyQt5.QtCore import Qt
 
 from OCRLLM import prompts
 from OCRLLM.gui.widgets import PromptButton
+from OCRLLM.gui.tabs.extract_social_urls import extract_social_urls
 
 logger = logging.getLogger(__name__)
 MONO_FONT = QFont("Consolas", 9)
@@ -53,6 +54,7 @@ class SocialTab(QWidget):
         vbox.addWidget(url_label)
         self._url_input = QTextEdit()
         self._url_input.setFont(MONO_FONT)
+        self._url_input.setAcceptRichText(False)
         self._url_input.setPlaceholderText(
             "https://b23.tv/xxxxx\n"
             "https://www.bilibili.com/video/BVxxxxx\n"
@@ -141,15 +143,11 @@ class SocialTab(QWidget):
 
     def _get_urls(self) -> list[str]:
         """提取输入框中的 URL 列表。"""
-        text = self._url_input.toPlainText().strip()
-        if not text:
-            return []
-        urls = []
-        for line in text.splitlines():
-            line = line.strip()
-            if line and (line.startswith("http://") or line.startswith("https://")):
-                urls.append(line)
-        return urls
+        return extract_social_urls(self._url_input.toPlainText())
+
+    def set_input_paths(self, paths: list[str] | tuple[str, ...]):
+        """让主窗口路由器可以把 URL 填入社交媒体模式。"""
+        self._url_input.setPlainText("\n".join(paths))
 
     # ---- 探测 ----
 

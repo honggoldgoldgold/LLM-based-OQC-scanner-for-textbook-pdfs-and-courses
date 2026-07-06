@@ -87,6 +87,38 @@ result = recognize("board.png", config=Config(provider=Provider()))
 No real DashScope, Google, PDF, audio, or video provider has been ported into
 the active library yet.
 
+## Legacy Social-Long Course Path
+
+The Bilibili/social downloader still lives under `legacy_app/OCRLLM/`. It is a
+maintained compatibility workflow, not a public `ocrllm` library API.
+
+For multi-part Bilibili courses, the reusable path is:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long `
+  "https://www.bilibili.com/video/BV1nJ411z7fe?p=33" `
+  --parts 1-33 --resume -o output\bilibili_cs231n_full
+```
+
+Expected per-part output is exactly two Markdown files:
+
+```text
+*_板书识别.md
+*_录音识别.md
+```
+
+The Bilibili comments and per-part danmaku context is written separately to:
+
+```text
+bilibili_social_context.md
+```
+
+This legacy path has resume support for existing downloads, completed video
+phases, and in-flight DashScope FileTrans task IDs. Keep new downstream
+projects importing `ocrllm`; do not expose this legacy processor as a new public
+library boundary.
+
 ## Target Module Design
 
 `docs/ocrllm_module_target_design.md` describes the intended completed Python

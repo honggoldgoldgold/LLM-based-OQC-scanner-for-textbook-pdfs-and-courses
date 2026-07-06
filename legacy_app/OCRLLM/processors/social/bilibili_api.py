@@ -13,10 +13,13 @@ B站原生 API 引擎 — 绕过 yt-dlp 的 412 问题。
 from __future__ import annotations
 
 import io
+import html
 import json
 import logging
+import math
 import os
 import re
+import shutil
 import struct
 import subprocess
 import time
@@ -94,6 +97,11 @@ class BiliSession:
 
     _API_BASE = "https://api.bilibili.com"
     _WWW_BASE = "https://www.bilibili.com"
+    _USER_AGENT = (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/126.0.0.0 Safari/537.36"
+    )
 
     def __init__(self, *, cookies_file: str = "", sessdata: str = ""):
         self._session = None
@@ -153,10 +161,24 @@ class BiliSession:
 
     def get(self, url: str, **kwargs) -> dict:
         """发起 GET 请求，返回 JSON data 字段。"""
-        self._ensure_session()
         kwargs.setdefault("timeout", 15)
-        r = self._session.get(url, **kwargs)
-        body = r.json()
+        body = None
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                self._ensure_session()
+                r = self._session.get(url, **kwargs)
+                body = r.json()
+                break
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= 3:
+                    raise
+                logger.warning("[B站] API GET 失败，重试 %d/3: %s", attempt, exc)
+                self._reset_session()
+                time.sleep(min(2 * attempt, 6))
+        if body is None:
+            raise RuntimeError(f"B站 API 请求失败: {last_exc}")
         if body.get("code") != 0:
             raise RuntimeError(
                 f"B站 API 错误 (code={body.get('code')}): {body.get('message', '未知错误')}"
@@ -165,20 +187,133 @@ class BiliSession:
 
     def get_raw(self, url: str, **kwargs) -> bytes:
         """发起 GET 请求，返回原始字节。"""
-        self._ensure_session()
         kwargs.setdefault("timeout", 30)
-        r = self._session.get(url, **kwargs)
-        return r.content
+        last_exc: Exception | None = None
+        for attempt in range(1, 4):
+            try:
+                self._ensure_session()
+                r = self._session.get(url, **kwargs)
+                return r.content
+            except Exception as exc:
+                last_exc = exc
+                if attempt >= 3:
+                    raise
+                logger.warning("[B站] API raw GET 失败，重试 %d/3: %s", attempt, exc)
+                self._reset_session()
+                time.sleep(min(2 * attempt, 6))
+        raise RuntimeError(f"B站 API raw 请求失败: {last_exc}")
+
+    def _reset_session(self):
+        self._session = None
+        self._initialized = False
 
     def download_file(self, url: str, dest: str, *, referer: str = ""):
-        """下载文件到本地。"""
+        """下载文件到本地。
+
+        B站 DASH 分片可能很大，直接用 curl_cffi 长时间流式下载时，进程曾在
+        课程分P批量下载中无 traceback 退出。这里优先把大流交给系统 curl，
+        并用 .part 文件支持断点续传；curl 不可用或失败时再回退到会话下载。
+        """
         self._ensure_session()
-        headers = {"Referer": referer or self._WWW_BASE}
-        r = self._session.get(url, headers=headers, timeout=120, stream=True)
         os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
-        with open(dest, "wb") as f:
+        self._prepare_partial_download(dest)
+
+        if shutil.which("curl"):
+            try:
+                self._download_file_with_curl(url, dest, referer=referer)
+                return
+            except Exception as exc:
+                logger.warning("[B站] 系统 curl 下载失败，回退到会话下载: %s", exc)
+
+        self._download_file_with_session(url, dest, referer=referer)
+
+    @staticmethod
+    def _prepare_partial_download(dest: str):
+        """把旧的未完成目标文件迁移成 .part，便于新下载路径续传。"""
+        partial = dest + ".part"
+        if os.path.isfile(dest) and os.path.getsize(dest) > 0 and not os.path.exists(partial):
+            os.replace(dest, partial)
+
+    def _download_file_with_curl(self, url: str, dest: str, *, referer: str = ""):
+        partial = dest + ".part"
+        referer = referer or self._WWW_BASE
+
+        def run_curl(*, resume: bool) -> subprocess.CompletedProcess:
+            cmd = [
+                "curl",
+                "--fail",
+                "--location",
+                "--retry", "5",
+                "--retry-delay", "2",
+                "--retry-max-time", "600",
+                "--connect-timeout", "20",
+                "--speed-time", "60",
+                "--speed-limit", "1024",
+                "-H", f"Referer: {referer}",
+                "-H", f"User-Agent: {self._USER_AGENT}",
+                "-H", "Origin: https://www.bilibili.com",
+                "-H", "Accept: */*",
+                "-o", partial,
+            ]
+            if resume:
+                cmd.extend(["-C", "-"])
+            cmd.append(url)
+            from OCRLLM.core.utils import windows_no_window_kwargs
+            return subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=3600,
+                **windows_no_window_kwargs(),
+            )
+
+        resume = os.path.isfile(partial) and os.path.getsize(partial) > 0
+        result = run_curl(resume=resume)
+        if result.returncode == 33 and resume:
+            # Some B站 CDNs reject Range requests. Restart cleanly instead of
+            # leaving callers stuck with an old partial stream.
+            try:
+                os.remove(partial)
+            except OSError:
+                pass
+            result = run_curl(resume=False)
+
+        if result.returncode != 0:
+            stderr = (result.stderr or result.stdout or "").strip()
+            raise RuntimeError(f"curl exit={result.returncode}: {stderr[:500]}")
+        if not os.path.isfile(partial) or os.path.getsize(partial) <= 0:
+            raise RuntimeError("curl 下载完成但未生成有效文件")
+
+        os.replace(partial, dest)
+
+    def _download_file_with_session(self, url: str, dest: str, *, referer: str = ""):
+        partial = dest + ".part"
+        headers = {
+            "Referer": referer or self._WWW_BASE,
+            "User-Agent": self._USER_AGENT,
+            "Origin": "https://www.bilibili.com",
+        }
+        existing_size = os.path.getsize(partial) if os.path.isfile(partial) else 0
+        if existing_size > 0:
+            headers["Range"] = f"bytes={existing_size}-"
+
+        r = self._session.get(url, headers=headers, timeout=120, stream=True)
+        status_code = getattr(r, "status_code", 200)
+        if status_code >= 400:
+            raise RuntimeError(f"HTTP {status_code}")
+        mode = "ab"
+        if existing_size > 0 and status_code == 200:
+            # CDN ignored Range; avoid appending a duplicate full stream.
+            mode = "wb"
+
+        with open(partial, mode) as f:
             for chunk in r.iter_content(chunk_size=1024 * 1024):
-                f.write(chunk)
+                if chunk:
+                    f.write(chunk)
+
+        if not os.path.isfile(partial) or os.path.getsize(partial) <= 0:
+            raise RuntimeError("会话下载完成但未生成有效文件")
+        os.replace(partial, dest)
 
 
 # ---------------------------------------------------------------------------
@@ -301,6 +436,9 @@ def download_video_part(
         video_url = durl[0]["url"]
         safe_title = re.sub(r'[<>:"/\\|?*]', '_', part.part)[:60]
         dest = os.path.join(output_dir, f"{safe_title}.mp4")
+        if os.path.isfile(dest) and os.path.getsize(dest) > 0:
+            logger.info("[B站] 已存在，跳过下载: %s", dest)
+            return dest
         logger.info("[B站] 下载 (flv): P%d %s", part.page, part.part)
         session.download_file(video_url, dest, referer=f"https://www.bilibili.com/video/{bvid}")
         return dest
@@ -333,6 +471,9 @@ def download_video_part(
     video_tmp = os.path.join(output_dir, f"_tmp_video_{part.page}.m4s")
     audio_tmp = os.path.join(output_dir, f"_tmp_audio_{part.page}.m4s")
     final_path = os.path.join(output_dir, f"{safe_title}.mp4")
+    if os.path.isfile(final_path) and os.path.getsize(final_path) > 0:
+        logger.info("[B站] 已存在，跳过下载: %s", final_path)
+        return final_path
 
     logger.info("[B站] 下载视频流: P%d %s", part.page, part.part)
     session.download_file(video_url, video_tmp, referer=referer)
@@ -375,7 +516,7 @@ def download_video_part(
 # ---------------------------------------------------------------------------
 
 
-def fetch_danmaku(session: BiliSession, cid: int) -> list[str]:
+def fetch_danmaku(session: BiliSession, cid: int, *, duration: int | None = None) -> list[str]:
     """获取弹幕内容列表（去重、按时间排序）。
 
     Returns:
@@ -390,21 +531,20 @@ def fetch_danmaku(session: BiliSession, cid: int) -> list[str]:
         except zlib.error:
             xml_bytes = raw
 
-        root = ElementTree.fromstring(xml_bytes)
-        danmakus: list[tuple[float, str]] = []
-        seen = set()
-        for d in root.findall(".//d"):
-            text = (d.text or "").strip()
-            if not text or text in seen:
-                continue
-            seen.add(text)
-            # p 属性: "时间,模式,字号,颜色,时间戳,弹幕池,用户hash,dmid"
-            p_attr = d.get("p", "0")
-            try:
-                time_sec = float(p_attr.split(",")[0])
-            except (ValueError, IndexError):
-                time_sec = 0.0
-            danmakus.append((time_sec, text))
+        try:
+            root = ElementTree.fromstring(xml_bytes)
+            raw_items = [
+                (d.get("p", "0"), (d.text or "").strip())
+                for d in root.findall(".//d")
+            ]
+        except ElementTree.ParseError as exc:
+            logger.warning("[B站] 弹幕 XML 非严格格式，改用宽松解析 (cid=%d): %s", cid, exc)
+            raw_items = _extract_danmaku_items_lenient(xml_bytes)
+
+        danmakus = _normalize_danmaku_items(raw_items)
+        if not danmakus and _looks_like_bilibili_412(xml_bytes):
+            logger.warning("[B站] 弹幕 XML 端点被风控，改用分段弹幕接口 (cid=%d)", cid)
+            danmakus = _fetch_segmented_danmaku(session, cid, duration=duration)
 
         danmakus.sort(key=lambda x: x[0])
         logger.info("[B站] 弹幕获取: cid=%d, %d 条", cid, len(danmakus))
@@ -412,7 +552,163 @@ def fetch_danmaku(session: BiliSession, cid: int) -> list[str]:
 
     except Exception as exc:
         logger.warning("[B站] 弹幕获取失败 (cid=%d): %s", cid, exc)
+        danmakus = _fetch_segmented_danmaku(session, cid, duration=duration)
+        if danmakus:
+            logger.info("[B站] 分段弹幕获取: cid=%d, %d 条", cid, len(danmakus))
+            return [t for _, t in sorted(danmakus, key=lambda x: x[0])]
         return []
+
+
+def _extract_danmaku_items_lenient(xml_bytes: bytes) -> list[tuple[str, str]]:
+    """Extract ``<d p="...">text</d>`` items from malformed Bilibili XML."""
+    items: list[tuple[str, str]] = []
+    pattern = re.compile(rb"<d\b(?P<attrs>[^>]*)>(?P<text>.*?)</d>", re.DOTALL)
+    for match in pattern.finditer(xml_bytes):
+        attrs = match.group("attrs").decode("utf-8", "replace")
+        p_match = re.search(r'\bp=["\']([^"\']*)["\']', attrs)
+        p_attr = p_match.group(1) if p_match else "0"
+        text = match.group("text").decode("utf-8", "replace")
+        items.append((p_attr, html.unescape(text).strip()))
+    return items
+
+
+def _normalize_danmaku_items(raw_items: list[tuple[str, str]]) -> list[tuple[float, str]]:
+    danmakus: list[tuple[float, str]] = []
+    seen = set()
+    for p_attr, text in raw_items:
+        text = html.unescape(text).strip()
+        if not text or text in seen:
+            continue
+        seen.add(text)
+        # p 属性: "时间,模式,字号,颜色,时间戳,弹幕池,用户hash,dmid"
+        try:
+            time_sec = float(p_attr.split(",")[0])
+        except (ValueError, IndexError):
+            time_sec = 0.0
+        danmakus.append((time_sec, text))
+    return danmakus
+
+
+def _looks_like_bilibili_412(payload: bytes) -> bool:
+    head = payload[:4096].lower()
+    return b"error-container" in head or b"security control policy" in head or b"412" in head
+
+
+def _fetch_segmented_danmaku(
+    session: BiliSession,
+    cid: int,
+    *,
+    duration: int | None = None,
+) -> list[tuple[float, str]]:
+    """Fetch danmaku through Bilibili's protobuf segment API."""
+    if duration and duration > 0:
+        segment_total = min(200, max(1, math.ceil(duration / 360)))
+    else:
+        segment_total = 100
+
+    raw_items: list[tuple[str, str]] = []
+    empty_segments = 0
+    for segment_index in range(1, segment_total + 1):
+        url = (
+            "https://api.bilibili.com/x/v2/dm/web/seg.so"
+            f"?type=1&oid={cid}&segment_index={segment_index}"
+        )
+        try:
+            payload = session.get_raw(url, timeout=15)
+        except Exception as exc:
+            logger.warning("[B站] 分段弹幕获取失败 (cid=%d, segment=%d): %s", cid, segment_index, exc)
+            empty_segments += 1
+            if empty_segments >= 3:
+                break
+            continue
+
+        items = _extract_danmaku_items_from_segment_payload(payload)
+        if not items:
+            empty_segments += 1
+            if empty_segments >= 3:
+                break
+            continue
+        empty_segments = 0
+        raw_items.extend(items)
+
+    danmakus = _normalize_danmaku_items(raw_items)
+    danmakus.sort(key=lambda x: x[0])
+    return danmakus
+
+
+def _extract_danmaku_items_from_segment_payload(payload: bytes) -> list[tuple[str, str]]:
+    """Decode the fields needed from ``DmSegMobileReply`` protobuf bytes."""
+    items: list[tuple[str, str]] = []
+    for field_number, wire_type, value in _iter_protobuf_fields(payload):
+        if field_number != 1 or wire_type != 2 or not isinstance(value, bytes):
+            continue
+        progress_ms = 0
+        content = ""
+        for elem_field, elem_wire, elem_value in _iter_protobuf_fields(value):
+            if elem_field == 2 and elem_wire == 0 and isinstance(elem_value, int):
+                progress_ms = elem_value
+            elif elem_field == 7 and elem_wire == 2 and isinstance(elem_value, bytes):
+                content = elem_value.decode("utf-8", "replace").strip()
+        if content:
+            items.append((f"{progress_ms / 1000:.3f}", content))
+    return items
+
+
+def _iter_protobuf_fields(payload: bytes):
+    pos = 0
+    size = len(payload)
+    while pos < size:
+        try:
+            key, pos = _read_protobuf_varint(payload, pos)
+        except ValueError:
+            break
+        field_number = key >> 3
+        wire_type = key & 0x07
+        if field_number == 0:
+            break
+        if wire_type == 0:
+            try:
+                value, pos = _read_protobuf_varint(payload, pos)
+            except ValueError:
+                break
+            yield field_number, wire_type, value
+        elif wire_type == 1:
+            if pos + 8 > size:
+                break
+            yield field_number, wire_type, payload[pos:pos + 8]
+            pos += 8
+        elif wire_type == 2:
+            try:
+                length, pos = _read_protobuf_varint(payload, pos)
+            except ValueError:
+                break
+            end = pos + length
+            if end > size:
+                break
+            yield field_number, wire_type, payload[pos:end]
+            pos = end
+        elif wire_type == 5:
+            if pos + 4 > size:
+                break
+            yield field_number, wire_type, payload[pos:pos + 4]
+            pos += 4
+        else:
+            break
+
+
+def _read_protobuf_varint(payload: bytes, pos: int) -> tuple[int, int]:
+    value = 0
+    shift = 0
+    while pos < len(payload):
+        byte = payload[pos]
+        pos += 1
+        value |= (byte & 0x7F) << shift
+        if not (byte & 0x80):
+            return value, pos
+        shift += 7
+        if shift > 63:
+            break
+    raise ValueError("invalid protobuf varint")
 
 
 # ---------------------------------------------------------------------------
