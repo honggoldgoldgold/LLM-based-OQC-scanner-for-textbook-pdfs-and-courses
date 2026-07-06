@@ -21,6 +21,9 @@ Scope:
   was ignored.
 - The stored Codex model setting must be honored exactly. Hidden migration from
   `gpt-5.4-mini` to the default `gpt-5.5` made a saved model look unsaved.
+- 2026-07-06 robustness run found that Codex subprocess failures could be
+  embedded into board Markdown as HTML comments. That is not a clean output.
+  Affected outputs must be rerun only when a concrete dirty marker exists.
 
 ## Failure Timeline
 
@@ -147,6 +150,49 @@ Conclusion:
 
 - This is the first durable log evidence that Qwen Filetrans worked end to end
   after the OSS submission path was fixed.
+
+### 2026-07-06 00:05 to 01:31
+
+Codex robustness monitoring found two separate issues during large batch runs:
+
+- Blank PowerShell/Codex windows appeared while Codex vision subprocesses were
+  running from the legacy GUI.
+- Several board Markdown artifacts contained failure placeholders such as
+  `<!-- 批次 N 失败: Codex 识图失败: Reading additional input from stdin... -->`.
+
+Evidence:
+
+- Persistent log entries showed repeated `Codex 识图失败: Reading additional
+  input from stdin...` at batch level.
+- `G:\人工智能（H）_2026-05-22_646927\...\_板书识别.md` contained multiple
+  embedded Codex diagnostic dumps before later valid frame output.
+- Some older statistics outputs contained only `[WinError 10061]` placeholder
+  comments and no real frame markers.
+
+Fix committed:
+
+- Commit `ed6f12c` (`Harden legacy Codex vision subprocess handling`).
+- `legacy_app/OCRLLM/core/codex_vision.py` now uses the existing Windows
+  no-window subprocess kwargs for Codex CLI calls.
+- Codex CLI nonzero exits are retried once and summarized to a single line so
+  prompts/diagnostic dumps are not written into Markdown.
+- `legacy_app/OCRLLM/processors/video.py` now treats Codex-mode batch or
+  per-frame failures as Phase 4 failures instead of writing placeholder
+  Markdown and continuing as if the output were clean.
+- `legacy_app/OCRLLM/processors/audio.py` uses the existing cached duration
+  probe for Filetrans cost logging instead of the missing `_get_duration`
+  method.
+
+Operational rule:
+
+- Do not stop a live recognition job only because it is slow or has visible
+  Codex windows.
+- Rerun only outputs with concrete dirty evidence: batch/frame failure
+  placeholders, `Reading additional input from stdin`, `[WinError 10061]`, a
+  missing board/audio Markdown after the job has completed, or a hard failure
+  in the persistent log.
+- When rerunning after this fix, restart the legacy GUI first so new processes
+  load commit `ed6f12c`.
 
 ## Codex Model Persistence Failure
 
