@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -27,6 +28,7 @@ from OCRLLM.core.codex_model_catalog import (
     migrate_stored_codex_vision_model,
     normalize_codex_vision_model,
 )
+from OCRLLM.core.utils import windows_no_window_kwargs
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +70,9 @@ _REQUIRED_EXEC_FLAGS = (
     "--output-last-message",
 )
 
+_CODEX_VISION_MAX_ATTEMPTS = 2
+_CODEX_VISION_RETRY_DELAY_SECONDS = 3.0
+
 
 class CodexCLIUnavailableError(RuntimeError):
     """Codex CLI 不可用或不满足本机识图要求。"""
@@ -87,16 +92,17 @@ def _run_codex_process(
     stdin=None,
 ):
     """Run Codex CLI with UTF-8 output decoding across Windows and Linux."""
-    return subprocess.run(
-        cmd,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        capture_output=True,
-        stdin=stdin,
-        timeout=timeout,
-        check=False,
-    )
+    kwargs = {
+        "text": True,
+        "encoding": "utf-8",
+        "errors": "replace",
+        "capture_output": True,
+        "stdin": stdin,
+        "timeout": timeout,
+        "check": False,
+    }
+    kwargs.update(windows_no_window_kwargs())
+    return subprocess.run(cmd, **kwargs)
 
 
 def _run_probe(cmd: list[str], timeout: float = 20.0):
@@ -112,6 +118,73 @@ def _codex_launch_failure_message(prefix: str, command: str, exc: BaseException)
             "请安装可独立调用的 Codex CLI，或在设置里填写该 CLI 的完整命令/路径。"
         )
     return message
+
+
+def _single_line_detail(text: str, limit: int = 500) -> str:
+    detail = " ".join((text or "").split())
+    if len(detail) > limit:
+        detail = detail[:limit].rstrip() + "..."
+    return detail
+
+
+def _summarize_codex_failure_output(output: str, returncode: int) -> str:
+    """Keep Codex CLI diagnostics useful without dumping prompts into output MD."""
+    lines = [line.strip() for line in (output or "").splitlines() if line.strip()]
+    if not lines:
+        return f"Codex CLI exited with code {returncode} without diagnostic output"
+
+    session_id = ""
+    for line in lines:
+        if line.lower().startswith("session id:"):
+            session_id = line.split(":", 1)[1].strip()
+            break
+
+    prompt_markers = (
+        "user",
+        "用户原始提示",
+        "你是 OCRLLM",
+        "这是上课板书",
+        "<!-- meta:",
+    )
+    diagnostic_keywords = (
+        "error",
+        "failed",
+        "failure",
+        "timeout",
+        "timed out",
+        "quota",
+        "rate limit",
+        "429",
+        "500",
+        "401",
+        "403",
+        "connection",
+        "refused",
+        "denied",
+        "invalid",
+        "reading additional input",
+    )
+
+    diagnostic_lines = []
+    for line in lines:
+        lower = line.lower()
+        if any(marker in line for marker in prompt_markers):
+            continue
+        if any(keyword in lower for keyword in diagnostic_keywords):
+            diagnostic_lines.append(line)
+
+    if diagnostic_lines:
+        primary = diagnostic_lines[-1]
+    else:
+        primary = next(
+            (line for line in lines if not any(marker in line for marker in prompt_markers)),
+            lines[0],
+        )
+
+    detail = f"Codex CLI exited with code {returncode}: {primary}"
+    if session_id:
+        detail += f"; session id: {session_id}"
+    return _single_line_detail(detail)
 
 
 def inspect_codex_cli(cfg: CodexVisionConfig) -> CodexInspectionReport:
@@ -249,26 +322,54 @@ class CodexVisionRunner:
                 normalize_codex_vision_model(self.cfg.model),
                 len(image_paths),
             )
-            try:
-                result = _run_codex_process(
-                    cmd,
-                    stdin=subprocess.DEVNULL,
-                    timeout=max(30, int(self.cfg.timeout_seconds or 600)),
-                )
-            except subprocess.TimeoutExpired as exc:
-                raise CodexCLIUnavailableError(f"Codex 识图超时: {exc}") from exc
-            except OSError as exc:
-                raise CodexCLIUnavailableError(_codex_launch_failure_message("Codex 识图启动失败", command, exc)) from exc
+            timeout_seconds = max(30, int(self.cfg.timeout_seconds or 600))
+            for attempt in range(1, _CODEX_VISION_MAX_ATTEMPTS + 1):
+                if output_path.exists():
+                    output_path.unlink()
+                try:
+                    result = _run_codex_process(
+                        cmd,
+                        stdin=subprocess.DEVNULL,
+                        timeout=timeout_seconds,
+                    )
+                except subprocess.TimeoutExpired as exc:
+                    raise CodexCLIUnavailableError(f"Codex 识图超时: {exc}") from exc
+                except OSError as exc:
+                    raise CodexCLIUnavailableError(_codex_launch_failure_message("Codex 识图启动失败", command, exc)) from exc
 
-            if result.returncode != 0:
-                detail = (result.stderr or result.stdout or "").strip()
-                raise CodexCLIUnavailableError(f"Codex 识图失败: {detail[:1000]}")
-            text = output_path.read_text(encoding="utf-8").strip() if output_path.exists() else ""
-            if not text:
-                text = (result.stdout or "").strip()
-            if not text:
+                if result.returncode != 0:
+                    detail = _summarize_codex_failure_output(
+                        result.stderr or result.stdout or "",
+                        result.returncode,
+                    )
+                    if attempt < _CODEX_VISION_MAX_ATTEMPTS:
+                        logger.warning(
+                            "[CODEX] 识图失败，将重试 %d/%d: %s",
+                            attempt + 1,
+                            _CODEX_VISION_MAX_ATTEMPTS,
+                            detail,
+                        )
+                        time.sleep(_CODEX_VISION_RETRY_DELAY_SECONDS * attempt)
+                        continue
+                    raise CodexCLIUnavailableError(f"Codex 识图失败: {detail}")
+
+                text = output_path.read_text(encoding="utf-8").strip() if output_path.exists() else ""
+                if not text:
+                    text = (result.stdout or "").strip()
+                if text:
+                    return text
+
+                if attempt < _CODEX_VISION_MAX_ATTEMPTS:
+                    logger.warning(
+                        "[CODEX] 识图返回空内容，将重试 %d/%d",
+                        attempt + 1,
+                        _CODEX_VISION_MAX_ATTEMPTS,
+                    )
+                    time.sleep(_CODEX_VISION_RETRY_DELAY_SECONDS * attempt)
+                    continue
                 raise CodexCLIUnavailableError("Codex 识图返回空内容")
-            return text
+
+            raise CodexCLIUnavailableError("Codex 识图失败")
 
     def _build_command(
         self,

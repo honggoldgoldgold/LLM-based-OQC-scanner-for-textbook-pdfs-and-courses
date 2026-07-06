@@ -273,7 +273,7 @@ class AudioWaitResultTests(unittest.TestCase):
             processor._result_to_md = Mock(
                 return_value="<!-- meta:audio title=lecture -->\n\n<!-- meta:segment index=1 -->\n\n是。\n"
             )
-            processor._get_duration = Mock(return_value=3140.0)
+            processor._get_cached_duration = Mock(return_value=3140.0)
 
             result = processor.process(str(audio_path), output_path=str(output_path))
 

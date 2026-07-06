@@ -947,8 +947,8 @@ class VideoProcessor(BaseProcessor):
                 except CancelledError:
                     raise
                 except Exception as e:
-                    if is_provider_setup_error(e):
-                        logger.error("[VIDEO] Provider 环境错误，中止 Phase 4: %s", e)
+                    if is_provider_setup_error(e) or self.cfg.codex_vision.enabled:
+                        logger.error("[VIDEO] 批次 %s 失败，中止 Phase 4: %s", bi, e)
                         raise
                     logger.error("[VIDEO] 批次 %s 异常: %s", bi, e)
                     self.tracker.increment_error()
@@ -1036,7 +1036,7 @@ class VideoProcessor(BaseProcessor):
             except CancelledError:
                 raise
             except Exception as e:
-                if is_provider_setup_error(e):
+                if is_provider_setup_error(e) or self.cfg.codex_vision.enabled:
                     raise
                 logger.error("[VIDEO] 逐帧回退失败: %s", e)
                 safe_err = str(e).replace("--", "\u2014")
@@ -1098,7 +1098,7 @@ class VideoProcessor(BaseProcessor):
         except CancelledError:
             raise
         except Exception as e:
-            if is_provider_setup_error(e):
+            if is_provider_setup_error(e) or self.cfg.codex_vision.enabled:
                 raise
             logger.error("[VIDEO] 批次 %d 失败: %s", bi + 1, e)
             safe_err = str(e).replace("--", "\u2014")

@@ -761,7 +761,7 @@ class AudioProcessor(BaseProcessor):
                 f.write(md)
 
             try:
-                audio_duration = self._get_duration(actual_path)
+                audio_duration = self._get_cached_duration(actual_path)
                 est_cost = audio_duration * 0.22 / 1000
                 logger.info(
                     f"[ASR] 长音频识别完成: {stem}, 时长 {audio_duration:.1f}s, "

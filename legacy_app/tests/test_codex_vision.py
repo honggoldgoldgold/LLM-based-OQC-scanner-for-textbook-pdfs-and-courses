@@ -81,6 +81,89 @@ class CodexVisionRunnerTests(unittest.TestCase):
             disable_positions = [i for i, part in enumerate(cmd) if part == "--disable"]
             self.assertTrue(any(cmd[i + 1] == disabled for i in disable_positions))
 
+    def test_probe_passes_windows_no_window_kwargs(self):
+        seen_kwargs = {}
+
+        def fake_run(_cmd, **kwargs):
+            seen_kwargs.update(kwargs)
+            return SimpleNamespace(returncode=0, stdout="ok", stderr="")
+
+        with patch("OCRLLM.core.codex_vision.windows_no_window_kwargs", return_value={"creationflags": 123}), \
+                patch("OCRLLM.core.codex_vision.subprocess.run", side_effect=fake_run):
+            result = _run_probe(["codex", "--version"])
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(seen_kwargs["creationflags"], 123)
+
+    def test_runner_retries_transient_nonzero_codex_result(self):
+        cfg = AppConfig(
+            codex_vision=CodexVisionConfig(
+                enabled=True,
+                command="codex",
+                model="gpt-5.4-mini",
+            )
+        )
+        calls = []
+
+        def fake_run(cmd, **_kwargs):
+            calls.append(cmd)
+            if len(calls) == 1:
+                return SimpleNamespace(
+                    returncode=1,
+                    stdout="Reading additional input from stdin...\nsession id: test-session\nuser\n用户原始提示:\nsecret",
+                    stderr="",
+                )
+            output_path = cmd[cmd.index("--output-last-message") + 1]
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write("OCR TEXT")
+            return SimpleNamespace(returncode=0, stdout="", stderr="")
+
+        with tempfile.NamedTemporaryFile(suffix=".png") as img, \
+                patch("OCRLLM.core.codex_vision.shutil.which", return_value="/usr/bin/codex"), \
+                patch("OCRLLM.core.codex_vision.subprocess.run", side_effect=fake_run), \
+                patch("OCRLLM.core.codex_vision.time.sleep"):
+            result = CodexVisionRunner(cfg.codex_vision).recognize("read", [img.name])
+
+        self.assertEqual(result, "OCR TEXT")
+        self.assertEqual(len(calls), 2)
+
+    def test_runner_failure_summary_does_not_dump_prompt(self):
+        cfg = AppConfig(
+            codex_vision=CodexVisionConfig(
+                enabled=True,
+                command="codex",
+                model="gpt-5.4-mini",
+            )
+        )
+
+        def fake_run(_cmd, **_kwargs):
+            return SimpleNamespace(
+                returncode=1,
+                stdout=(
+                    "Reading additional input from stdin...\n"
+                    "session id: test-session\n"
+                    "user\n"
+                    "用户原始提示:\n"
+                    "<!-- meta:frame id=board_001_010s time=00:10 -->\n"
+                    "secret prompt text"
+                ),
+                stderr="",
+            )
+
+        with tempfile.NamedTemporaryFile(suffix=".png") as img, \
+                patch("OCRLLM.core.codex_vision.shutil.which", return_value="/usr/bin/codex"), \
+                patch("OCRLLM.core.codex_vision.subprocess.run", side_effect=fake_run), \
+                patch("OCRLLM.core.codex_vision.time.sleep"):
+            with self.assertRaises(CodexCLIUnavailableError) as ctx:
+                CodexVisionRunner(cfg.codex_vision).recognize("read", [img.name])
+
+        message = str(ctx.exception)
+        self.assertIn("Codex CLI exited with code 1", message)
+        self.assertIn("session id: test-session", message)
+        self.assertNotIn("用户原始提示", message)
+        self.assertNotIn("secret prompt text", message)
+        self.assertNotIn("\n", message)
+
     def test_llm_client_can_use_codex_vision_without_api_key(self):
         cfg = AppConfig(codex_vision=CodexVisionConfig(enabled=True))
         with patch("OCRLLM.core.llm_client.CodexVisionRunner") as runner_cls:

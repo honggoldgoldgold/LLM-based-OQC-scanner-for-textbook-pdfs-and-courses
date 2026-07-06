@@ -286,6 +286,32 @@ class VisionFailurePropagationTests(unittest.TestCase):
                 self.assertIn("Screen shows terminal commands", f.read())
             self.assertEqual(hotwords, [])
 
+    def test_video_phase4_codex_mode_raises_instead_of_writing_placeholder(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            frame_path = os.path.join(tmp, "board_001_010s.jpg")
+            Image.new("RGB", (8, 8), "white").save(frame_path)
+            cfg = _cfg(tmp).with_updates(codex_vision={"enabled": True})
+            proc = VideoProcessor(
+                cfg=cfg,
+                llm=_FailingLLM(),
+                reporter=ProgressReporter(),
+                tracker=ProgressTracker(),
+                api_pool=_SingleClientPool(),
+            )
+
+            with self.assertRaises(RuntimeError):
+                proc._phase4_llm(
+                    [{"path": frame_path, "timestamp": 10.0, "frame_idx": 1}],
+                    [frame_path],
+                    tmp,
+                    "lecture",
+                )
+
+            md_path = os.path.join(tmp, "lecture_板书识别.md")
+            if os.path.exists(md_path):
+                with open(md_path, encoding="utf-8") as f:
+                    self.assertNotIn("批次 1 失败", f.read())
+
 
 if __name__ == "__main__":
     unittest.main()
