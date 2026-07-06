@@ -112,7 +112,7 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             processor._submit_task = Mock(return_value="task-id")
             processor._wait_result = Mock(return_value={"transcripts": []})
             processor._result_to_md = Mock(return_value="filetrans transcript")
-            processor._raise_if_filetrans_text_too_short = Mock()
+            processor._filetrans_text_quality_warning = Mock(return_value=None)
             processor._get_duration = Mock(return_value=600.0)
 
             result = processor.process(audio_path, output_path=output_path)
@@ -668,7 +668,7 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             llm.transcribe_long_audio.assert_called_once()
             self.assertTrue(os.path.exists(output_path))
 
-    def test_qwen_no_valid_fragment_no_longer_forces_short_audio_fallback(self):
+    def test_qwen_no_valid_fragment_writes_warning_without_short_audio_fallback(self):
         with tempfile.TemporaryDirectory() as tmp:
             audio_path = os.path.join(tmp, "lecture.mp3")
             with open(audio_path, "wb") as f:
@@ -696,12 +696,14 @@ class GoogleAudioRoutingTests(unittest.TestCase):
             )
             processor._short_asr = Mock(side_effect=AssertionError("short fallback must not run"))
 
-            with self.assertRaises(RuntimeError) as ctx:
-                processor.process(audio_path, output_path=output_path)
+            result = processor.process(audio_path, output_path=output_path)
 
-            message = str(ctx.exception)
+            self.assertEqual(result, output_path)
+            with open(output_path, encoding="utf-8") as f:
+                message = f.read()
             self.assertIn("filetrans", message)
             self.assertIn("NO_VALID_FRAGMENT", message)
+            self.assertIn("音频识别质量警告", message)
             self.assertNotIn("自动回退", message)
             self.assertNotIn("分段短音频", message)
             processor._short_asr.assert_not_called()

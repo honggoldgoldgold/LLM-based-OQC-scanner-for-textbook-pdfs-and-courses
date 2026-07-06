@@ -13,6 +13,8 @@ Scope:
 ## Current State
 
 - Filetrans has one successful end-to-end run in the persistent log.
+- Filetrans low-content and no-valid-fragment outcomes are warnings, not hard
+  task failures. They should still create an audio Markdown artifact.
 - Codex video frame recognition did use Codex for frame batches.
 - A separate text hotword extraction step used Qwen after Codex frame
   recognition; that was a routing bug, not proof that Codex frame recognition
@@ -35,7 +37,7 @@ Input:
 - MP3 size: about 11.98 MB
 - Duration: about 3140.9 seconds
 
-Failure:
+Old behavior:
 
 - DashScope returned `SUCCESS_WITH_NO_VALID_FRAGMENT`.
 - The app raised `ASRNoValidFragmentError`.
@@ -47,6 +49,8 @@ Conclusion:
 - The request was not accidentally routed to Google.
 - Direct long-audio handling reached DashScope, but DashScope rejected the
   audio content as no valid fragment.
+- The current policy is to create an audio Markdown artifact with a warning
+  instead of failing the whole job.
 
 ### 2026-07-05 20:22 to 20:23
 
@@ -67,13 +71,15 @@ Conclusion:
 
 Filetrans was selected again on the same 3140.9-second MP3.
 
-Failure:
+Old behavior:
 
 - DashScope again returned `SUCCESS_WITH_NO_VALID_FRAGMENT`.
 
 Conclusion:
 
 - Retrying direct upload did not solve the false no-speech result.
+- The current policy is still to preserve a warning artifact because blank,
+  silent, or low-speech videos are valid inputs.
 
 ### 2026-07-05 20:56 to 20:57
 
@@ -85,7 +91,7 @@ After the OSS submission fix, the route changed materially:
 - The task completed after about 55.8 seconds.
 - The service returned one transcription result.
 
-Failure:
+Old behavior:
 
 - The result was rejected by the local quality guard:
   `recognized text too short: 1 character`.
@@ -95,6 +101,8 @@ Conclusion:
 - OSS submission fixed the transport/submission path.
 - The service could complete the task, but that specific audio still produced
   unusably small transcript content.
+- This should not fail the whole job. The current policy is to preserve the
+  completed artifact and write an audio-recognition quality warning.
 
 ### 2026-07-05 21:12 to 21:17
 
@@ -169,6 +177,11 @@ Fix direction:
 - Distinguish frame/image recognition from text hotword extraction.
 - Distinguish direct file upload from OSS `file_url` submission.
 - Treat `ProxyError` to `127.0.0.1:7890` as a local proxy state problem.
+- Treat Filetrans low-content or no-speech outcomes as warnings. Blank,
+  silent, or low-speech videos are valid product inputs.
+- Continue failing on upload, polling, timeout, unknown status, and failed
+  subtasks. Those are infrastructure or service errors, not valid media
+  content states.
 - Do not use hidden migrations for model settings unless the old value is
   known to be invalid and not user-selectable.
 

@@ -38,10 +38,6 @@ class ASRNoValidFragmentError(RuntimeError):
     """DashScope filetrans accepted the task but found no valid speech fragment."""
 
 
-class ASRLowContentError(RuntimeError):
-    """DashScope filetrans returned far too little transcript text for the input duration."""
-
-
 _DASHSCOPE_NATIVE_FORMATS = {".wav", ".mp3", ".m4a", ".flac", ".opus", ".aac", ".amr"}
 
 _DASHSCOPE_RESULT_HOSTS = {
@@ -637,15 +633,33 @@ class AudioProcessor(BaseProcessor):
         return len(re.findall(r"[\w\u4e00-\u9fff]", without_meta, flags=re.UNICODE))
 
     @classmethod
-    def _raise_if_filetrans_text_too_short(cls, markdown: str, duration: float | None) -> None:
+    def _filetrans_text_quality_warning(cls, markdown: str, duration: float | None) -> str | None:
         if duration is None or duration < 10 * 60:
-            return
+            return None
         visible_chars = cls._filetrans_visible_text_chars(markdown)
         threshold = max(80, min(500, int((duration / 60.0) * 5)))
         if visible_chars < threshold:
-            raise ASRLowContentError(
-                f"识别文本过短: {visible_chars} 字符，音频 {duration:.1f}s，最低期望 {threshold} 字符"
-            )
+            return f"识别文本过短: {visible_chars} 字符，音频 {duration:.1f}s，最低期望 {threshold} 字符"
+        return None
+
+    @staticmethod
+    def _append_filetrans_warning(markdown: str, warning: str, input_summary: str) -> str:
+        return (
+            markdown.rstrip()
+            + "\n\n"
+            + "> [!WARNING]\n"
+            + f"> 音频识别质量警告: {warning}\n"
+            + f"> 输入: {input_summary}\n"
+        )
+
+    @staticmethod
+    def _filetrans_warning_markdown(title: str, warning: str, input_summary: str) -> str:
+        return (
+            f"<!-- meta:audio title={title} -->\n\n"
+            + "> [!WARNING]\n"
+            + f"> 音频识别质量警告: {warning}\n"
+            + f"> 输入: {input_summary}\n"
+        )
 
     def process(
         self,
@@ -729,8 +743,17 @@ class AudioProcessor(BaseProcessor):
             result = self._wait_result(task_id, poll_interval, max_wait)
 
             self._report(5, 5, "生成 Markdown...")
-            md = self._result_to_md(result, stem)
-            self._raise_if_filetrans_text_too_short(md, duration)
+            try:
+                md = self._result_to_md(result, stem)
+            except RuntimeError as e:
+                warning = f"filetrans 任务完成，但未返回转写正文: {e}"
+                logger.warning("[ASR] %s; input=%s", warning, filetrans_input_summary)
+                md = self._filetrans_warning_markdown(stem, warning, filetrans_input_summary)
+
+            quality_warning = self._filetrans_text_quality_warning(md, duration)
+            if quality_warning:
+                logger.warning("[ASR] filetrans 返回内容过少，继续输出警告: %s; input=%s", quality_warning, filetrans_input_summary)
+                md = self._append_filetrans_warning(md, quality_warning, filetrans_input_summary)
             self._report_content(md, "语音识别完成")
 
             ensure_dir(os.path.dirname(output_path))
@@ -748,18 +771,17 @@ class AudioProcessor(BaseProcessor):
             self._report(5, 5, f"完成: {output_path}")
             return output_path
         except ASRNoValidFragmentError as e:
-            logger.error("[ASR] filetrans 未检测到有效语音片段: %s; input=%s", e, filetrans_input_summary)
-            raise RuntimeError(
-                "长音频 filetrans 返回 NO_VALID_FRAGMENT。"
-                "filetrans 本应支持长音频；请检查上传前音频、转码后文件、声道/编码是否被服务端接受。"
-                f"输入: {filetrans_input_summary}。原始错误: {e}"
-            ) from e
-        except ASRLowContentError as e:
-            logger.error("[ASR] filetrans 返回内容过少: %s; input=%s", e, filetrans_input_summary)
-            raise RuntimeError(
-                "长音频 filetrans 返回内容过少，已判定本次识别失败。"
-                f"输入: {filetrans_input_summary}。原始错误: {e}"
-            ) from e
+            warning = f"filetrans 未检测到有效语音片段: {e}"
+            logger.warning("[ASR] %s; input=%s", warning, filetrans_input_summary)
+            md = self._filetrans_warning_markdown(stem, warning, filetrans_input_summary)
+            self._report_content(md, "语音识别完成（有警告）")
+
+            ensure_dir(os.path.dirname(output_path))
+            with open(output_path, "w", encoding="utf-8") as f:
+                f.write(md)
+
+            self._report(5, 5, f"完成（音频识别有警告）: {output_path}")
+            return output_path
         except Exception as e:
             logger.error("[ASR] 长音频异步处理失败: %s; input=%s", e, filetrans_input_summary)
             raise RuntimeError(

@@ -8,7 +8,6 @@ from OCRLLM.config import AppConfig
 from OCRLLM.core.utils import setup_logging
 from OCRLLM.core.llm_client import LLMClient, dashscope_local_file_uri
 from OCRLLM.processors.audio import (
-    ASRLowContentError,
     ASRNoValidFragmentError,
     AudioProcessor,
     _TLS12HttpAdapter,
@@ -241,18 +240,52 @@ class AudioWaitResultTests(unittest.TestCase):
 
         self.assertEqual(summary, "url=https://example.com/audio.mp3, duration=unknown")
 
-    def test_filetrans_quality_gate_rejects_near_empty_long_result(self):
+    def test_filetrans_quality_gate_warns_near_empty_long_result(self):
         markdown = "<!-- meta:audio title=lecture -->\n\n<!-- meta:segment index=1 time=06:32~06:32 -->\n\n是。\n"
 
-        with self.assertRaises(ASRLowContentError) as ctx:
-            AudioProcessor._raise_if_filetrans_text_too_short(markdown, duration=3140.0)
+        warning = AudioProcessor._filetrans_text_quality_warning(markdown, duration=3140.0)
 
-        self.assertIn("识别文本过短", str(ctx.exception))
+        self.assertIsNotNone(warning)
+        self.assertIn("识别文本过短", warning)
+
+    def test_filetrans_low_content_process_writes_warning_instead_of_failing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = Path(tmp) / "lecture.mp3"
+            audio_path.write_bytes(b"fake audio")
+            output_path = Path(tmp) / "out.md"
+
+            processor = AudioProcessor.__new__(AudioProcessor)
+            processor.cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                api={"api_key": "sk-test"},
+                models={"asr_model": "qwen3-asr-flash-filetrans"},
+            )
+            processor.reporter = Mock()
+            processor.reporter.cancel_event = None
+            processor._report = Mock()
+            processor._report_content = Mock()
+            processor._close_http_session = Mock()
+            processor._ensure_upload_format = Mock(return_value=str(audio_path))
+            processor._should_use_short_asr = Mock(return_value=(False, 3140.0))
+            processor._upload_file = Mock(return_value="https://example.com/audio.mp3")
+            processor._submit_task = Mock(return_value="task-id")
+            processor._wait_result = Mock(return_value={"output": {"task_status": "SUCCEEDED"}})
+            processor._result_to_md = Mock(
+                return_value="<!-- meta:audio title=lecture -->\n\n<!-- meta:segment index=1 -->\n\n是。\n"
+            )
+            processor._get_duration = Mock(return_value=3140.0)
+
+            result = processor.process(str(audio_path), output_path=str(output_path))
+
+            self.assertEqual(result, str(output_path))
+            text = output_path.read_text(encoding="utf-8")
+            self.assertIn("音频识别质量警告", text)
+            self.assertIn("识别文本过短", text)
 
     def test_filetrans_quality_gate_allows_short_audio(self):
         markdown = "<!-- meta:audio title=short -->\n\n<!-- meta:segment index=1 time=00:00~00:01 -->\n\n是。\n"
 
-        AudioProcessor._raise_if_filetrans_text_too_short(markdown, duration=30.0)
+        self.assertIsNone(AudioProcessor._filetrans_text_quality_warning(markdown, duration=30.0))
 
     def test_setup_logging_suppresses_requests_debug_noise(self):
         tmp = tempfile.TemporaryDirectory()
