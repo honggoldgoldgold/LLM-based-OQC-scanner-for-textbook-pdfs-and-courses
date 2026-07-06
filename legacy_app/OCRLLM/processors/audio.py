@@ -1494,17 +1494,49 @@ class AudioProcessor(BaseProcessor):
         template = prompt_template or prompts.AUDIO_TRANSCRIBE
         return template.format(hotwords_instruction=instruction).strip()
 
-    def _submit_headers(self) -> dict:
-        return {
+    def _submit_headers(self, file_url: str = "") -> dict:
+        headers = {
             "Authorization": f"Bearer {self.cfg.api.api_key}",
             "Content-Type": "application/json",
             "X-DashScope-Async": "enable",
         }
+        if _needs_dashscope_oss_resolver(file_url):
+            headers["X-DashScope-OssResourceResolve"] = "enable"
+        return headers
 
     def _poll_headers(self) -> dict:
         return {"Authorization": f"Bearer {self.cfg.api.api_key}"}
 
     def _upload_file(self, file_path: str) -> str:
+        if _uses_dashscope_oss_upload(self.cfg.models.asr_model):
+            return self._upload_oss_file(file_path)
+        return self._upload_file_api_file(file_path)
+
+    def _upload_oss_file(self, file_path: str) -> str:
+        if not self.cfg.api.api_key:
+            raise RuntimeError("DashScope OSS 上传失败: 未配置 API Key")
+        try:
+            from dashscope.utils.oss_utils import OssUtils
+        except ImportError as e:
+            raise RuntimeError("DashScope OSS 上传失败: 缺少 dashscope SDK") from e
+
+        size_mb = os.path.getsize(file_path) / (1024 * 1024)
+        logger.info(
+            "[ASR] OSS 上传文件: %s (%.1fMB)",
+            Path(file_path).name,
+            size_mb,
+        )
+        file_url, _upload_certificate = OssUtils.upload(
+            model=self.cfg.models.asr_model,
+            file_path=file_path,
+            api_key=self.cfg.api.api_key,
+        )
+        if not file_url or not str(file_url).startswith("oss://"):
+            raise RuntimeError(f"DashScope OSS 上传未返回 oss:// URL: {file_url}")
+        logger.info("[ASR] OSS 上传完成: scheme=oss, model=%s", self.cfg.models.asr_model)
+        return str(file_url)
+
+    def _upload_file_api_file(self, file_path: str) -> str:
         headers = {"Authorization": f"Bearer {self.cfg.api.api_key}"}
         ext = Path(file_path).suffix.lower()
         content_type = {
@@ -1558,6 +1590,13 @@ class AudioProcessor(BaseProcessor):
             audio_input = {"file_url": file_url}
         else:
             audio_input = {"file_urls": [file_url]}
+        submit_headers = self._submit_headers(file_url)
+        logger.info(
+            "[ASR] 提交 filetrans: model=%s, input=%s, oss_resolver=%s",
+            model_name,
+            "file_url" if "file_url" in audio_input else "file_urls",
+            "X-DashScope-OssResourceResolve" in submit_headers,
+        )
         payload = {
             "model": model_name,
             "input": audio_input,
@@ -1570,7 +1609,7 @@ class AudioProcessor(BaseProcessor):
         response = _retry_on_ssl(
             lambda: self._get_http_session().post(
                 self._submit_url,
-                headers=self._submit_headers(),
+                headers=submit_headers,
                 json=payload,
                 timeout=30,
             ),
@@ -1855,6 +1894,15 @@ def _uses_single_file_url(model_name: str) -> bool:
     """Qwen3-ASR-Flash-Filetrans uses input.file_url; classic ASR uses input.file_urls."""
     lowered = (model_name or "").lower()
     return "qwen" in lowered and "filetrans" in lowered
+
+
+def _uses_dashscope_oss_upload(model_name: str) -> bool:
+    """Local Qwen filetrans inputs must be uploaded as oss:// resources."""
+    return _uses_single_file_url(model_name)
+
+
+def _needs_dashscope_oss_resolver(file_url: str) -> bool:
+    return (file_url or "").startswith("oss://")
 
 
 def _coerce_ms_timestamp(value) -> int | None:

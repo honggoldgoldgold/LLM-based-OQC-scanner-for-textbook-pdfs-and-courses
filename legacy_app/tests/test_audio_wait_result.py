@@ -139,7 +139,7 @@ class AudioWaitResultTests(unittest.TestCase):
                 api={"api_key": "sk-test"},
                 models={"asr_model": "qwen3-asr-flash-filetrans"},
             )
-            processor._submit_headers = lambda: {}
+            processor._submit_headers = lambda file_url="": {}
             processor._sleep = lambda _: None
             processor._build_corpus = lambda hotwords: ""
             session = Mock()
@@ -160,6 +160,45 @@ class AudioWaitResultTests(unittest.TestCase):
 
             payload = session.post.call_args.kwargs["json"]
             self.assertEqual(payload["input"], {"file_urls": ["https://example.com/audio.mp3"]})
+
+    def test_submit_task_enables_oss_resolver_for_oss_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            processor = AudioProcessor.__new__(AudioProcessor)
+            processor.cfg = AppConfig().with_updates(
+                paths={"output_dir": tmp, "temp_dir": tmp},
+                api={"api_key": "sk-test"},
+                models={"asr_model": "qwen3-asr-flash-filetrans"},
+            )
+            processor._sleep = lambda _: None
+            processor._build_corpus = lambda hotwords: ""
+            session = Mock()
+            response = Mock(status_code=200)
+            response.json.return_value = {"output": {"task_id": "task-qwen"}}
+            session.post.return_value = response
+            processor._get_http_session = lambda: session
+
+            processor._submit_task("oss://dashscope-instant/audio.mp3")
+
+            headers = session.post.call_args.kwargs["headers"]
+            self.assertEqual(headers["X-DashScope-OssResourceResolve"], "enable")
+
+    def test_qwen_filetrans_upload_uses_dashscope_oss_url(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            audio_path = Path(tmp) / "lecture.mp3"
+            audio_path.write_bytes(b"fake mp3")
+            processor = AudioProcessor.__new__(AudioProcessor)
+            processor.cfg = AppConfig().with_updates(
+                api={"api_key": "sk-test"},
+                models={"asr_model": "qwen3-asr-flash-filetrans"},
+            )
+
+            with patch("dashscope.utils.oss_utils.OssUtils.upload", return_value=("oss://bucket/lecture.mp3", {})) as upload:
+                url = processor._upload_file(str(audio_path))
+
+            self.assertEqual(url, "oss://bucket/lecture.mp3")
+            upload.assert_called_once()
+            self.assertEqual(upload.call_args.kwargs["model"], "qwen3-asr-flash-filetrans")
+            self.assertEqual(upload.call_args.kwargs["api_key"], "sk-test")
 
     def test_fallback_windows_use_six_minutes_with_thirty_second_context(self):
         windows = build_fallback_audio_windows(
