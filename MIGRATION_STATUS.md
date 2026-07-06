@@ -119,6 +119,40 @@ phases, and in-flight DashScope FileTrans task IDs. Keep new downstream
 projects importing `ocrllm`; do not expose this legacy processor as a new public
 library boundary.
 
+## Legacy Codex/Filetrans Robustness Status
+
+As of 2026-07-06, Codex video recognition and DashScope Filetrans audio
+recognition remain legacy compatibility work in `legacy_app/`, not public
+`ocrllm` API.
+
+The July 2026 robustness fixes changed the legacy runtime behavior in these
+ways:
+
+- Codex CLI image-recognition subprocesses are launched with Windows
+  no-window subprocess flags and closed stdin.
+- Codex CLI nonzero exits and empty results are retried once and summarized,
+  instead of dumping prompts or CLI diagnostics into board Markdown.
+- In Codex mode, Phase 4 batch/per-frame failures are hard failures; they no
+  longer create placeholder Markdown that looks complete.
+- Codex mode skips the Qwen text hotword extraction step that made a Codex run
+  appear to route through Qwen after image recognition.
+- Filetrans cost logging uses the cached duration probe instead of the removed
+  `_get_duration` method.
+- Board-only reruns with `--phases 2 3 4` preserve existing audio transcripts
+  instead of invalidating Phase 5 artifacts.
+
+Completion evidence from the 2026-07-06 audit:
+
+```text
+40 target course folders scanned
+40 folders had exactly the expected board/audio Markdown pair
+0 folders had known dirty markers
+53 focused legacy regression tests passed
+0 active legacy video checkpoints remained
+```
+
+Read `docs/legacy_filetrans_codex_debug_record.md` before changing this path.
+
 ## Target Module Design
 
 `docs/ocrllm_module_target_design.md` describes the intended completed Python

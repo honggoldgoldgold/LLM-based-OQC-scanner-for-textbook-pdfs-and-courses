@@ -61,3 +61,54 @@ Shared Bilibili course context is written to `bilibili_social_context.md`,
 including comments, resource links, and per-part danmaku. The `--resume` path
 reuses downloaded MP4 files, completed video phases, and saved DashScope
 FileTrans task IDs.
+
+## Codex Video Mode Robustness
+
+Codex video mode is maintained here as legacy GUI/CLI behavior. It is not a
+public `ocrllm` library boundary.
+
+The current expected clean output for each completed course/video folder is:
+
+```text
+*_æ¿ä¹¦è¯†åˆ«.md
+*_å½•éŸ³è¯†åˆ«.md
+```
+
+A Codex-mode board result is dirty and should be rerun only when there is
+concrete evidence, such as:
+
+- Codex batch/frame failure placeholder comments.
+- `Reading additional input from stdin`.
+- `[WinError 10061]`.
+- Embedded Codex prompt or diagnostic dumps.
+- Missing board/audio Markdown after the job has completed.
+
+Operational rules:
+
+- Do not stop a live recognition job only because it is slow or because a blank
+  Windows console appears.
+- Restart the legacy GUI after changing Codex/Filetrans subprocess code so new
+  workers load the patched code.
+- Use board-only reruns for dirty board Markdown:
+
+  ```powershell
+  $env:PYTHONPATH='legacy_app'
+  D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli video <video.mp4> `
+    --phases 2 3 4 --resume -o <existing-output-dir>
+  ```
+
+- Board-only reruns now preserve existing Phase 5 audio transcripts. Older code
+  invalidated transcripts during `--phases 2 3 4`; see
+  `docs/legacy_filetrans_codex_debug_record.md`.
+
+Focused regression check:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+$env:QT_QPA_PLATFORM='offscreen'
+D:\Anaconda\envs\OCRLLM\python.exe -m pytest `
+  legacy_app\tests\test_resume_chain.py `
+  legacy_app\tests\test_codex_vision.py `
+  legacy_app\tests\test_failure_propagation.py `
+  legacy_app\tests\test_audio_wait_result.py -q
+```

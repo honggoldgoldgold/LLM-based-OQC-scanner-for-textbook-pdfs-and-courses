@@ -59,6 +59,30 @@ Architecture.md                       Suspended future architecture reference.
 output/, temp/, ocrllm_social_e2e/    Runtime artifacts, not source.
 ```
 
+## Legacy Runtime Notes
+
+The old GUI, Codex video mode, Filetrans audio mode, and Bilibili/social-long
+workflow are legacy compatibility surfaces under `legacy_app/`. Current
+runtime incident notes live in:
+
+```text
+docs/legacy_filetrans_codex_debug_record.md
+```
+
+As of the 2026-07-06 robustness audit, the supervised legacy course runs were
+considered clean only when every target course folder had exactly these two
+Markdown artifacts and no known dirty failure markers:
+
+```text
+*_æ¿ä¹¦è¯†åˆ«.md
+*_å½•éŸ³è¯†åˆ«.md
+```
+
+Known dirty markers include Codex batch/frame placeholders, `Reading additional
+input from stdin`, `[WinError 10061]`, embedded Codex diagnostic dumps, or a
+missing board/audio Markdown after the job has completed. These checks belong
+to the legacy workflow; they are not part of the public `ocrllm` library API.
+
 ## Rules For New Work
 
 - New projects should import only from `ocrllm`, never from `legacy_app`.

@@ -194,6 +194,57 @@ Operational rule:
 - When rerunning after this fix, restart the legacy GUI first so new processes
   load commit `ed6f12c`.
 
+### 2026-07-06 completion audit and board-only rerun fix
+
+A later completion audit found no remaining active video recognition work:
+
+- No active legacy `OCRLLM.cli video` or `social_long` worker process was left.
+- No video checkpoint file was left.
+- The only legacy GUI process was idle.
+- The strict target-folder scan covered 40 course folders.
+- All 40 folders had exactly two Markdown outputs: board plus audio.
+- No target folder contained the known dirty Codex markers:
+  `Reading additional input from stdin`, `[WinError 10061]`, Codex failure
+  placeholder comments, or empty/missing Markdown outputs.
+
+The audit also found a separate board-only rerun bug:
+
+- A repair run using `--phases 2 3 4` cleaned dirty board Markdown.
+- The old artifact invalidation path also deleted the existing Phase 5 audio
+  transcript, even though audio was not selected.
+- The affected audio transcript was restored from source artifacts.
+
+Fix committed:
+
+- Commit `afeb4ac` (`Preserve transcripts during board-only reruns`).
+- `legacy_app/OCRLLM/processors/video_pipeline.py` now computes artifact
+  invalidation from the selected phases and `skip_audio`.
+- Phase 2/3/4 cleanup no longer deletes Phase 5 transcripts when audio is not
+  part of the requested rerun.
+- `legacy_app/OCRLLM/processors/audio.py` forwards the resume flag to
+  Filetrans wait logic, preserving saved task IDs across resume paths.
+
+Focused verification passed:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+$env:QT_QPA_PLATFORM='offscreen'
+D:\Anaconda\envs\OCRLLM\python.exe -m pytest `
+  legacy_app\tests\test_resume_chain.py `
+  legacy_app\tests\test_codex_vision.py `
+  legacy_app\tests\test_failure_propagation.py `
+  legacy_app\tests\test_audio_wait_result.py -q
+```
+
+Result: `53 passed`.
+
+Completion rule after this audit:
+
+- A folder is clean only when both expected Markdown files exist, both are
+  non-empty, and neither contains the known Codex failure markers.
+- Rerun only concrete dirty outputs. Do not rerun clean folders because API cost
+  is material.
+
 ## Codex Model Persistence Failure
 
 Observed QSettings state:
