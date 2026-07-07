@@ -16,6 +16,13 @@ Scope:
   recognized through OCRLLM's legacy `social_long` pathway.
 - The final markdown-combination step is a personal post-process tool, not part
   of OCRLLM recognition.
+- CLI, API, and GUI social mode all reach the same legacy
+  `SocialLongVideoProcessor` for long videos and playlists. The full 97-item
+  proof run used the CLI because it gives reproducible environment variables,
+  output paths, resume commands, logs, and audit commands. The GUI entry is
+  wired to the same processor, but the GUI itself is not the audited 97-item
+  proof harness and does not yet expose the final audit or combiner as product
+  actions.
 - Do not record API keys, cookies, browser session state, or private account
   details in this file.
 
@@ -50,6 +57,45 @@ D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <playlist-url> `
 
 Do not expose this downloader as public `ocrllm` API. The public library
 boundary remains `src/ocrllm/`.
+
+## GUI Entry Reality
+
+Current behavior in the legacy GUI social tab:
+
+- The social URL field is a `QTextEdit` with rich text disabled. It accepts
+  normal typed or pasted characters and free-form text.
+- URL extraction accepts plain URLs, Markdown-style links, and surrounding
+  explanatory text, then de-duplicates URLs.
+- The "probe video information" action calls `probe_video_info()`. For YouTube
+  playlists, the current downloader reports flat playlist entries as `parts`
+  and `total_parts`.
+- When probe finds more than one part, the parts selector becomes visible and
+  all parts are checked by default. Leaving all checked returns
+  `part_indices=None`, which means "process all parts".
+- In automatic mode, `classify_video()` treats any multi-part playlist as
+  `VideoCategory.LONG`, regardless of the duration of each short video.
+- The run action passes the URL, selected `part_indices`, and prompt template to
+  `SocialLongVideoProcessor.process()`. Therefore, pasting the playlist URL in
+  GUI automatic mode or long-video mode should start the same playlist
+  download/recognition pipeline.
+
+Important product caveats:
+
+- The proof run did not use GUI clicks as the harness; it used the CLI path
+  above for reliable logging and resume.
+- The GUI default output directory is based on `cfg.paths.output_dir` plus a
+  label like `youtube_1`; it will not automatically choose
+  `output\youtube_modern_robotics_full`.
+- The GUI does not currently run `tools\audit_social_long_course_output.py`
+  after completion, so it can finish without presenting the same explicit
+  97/97 two-markdown proof.
+- The GUI does not currently run the personal combiner. Combination remains a
+  manual post-process.
+- For a 97-item course, the GUI worker must stay alive for a long time. Resume
+  support exists in the processor, but the GUI does not show a dedicated
+  "resume this course and audit it" workflow.
+- The GUI uses the app's saved settings. The CLI proof made Codex, DashScope,
+  FileTrans, and concurrency settings explicit in the shell to remove ambiguity.
 
 ## Required Environment
 
@@ -175,6 +221,404 @@ Use `--mode separate` if separate board and audio compilation files are needed.
   absolute `.tmp` sidecar path length, not only the relative output path length.
 - OCRLLM's qwen/DashScope audio route may use the short synchronous qwen ASR
   model for very short clips and FileTrans for longer clips.
+
+## Full Debug And Decision Record
+
+This section records the material workflow changes, failures, decisions, and
+proof steps from the task. No workflow or implementation decision from the task
+is intentionally omitted. Secrets, account state, and API keys are intentionally
+not recorded.
+
+### 1. Boundary Decision
+
+Problem:
+
+- The user asked whether the final successful path is "what OCRLLM does".
+- The repo has two OCRLLM surfaces: the new importable library in
+  `src/ocrllm/` and the legacy application in `legacy_app/`.
+
+Decision:
+
+- Keep this work in `legacy_app/`.
+- Do not move social downloading, GUI, yt-dlp, DashScope/FileTrans, or Codex
+  social-video behavior into `src/ocrllm/`.
+
+Reason:
+
+- `START_HERE.md`, `MIGRATION_STATUS.md`, and `legacy_app/README_LEGACY.md`
+  define social download/GUI behavior as legacy compatibility work.
+- The public `ocrllm` library is intentionally lightweight and should not import
+  GUI, FastAPI, social downloader, or heavy media dependencies at import time.
+
+Result:
+
+- The reusable workflow is OCRLLM legacy-app behavior:
+  `python -m OCRLLM.cli social_long ...` and the GUI/API social path that calls
+  the same `SocialLongVideoProcessor`.
+- It is not yet a stable public `import ocrllm` API.
+
+### 2. Proof Harness Decision
+
+Problem:
+
+- The user needed a proven 97-video course workflow, not a half-done feature.
+- A GUI-only proof would be harder to resume, audit, and document.
+
+Paths considered:
+
+- Prove through the GUI because the user eventually wants product reuse.
+- Prove through the CLI and then verify the GUI routes into the same processor.
+
+Decision:
+
+- Use CLI for the full 97-item proof, then inspect/test the GUI routing path.
+
+Reason:
+
+- CLI made the settings, output directory, resume command, logs, and audit
+  commands reproducible.
+- GUI is still relevant, but it lacks built-in final audit and combined-output
+  actions.
+
+Result:
+
+- The full course proof used:
+  `python -m OCRLLM.cli social_long <playlist-url> --parts 1-97 --resume`.
+- GUI remains wired to the same processor but should be treated as a product
+  entry point that still needs UX hardening.
+
+### 3. YouTube Playlist Probe
+
+Problem:
+
+- The legacy downloader handled single social links better than full YouTube
+  playlists.
+- A playlist of short videos must route to course/long processing even when
+  individual videos are short.
+
+Change:
+
+- `probe_video_info()` now uses flat playlist extraction for YouTube playlists.
+- It reports playlist entries as `parts` and sets `total_parts` from
+  `playlist_count` or entry count.
+- `classify_video()` treats any multi-part playlist as `VideoCategory.LONG`.
+
+Reason:
+
+- The social-long processor must process each playlist item as a course part.
+- Duration-based routing alone would misclassify many short course clips as
+  short-video social content.
+
+Proof:
+
+- `legacy_app/tests/test_social_long_youtube_playlist.py` covers playlist probe
+  and long-course routing.
+
+### 4. YouTube Playlist Download
+
+Problem:
+
+- Single-link yt-dlp options used `noplaylist=True`, which is wrong for a course
+  playlist.
+- The user needed selected ranges such as `--parts 1-97` to map to YouTube
+  playlist entries, not only Bilibili parts.
+
+Change:
+
+- `_build_ydl_opts()` accepts playlist mode.
+- `_download_yt_dlp()` enables playlist mode for playlist URLs.
+- `part_indices` maps to yt-dlp `playlist_items`.
+- Playlist filenames include playlist index, title, and video id.
+- Missing selected playlist entries now fail the run instead of silently
+  producing a partial course.
+
+Reason:
+
+- Partial success is dangerous for a course workflow. The user asked for two
+  markdowns per course video, so the downloader must fail loudly if an item is
+  missing.
+
+Proof:
+
+- Tests assert `noplaylist=False`, `playlist_items="1,3"`, and failure when a
+  selected playlist entry has no downloaded file.
+- Final audit found 97 downloaded MP4 files.
+
+### 5. YouTube Subtitle 429 Handling
+
+Observation:
+
+- During the real run, YouTube subtitle fetches sometimes returned HTTP 429.
+
+Decision:
+
+- Treat subtitle 429 as non-fatal when the MP4 download succeeds.
+- Continue using OCRLLM audio recognition for the audio markdown.
+
+Reason:
+
+- The required audio markdown comes from OCRLLM ASR/qwen/FileTrans, not from
+  YouTube subtitles.
+- Failing the whole course because optional subtitles are throttled would make
+  the product less robust.
+
+Result:
+
+- The run completed with audio markdown generated by OCRLLM.
+
+### 6. Codex Vision Stability
+
+Problem:
+
+- Larger social-long Codex video frame batches could leave incomplete frame
+  markers or dirty markdown output.
+
+Change:
+
+- In social-long Codex mode, OCRLLM caps effective `video.batch_size` and
+  `codex_vision.video_frame_batch_size` to 1.
+- Dirty markers are rejected when deciding whether existing markdown output is
+  complete.
+
+Reason:
+
+- A 97-item course favors deterministic completion over frame-level batching
+  speed.
+- Dirty output must not be accepted as a completed board markdown.
+
+Proof:
+
+- Focused tests cover the social-long batch cap.
+- Final audit found `DirtyMarkdown: 0`.
+
+### 7. Resume And Clean-Skip Logic
+
+Problem:
+
+- Long runs are interruptible. Completed parts should not be repeated, but
+  dirty or partial parts must be rerun.
+- After changing output-stem shortening, old completed outputs risked being
+  duplicated under new shorter names.
+
+Change:
+
+- Social-long checks for exactly one clean board markdown and matching clean
+  audio markdown before choosing a new output stem.
+- Existing clean pairs are skipped.
+- Dirty markers, empty files, and incomplete board/audio pairs are not accepted.
+
+Reason:
+
+- Resume must be safe across interrupted runs and across naming-policy changes.
+
+Proof:
+
+- Partial/dirty P17-style output was recovered.
+- Clean preexisting P3-style output was accepted instead of duplicated.
+- Final audit found `IncompleteParts: 0`.
+
+### 8. Windows Path Length And Trailing-Space Failures
+
+Problem:
+
+- Long YouTube titles plus nested course folders produced Windows path-length
+  failures.
+- One part directory, observed around P44, failed because truncation left a
+  trailing space. Windows normalized the actual directory name while Python
+  later scanned the unnormalized name.
+
+Change:
+
+- Part output names strip trailing spaces, dots, and underscores after the
+  legacy 80-character truncation.
+- Video output stems are shortened only when board/audio/hotword/temp paths
+  would exceed the Windows-safe path budget.
+- Shortened stems keep a readable prefix and digest.
+- Video debug temp directories were made Windows-safe.
+
+Reason:
+
+- The workflow must survive real course titles, not only small toy URLs.
+
+Proof:
+
+- Tests cover the trailing-space regression and output-stem shortening.
+- The full 97-item course completed after these path fixes.
+
+### 9. Incremental Markdown Temp Path
+
+Problem:
+
+- Even after shortening final output stems, the incremental writer could create
+  a temporary `<output>.tmp` path that exceeded the Windows-safe budget.
+
+Change:
+
+- `incremental_writer.py` now uses a shorter same-directory
+  `.ocrllm-<digest>.tmp` path when needed.
+
+Reason:
+
+- Atomic-ish incremental writes still need temp files, but the temp path must
+  not be longer than the final target.
+
+Proof:
+
+- `legacy_app/tests/test_incremental_writer.py` covers the shortened temp path.
+
+### 10. DashScope FileTrans Sidecar Path
+
+Problem:
+
+- FileTrans task sidecar names could exceed the path budget because shortening
+  was based on the visible output path, not the resolved absolute `.tmp` path.
+
+Change:
+
+- `audio_filetrans_task_state.py` now shortens sidecar paths based on the
+  resolved absolute temp sidecar length.
+- It can fall back to `prefix.digest.filetrans_task.json` or
+  `audio.<digest>.filetrans_task.json`.
+
+Reason:
+
+- Long course titles and nested output directories otherwise break resume for
+  audio recognition.
+
+Proof:
+
+- Tests cover absolute sidecar path shortening.
+- Final audit found `FileTransSidecars: 0`.
+
+### 11. Per-Part Output Contract
+
+Problem:
+
+- The success criterion was two markdowns per course video: board/graph and
+  audio.
+
+Change:
+
+- Social-long output validation now explicitly checks the user-facing board and
+  audio markdown outputs after each part.
+- It removes legacy merged-board draft files when they are separate transient
+  artifacts.
+
+Reason:
+
+- Success must be based on actual markdown artifacts, not only successful
+  function return values.
+
+Proof:
+
+- Final audit found `BoardMarkdown: 97` and `AudioMarkdown: 97`.
+
+### 12. Audit Tool
+
+Problem:
+
+- A 97-folder course is too large to inspect manually.
+
+Change:
+
+- Added `tools\audit_social_long_course_output.py`.
+- The tool counts part directories, board markdowns, audio markdowns,
+  downloaded MP4 files, FileTrans sidecars, dirty markdowns, and incomplete
+  parts.
+- It has JSON output for machine checks and Windows stdout fallback for Unicode
+  console issues.
+
+Reason:
+
+- "Looks done" is not enough for this workflow. The proof must be repeatable.
+
+Proof:
+
+- Final audit output:
+
+```text
+PartDirs: 97
+BoardMarkdown: 97
+AudioMarkdown: 97
+DownloadedMp4: 97
+FileTransSidecars: 0
+DirtyMarkdown: 0
+IncompleteParts: 0
+OK: True
+```
+
+### 13. Personal Combiner Tool
+
+Problem:
+
+- The user did not want 97 separate folders to be the only readable study
+  output.
+- The user also said combination should not become OCRLLM recognition logic.
+
+Change:
+
+- Added `tools\combine_social_long_course_markdowns.py`.
+- Default mode combines board and audio markdowns interleaved per video.
+- Default chunk size used in the proof was 10 videos per file.
+- The tool also supports `--mode separate`.
+
+Reason:
+
+- This satisfies the personal readability requirement while keeping OCRLLM's
+  workflow boundary clean.
+
+Proof:
+
+- The proof produced 10 combined files:
+  `P001-P010_study.md` through `P091-P097_study.md`.
+
+### 14. GUI Character Input
+
+Problem:
+
+- The user mentioned that social media mode had a UI problem where characters
+  could not be entered.
+
+Observed current state:
+
+- The social tab URL input is currently `QTextEdit`, uses
+  `setAcceptRichText(False)`, and reads `toPlainText()`.
+- The URL extractor accepts free-form typed text and Markdown links.
+- Tests cover extracting URLs from plain explanatory text and Markdown-style
+  pasted links.
+
+Decision:
+
+- No additional GUI input edit was made in this task because the current code
+  already addresses the reported symptom at the URL-input level.
+
+Remaining risk:
+
+- This has code-level/test-level coverage, but it was not part of the full
+  97-item GUI click proof.
+
+### 15. Final Verification And Commit
+
+Commands run:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+D:\Anaconda\envs\OCRLLM\python.exe -m pytest legacy_app\tests\test_social_long_bilibili_course.py legacy_app\tests\test_social_long_youtube_playlist.py legacy_app\tests\test_audio_wait_result.py legacy_app\tests\test_resume_chain.py legacy_app\tests\test_incremental_writer.py tests\test_social_long_course_tools.py -q
+
+D:\Anaconda\envs\OCRLLM\python.exe -m pytest -q
+
+D:\Anaconda\envs\OCRLLM\python.exe tools\audit_social_long_course_output.py output\youtube_modern_robotics_full --expected-parts 97
+
+D:\Anaconda\envs\OCRLLM\python.exe tools\combine_social_long_course_markdowns.py output\youtube_modern_robotics_full --videos-per-piece 10 --course-title "Modern Robotics, All Videos"
+```
+
+Results:
+
+- Focused tests: 53 passed.
+- Root tests: 8 passed.
+- Final audit: OK.
+- Final commit from the hardening task:
+  `a9b8adc Harden legacy YouTube playlist social-long workflow`.
 
 ## Verification Commands
 
