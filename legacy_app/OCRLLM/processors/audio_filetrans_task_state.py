@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import time
 from pathlib import Path
@@ -11,11 +12,22 @@ from typing import Any
 
 _STATE_SUFFIX = ".filetrans_task.json"
 _MAX_STATE_AGE_SECONDS = 24 * 60 * 60
+_MAX_COMPATIBLE_STATE_PATH_CHARS = 240
 
 
 def filetrans_task_state_path(output_path: str) -> Path:
     """Return the sidecar path for an audio Markdown output."""
-    return Path(output_path).with_name(Path(output_path).name + _STATE_SUFFIX)
+    output = Path(output_path)
+    candidate = output.with_name(output.name + _STATE_SUFFIX)
+    if _compatible_temp_path(candidate):
+        return candidate
+
+    digest = hashlib.sha1(str(output).encode("utf-8", errors="surrogatepass")).hexdigest()[:12]
+    prefix = output.stem[:48].rstrip(" .") or "audio"
+    shortened = output.with_name(f"{prefix}.{digest}{_STATE_SUFFIX}")
+    if _compatible_temp_path(shortened):
+        return shortened
+    return output.with_name(f"audio.{digest}{_STATE_SUFFIX}")
 
 
 def load_filetrans_task_id(output_path: str, *, model: str, audio_path: str) -> str | None:
@@ -93,3 +105,9 @@ def _audio_fingerprint(audio_path: str) -> dict[str, Any]:
 def _is_remote(path: str) -> bool:
     lowered = str(path).lower()
     return lowered.startswith(("http://", "https://", "oss://"))
+
+
+def _compatible_temp_path(state_path: Path) -> bool:
+    temp_path = state_path.with_name(state_path.name + ".tmp")
+    absolute = temp_path.resolve(strict=False)
+    return len(str(absolute)) <= _MAX_COMPATIBLE_STATE_PATH_CHARS

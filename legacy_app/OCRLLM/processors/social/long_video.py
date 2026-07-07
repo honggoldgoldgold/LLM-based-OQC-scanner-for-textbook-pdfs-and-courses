@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import logging
+import hashlib
 import os
 import re
 from pathlib import Path
@@ -26,6 +27,23 @@ from OCRLLM.processors.social.downloader import (
 )
 
 logger = logging.getLogger(__name__)
+
+_MAX_COMPATIBLE_OUTPUT_PATH_CHARS = 240
+_BOARD_MD_SUFFIX = "_\u677f\u4e66\u8bc6\u522b.md"
+_AUDIO_MD_SUFFIX = "_\u5f55\u97f3\u8bc6\u522b.md"
+_DIRTY_MARKERS = (
+    "Reading additional input from stdin",
+    "[WinError 10061]",
+    "<!-- \u6279\u6b21",
+    "Codex \u8bc6\u56fe\u5931\u8d25",
+)
+_VIDEO_OUTPUT_SUFFIXES = (
+    ".mp3",
+    _BOARD_MD_SUFFIX,
+    "_\u677f\u4e66\u8bc6\u522b_\u5408\u5e76.md",
+    "_\u70ed\u8bcd\u8868.txt",
+    _AUDIO_MD_SUFFIX,
+)
 
 
 class SocialLongVideoProcessor(BaseProcessor):
@@ -100,13 +118,24 @@ class SocialLongVideoProcessor(BaseProcessor):
             raise FileNotFoundError(f"下载的视频文件不存在: {dl.video_path}")
 
         self._report(1, 3, f"处理视频: {dl.title}")
-        stem = Path(dl.video_path).stem
         expect_audio = self._expects_audio_output(phases, skip_audio)
+        if self._existing_recognition_outputs_complete(output_dir, expect_audio):
+            logger.info("recognition outputs already exist, skipping: %s", output_dir)
+            return output_dir
+        stem = self._output_stem_for_video(output_dir, dl.video_path, title=dl.title)
         if self._recognition_outputs_complete(output_dir, stem, expect_audio):
             logger.info("识别结果已存在，跳过处理: %s", output_dir)
             return output_dir
-        result = self._run_video_processor(dl.video_path, output_dir, phases, skip_audio, prompt_template, resume)
-        self._collect_recognition_outputs(dl.video_path, output_dir, result, expect_audio)
+        result = self._run_video_processor(
+            dl.video_path,
+            output_dir,
+            phases,
+            skip_audio,
+            prompt_template,
+            resume,
+            output_stem=self._processor_output_stem_arg(stem, dl.video_path),
+        )
+        self._collect_recognition_outputs(dl.video_path, output_dir, result, expect_audio, output_stem=stem)
         return output_dir
 
     def _process_multi_parts(
@@ -130,17 +159,28 @@ class SocialLongVideoProcessor(BaseProcessor):
             self._check_cancelled()
             self._report(idx, total, f"处理分P {part.index}/{total}: {part.title}")
 
-            safe_name = re.sub(r'[<>:"/\\|?*]', '_', f"P{part.index}_{part.title}")[:80]
+            safe_name = self._safe_part_output_name(part)
             part_output = os.path.join(output_dir, safe_name)
             ensure_dir(part_output)
-            stem = Path(part.video_path).stem
+            if self._existing_recognition_outputs_complete(part_output, expect_audio):
+                logger.info("part %d recognition outputs already exist, skipping: %s", part.index, part.title)
+                continue
+            stem = self._output_stem_for_video(part_output, part.video_path, title=part.title, index=part.index)
             if self._recognition_outputs_complete(part_output, stem, expect_audio):
                 logger.info("分P %d 识别结果已存在，跳过处理: %s", part.index, part.title)
                 continue
 
             try:
-                result = self._run_video_processor(part.video_path, part_output, phases, skip_audio, prompt_template, resume)
-                self._collect_recognition_outputs(part.video_path, part_output, result, expect_audio)
+                result = self._run_video_processor(
+                    part.video_path,
+                    part_output,
+                    phases,
+                    skip_audio,
+                    prompt_template,
+                    resume,
+                    output_stem=self._processor_output_stem_arg(stem, part.video_path),
+                )
+                self._collect_recognition_outputs(part.video_path, part_output, result, expect_audio, output_stem=stem)
                 logger.info("分P %d/%d 处理完成: %s", part.index, total, part.title)
             except Exception as exc:
                 logger.error("分P %d 处理失败: %s — %s", part.index, part.title, exc)
@@ -159,6 +199,7 @@ class SocialLongVideoProcessor(BaseProcessor):
         skip_audio: bool,
         prompt_template: Optional[str],
         resume: bool,
+        output_stem: Optional[str] = None,
     ) -> dict:
         """创建 VideoProcessor 并执行处理。"""
         from OCRLLM.processors.video import VideoProcessor
@@ -176,13 +217,15 @@ class SocialLongVideoProcessor(BaseProcessor):
             phases=phases,
             skip_audio=skip_audio,
             prompt_template=prompt_template,
+            output_stem=output_stem,
             resume=resume,
         )
 
     def _video_processor_config(self) -> AppConfig:
         """Return a video config tuned for long social-course stability."""
         concurrency_updates: dict[str, float | int] = {}
-        video_updates: dict[str, bool] = {}
+        video_updates: dict[str, bool | int] = {}
+        codex_updates: dict[str, int] = {}
         max_parallel = max(1, int(self.cfg.social.long_video_llm_parallel_requests))
         if int(self.cfg.concurrency.llm_parallel_requests) > max_parallel:
             concurrency_updates["llm_parallel_requests"] = max_parallel
@@ -193,25 +236,36 @@ class SocialLongVideoProcessor(BaseProcessor):
 
         if self.cfg.video.extract_hotwords_with_text_model:
             video_updates["extract_hotwords_with_text_model"] = False
+        if self.cfg.codex_vision.enabled and int(self.cfg.video.batch_size) > 1:
+            video_updates["batch_size"] = 1
+        if self.cfg.codex_vision.enabled and int(self.cfg.codex_vision.video_frame_batch_size) > 1:
+            codex_updates["video_frame_batch_size"] = 1
 
-        if not concurrency_updates and not video_updates:
+        if not concurrency_updates and not video_updates and not codex_updates:
             return self.cfg
 
         text_hotwords_enabled = video_updates.get(
             "extract_hotwords_with_text_model",
             self.cfg.video.extract_hotwords_with_text_model,
         )
+        video_batch_size = codex_updates.get(
+            "video_frame_batch_size",
+            video_updates.get("batch_size", self.cfg.video.batch_size),
+        )
         logger.info(
-            "social_long video processor stability config: parallel=%s, stagger=%s, text_hotwords=%s",
+            "social_long video processor stability config: parallel=%s, stagger=%s, text_hotwords=%s, video_batch=%s",
             concurrency_updates.get("llm_parallel_requests", self.cfg.concurrency.llm_parallel_requests),
             concurrency_updates.get("llm_request_stagger_seconds", self.cfg.concurrency.llm_request_stagger_seconds),
             text_hotwords_enabled,
+            video_batch_size,
         )
         config_updates = {}
         if concurrency_updates:
             config_updates["concurrency"] = concurrency_updates
         if video_updates:
             config_updates["video"] = video_updates
+        if codex_updates:
+            config_updates["codex_vision"] = codex_updates
         return self.cfg.with_updates(**config_updates)
 
     @staticmethod
@@ -219,12 +273,112 @@ class SocialLongVideoProcessor(BaseProcessor):
         return not skip_audio and (phases is None or 5 in phases)
 
     @staticmethod
-    def _recognition_outputs_complete(output_dir: str, stem: str, expect_audio: bool) -> bool:
-        board_path = os.path.join(output_dir, f"{stem}_板书识别.md")
-        if not (os.path.isfile(board_path) and os.path.getsize(board_path) > 0):
+    def _safe_part_output_name(part: DownloadPart) -> str:
+        safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", f"P{part.index}_{part.title}")
+        safe = safe[:80].rstrip(" ._")
+        if safe:
+            return safe
+        digest = hashlib.sha1(f"{part.index}:{part.title}".encode("utf-8", errors="surrogatepass")).hexdigest()[:8]
+        return f"P{part.index}_{digest}"
+
+    @classmethod
+    def _output_stem_for_video(
+        cls,
+        output_dir: str,
+        video_path: str,
+        *,
+        title: Optional[str] = None,
+        index: Optional[int] = None,
+    ) -> str:
+        source_stem = Path(video_path).stem
+        if cls._output_paths_are_compatible(output_dir, source_stem):
+            return source_stem
+        return cls._short_output_stem(output_dir, source_stem, title or source_stem, index=index)
+
+    @staticmethod
+    def _safe_stem_fragment(text: str) -> str:
+        safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", text)
+        safe = re.sub(r"\s+", " ", safe).strip(" ._")
+        return safe or "part"
+
+    @classmethod
+    def _short_output_stem(
+        cls,
+        output_dir: str,
+        source_stem: str,
+        title: str,
+        *,
+        index: Optional[int] = None,
+    ) -> str:
+        digest = hashlib.sha1(source_stem.encode("utf-8", errors="surrogatepass")).hexdigest()[:10]
+        safe_title = cls._safe_stem_fragment(title)
+        index_prefix = f"{index:03d}_" if index is not None else ""
+        candidates = [
+            f"{index_prefix}{safe_title[:48].rstrip(' ._')}_{digest}",
+            f"{index_prefix}{safe_title[:24].rstrip(' ._')}_{digest}",
+            f"{index_prefix}{digest}",
+            digest,
+        ]
+        for candidate in candidates:
+            candidate = cls._safe_stem_fragment(candidate)
+            if cls._output_paths_are_compatible(output_dir, candidate):
+                return candidate
+        return digest
+
+    @staticmethod
+    def _processor_output_stem_arg(stem: str, video_path: str) -> Optional[str]:
+        return stem if stem != Path(video_path).stem else None
+
+    @staticmethod
+    def _output_paths_are_compatible(output_dir: str, stem: str) -> bool:
+        for suffix in _VIDEO_OUTPUT_SUFFIXES:
+            path = Path(output_dir, f"{stem}{suffix}").resolve(strict=False)
+            if len(str(path)) > _MAX_COMPATIBLE_OUTPUT_PATH_CHARS:
+                return False
+        return True
+
+    @classmethod
+    def _existing_recognition_outputs_complete(cls, output_dir: str, expect_audio: bool) -> bool:
+        board_files = cls._files_with_suffix(output_dir, _BOARD_MD_SUFFIX)
+        audio_files = cls._files_with_suffix(output_dir, _AUDIO_MD_SUFFIX)
+        if len(board_files) != 1:
             return False
-        transcript_path = os.path.join(output_dir, f"{stem}_录音识别.md")
-        return not expect_audio or (os.path.isfile(transcript_path) and os.path.getsize(transcript_path) > 0)
+        if expect_audio and len(audio_files) != 1:
+            return False
+        if not expect_audio and len(audio_files) > 1:
+            return False
+        if expect_audio and cls._stem_without_suffix(board_files[0], _BOARD_MD_SUFFIX) != cls._stem_without_suffix(audio_files[0], _AUDIO_MD_SUFFIX):
+            return False
+        files_to_check = board_files + (audio_files if expect_audio else [])
+        return all(cls._markdown_output_is_clean(path) for path in files_to_check)
+
+    @staticmethod
+    def _files_with_suffix(output_dir: str, suffix: str) -> list[Path]:
+        return sorted(path for path in Path(output_dir).glob(f"*{suffix}") if path.is_file())
+
+    @staticmethod
+    def _stem_without_suffix(path: Path, suffix: str) -> str:
+        name = path.name
+        return name[: -len(suffix)] if name.endswith(suffix) else path.stem
+
+    @staticmethod
+    def _markdown_output_is_clean(path: Path | str) -> bool:
+        path = Path(path)
+        try:
+            if path.stat().st_size <= 0:
+                return False
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            return False
+        return not any(marker in text for marker in _DIRTY_MARKERS)
+
+    @staticmethod
+    def _recognition_outputs_complete(output_dir: str, stem: str, expect_audio: bool) -> bool:
+        board_path = Path(output_dir, f"{stem}{_BOARD_MD_SUFFIX}")
+        if not SocialLongVideoProcessor._markdown_output_is_clean(board_path):
+            return False
+        transcript_path = Path(output_dir, f"{stem}{_AUDIO_MD_SUFFIX}")
+        return not expect_audio or SocialLongVideoProcessor._markdown_output_is_clean(transcript_path)
 
     def _collect_recognition_outputs(
         self,
@@ -232,9 +386,10 @@ class SocialLongVideoProcessor(BaseProcessor):
         output_dir: str,
         result: dict,
         expect_audio: bool,
+        output_stem: Optional[str] = None,
     ) -> dict[str, str]:
         """Validate the two user-facing Markdown outputs and remove transient merged board drafts."""
-        stem = Path(video_path).stem
+        stem = output_stem or Path(video_path).stem
         if not isinstance(result, dict):
             raise TypeError(f"VideoProcessor.process() must return a result dict, got {type(result).__name__}")
 
@@ -243,7 +398,7 @@ class SocialLongVideoProcessor(BaseProcessor):
 
         if not (os.path.isfile(board_path) and os.path.getsize(board_path) > 0):
             raise FileNotFoundError(f"图片/板书识别 Markdown 缺失或为空: {board_path}")
-        if expect_audio and not (os.path.isfile(transcript_path) and os.path.getsize(transcript_path) > 0):
+        if expect_audio and not self._markdown_output_is_clean(transcript_path):
             raise FileNotFoundError(f"录音识别 Markdown 缺失或为空: {transcript_path}")
 
         legacy_board_path = os.path.join(output_dir, f"{stem}_板书识别_合并.md")

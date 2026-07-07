@@ -43,6 +43,8 @@ Read next:
 - `legacy_app/AGENTS.md`
 - `docs/legacy_bilibili_social_long_debug_record.md` for multi-part Bilibili
   course download/recognition recovery.
+- `docs/legacy_youtube_playlist_social_long_workflow.md` for YouTube playlist
+  course download/recognition recovery.
 - `docs/legacy_filetrans_codex_debug_record.md` for Codex/FileTrans recovery.
 
 Do not use as a new dependency boundary:
@@ -81,6 +83,7 @@ Need to fix GUI launcher/Codex/Google UI   -> legacy_app/
 Need to compare old product behavior       -> legacy_app/
 Need to record migration state             -> MIGRATION_STATUS.md
 Need to debug Bilibili social-long courses -> docs/legacy_bilibili_social_long_debug_record.md
+Need to debug YouTube playlist courses    -> docs/legacy_youtube_playlist_social_long_workflow.md
 Need to design the completed module shape  -> docs/ocrllm_module_target_design.md
 Need to revisit future Rust/PyO3 design    -> Architecture.md
 ```

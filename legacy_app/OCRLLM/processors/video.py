@@ -16,6 +16,7 @@ Phase 5: 热词辅助语音识别（可选）
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import logging
@@ -88,20 +89,45 @@ class VideoProcessor(BaseProcessor):
         return list(dict.fromkeys(phases))
 
     @staticmethod
+    def _debug_dir_name(stem: str) -> str:
+        """Return a Windows-safe temp debug directory name for a source stem."""
+        safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", stem)
+        safe = re.sub(r"\s+", " ", safe).strip(" ._")
+        if not safe:
+            safe = "video"
+        digest = hashlib.sha1(stem.encode("utf-8", errors="surrogatepass")).hexdigest()[:10]
+        prefix = safe[:40].rstrip(" ._") or "video"
+        return f"video_debug_{prefix}_{digest}"
+
+    @staticmethod
+    def _safe_output_stem(stem: str) -> str:
+        """Return a filesystem-safe output artifact stem."""
+        safe = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", stem)
+        safe = re.sub(r"\s+", " ", safe).strip(" ._")
+        return safe or "video"
+
+    @staticmethod
     def _build_checkpoint_extra(
         stem: str,
         phases: list[int],
         skip_audio: bool,
         prompt_template: str | None,
         audio_prompt_template: str | None = None,
+        output_stem: str | None = None,
+        source_stem: str | None = None,
     ) -> dict:
-        return {
+        extra = {
             "stem": stem,
             "phases": list(phases),
             "skip_audio": skip_audio,
             "prompt_template": prompt_template,
             "audio_prompt_template": audio_prompt_template,
         }
+        if output_stem is not None:
+            extra["output_stem"] = output_stem
+        if source_stem is not None and source_stem != stem:
+            extra["source_stem"] = source_stem
+        return extra
 
     @classmethod
     def resume_options_from_checkpoint(cls, checkpoint: Checkpoint) -> dict:
@@ -109,7 +135,7 @@ class VideoProcessor(BaseProcessor):
         phases = extra.get("phases")
         normalized_phases = [int(phase) for phase in phases] if isinstance(phases, list) else None
         skip_audio = bool(extra.get("skip_audio", False))
-        return {
+        options = {
             "video_path": checkpoint.source_path,
             "output_dir": checkpoint.output_path,
             "phases": cls._normalize_phases(normalized_phases, skip_audio),
@@ -118,6 +144,9 @@ class VideoProcessor(BaseProcessor):
             "audio_prompt_template": extra.get("audio_prompt_template") or None,
             "resume": True,
         }
+        if extra.get("output_stem"):
+            options["output_stem"] = extra["output_stem"]
+        return options
 
     def process(
         self,
@@ -127,6 +156,7 @@ class VideoProcessor(BaseProcessor):
         skip_audio: bool = False,
         prompt_template: str = None,
         audio_prompt_template: str = None,
+        output_stem: str = None,
         resume: bool = False,
     ) -> dict:
         """执行录课视频处理管线（最多 5 阶段）。
@@ -146,14 +176,15 @@ class VideoProcessor(BaseProcessor):
         if not os.path.isfile(video_path):
             raise FileNotFoundError(f"视频文件不存在: {video_path}")
 
-        stem = Path(video_path).stem
+        source_stem = Path(video_path).stem
+        stem = self._safe_output_stem(output_stem) if output_stem else source_stem
         if output_dir is None:
             output_dir = os.path.join(ensure_dir(self.cfg.paths.output_dir), stem)
         ensure_dir(output_dir)
 
         frames_dir = os.path.join(output_dir, "提取帧")
         ensure_dir(frames_dir)
-        debug_dir = os.path.join(ensure_dir(self.cfg.paths.temp_dir), f"video_debug_{stem[:30]}")
+        debug_dir = os.path.join(ensure_dir(self.cfg.paths.temp_dir), self._debug_dir_name(stem))
         ensure_dir(debug_dir)
 
         phases = self._normalize_phases(phases, skip_audio)
@@ -188,6 +219,8 @@ class VideoProcessor(BaseProcessor):
             skip_audio,
             prompt_template,
             audio_prompt_template,
+            output_stem=output_stem,
+            source_stem=source_stem,
         )
         if resume:
             checkpoint = self.checkpoint_mgr.load("video", video_path)

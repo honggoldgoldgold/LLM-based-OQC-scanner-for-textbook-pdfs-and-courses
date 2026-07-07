@@ -278,11 +278,15 @@ def _build_ydl_opts(
     *,
     extract_subs: bool = True,
     browser_cookie_override: Optional[str] = None,
+    playlist: bool = False,
 ) -> dict:
     """构建 yt-dlp 选项字典。"""
+    outtmpl = "%(title)s_%(id)s.%(ext)s"
+    if playlist:
+        outtmpl = "%(playlist_index)03d_%(title)s_%(id)s.%(ext)s"
     opts: dict = {
         "format": cfg.social.download_format,
-        "outtmpl": os.path.join(output_dir, "%(title)s_%(id)s.%(ext)s"),
+        "outtmpl": os.path.join(output_dir, outtmpl),
         "merge_output_format": "mp4",
         "retries": cfg.social.max_download_retries,
         "fragment_retries": cfg.social.max_download_retries,
@@ -290,6 +294,8 @@ def _build_ydl_opts(
         "quiet": True,
         "no_warnings": False,
         "noprogress": True,
+        "continuedl": True,
+        "ignoreerrors": False,
         "writeinfojson": True,
         "writesubtitles": extract_subs,
         "writeautomaticsub": extract_subs,
@@ -324,6 +330,49 @@ def _build_ydl_opts(
     return opts
 
 
+def _format_playlist_items(part_indices: Optional[list[int]]) -> str | None:
+    if not part_indices:
+        return None
+    return ",".join(str(index) for index in part_indices)
+
+
+def _has_playlist_entries(info: dict) -> bool:
+    return bool([entry for entry in (info.get("entries") or []) if entry])
+
+
+def _entry_video_path(entry: dict, output_dir: str) -> str:
+    for download in entry.get("requested_downloads") or []:
+        filepath = download.get("filepath") or download.get("filename")
+        if filepath and os.path.isfile(filepath):
+            return filepath
+
+    for key in ("filepath", "_filename", "filename"):
+        filepath = entry.get(key)
+        if filepath and os.path.isfile(filepath):
+            return filepath
+
+    video_id = entry.get("id")
+    if video_id:
+        for candidate in Path(output_dir).glob("*.mp4"):
+            if video_id in candidate.name:
+                return str(candidate)
+    return ""
+
+
+def _single_video_path(info: dict, output_dir: str) -> str:
+    path = _entry_video_path(info, output_dir)
+    if path:
+        return path
+
+    video_id = info.get("id", "unknown")
+    for file_path in Path(output_dir).iterdir():
+        if file_path.suffix == ".mp4" and video_id in file_path.name:
+            return str(file_path)
+
+    mp4s = list(Path(output_dir).glob("*.mp4"))
+    return str(mp4s[0]) if mp4s else ""
+
+
 def _collect_subtitle_paths(output_dir: str, video_id: str) -> list[str]:
     """收集已下载的字幕文件路径。"""
     results = []
@@ -338,6 +387,7 @@ def _download_yt_dlp(
     output_dir: str,
     cfg: AppConfig,
     *,
+    part_indices: Optional[list[int]] = None,
     progress_hook: Optional[callable] = None,
 ) -> DownloadResult:
     """通用 yt-dlp 下载（非B站平台）。"""
@@ -345,6 +395,7 @@ def _download_yt_dlp(
 
     os.makedirs(output_dir, exist_ok=True)
     platform = detect_platform(url)
+    playlist_items = _format_playlist_items(part_indices)
     explicit_cookiefile = bool(cfg.social.cookies_file and os.path.isfile(cfg.social.cookies_file))
     explicit_browser = bool(cfg.social.cookies_from_browser)
     cookie_attempts: list[Optional[str]] = [None]
@@ -353,6 +404,7 @@ def _download_yt_dlp(
 
     info = None
     last_exc: Optional[Exception] = None
+    playlist_mode = False
     for extract_subs in (True, False):
         if not extract_subs:
             logger.warning("[yt-dlp] 回退为无字幕模式继续下载: %s", url)
@@ -364,8 +416,11 @@ def _download_yt_dlp(
                 output_dir,
                 extract_subs=extract_subs,
                 browser_cookie_override=browser,
+                playlist=True,
             )
-            opts["noplaylist"] = True
+            opts["noplaylist"] = False
+            if playlist_items:
+                opts["playlist_items"] = playlist_items
             if platform == "youtube":
                 opts["remote_components"] = ["ejs:github"]
             if progress_hook:
@@ -379,6 +434,7 @@ def _download_yt_dlp(
                     info = ydl.extract_info(url, download=True)
                 if info is None:
                     raise RuntimeError(f"yt-dlp 无法解析 URL: {url}")
+                playlist_mode = _has_playlist_entries(info)
                 break
             except Exception as exc:
                 last_exc = exc
@@ -411,19 +467,47 @@ def _download_yt_dlp(
             raise last_exc
         raise RuntimeError(f"yt-dlp 无法解析 URL: {url}")
 
+    if playlist_mode:
+        parts: list[DownloadPart] = []
+        missing: list[str] = []
+        entries = [entry for entry in info.get("entries", []) if entry]
+        for fallback_index, entry in enumerate(entries, start=1):
+            playlist_index = int(entry.get("playlist_index") or fallback_index)
+            title = entry.get("title") or f"part {playlist_index}"
+            video_path = _entry_video_path(entry, output_dir)
+            if not video_path:
+                missing.append(f"P{playlist_index} {title}")
+                continue
+            parts.append(DownloadPart(
+                index=playlist_index,
+                title=title,
+                video_path=video_path,
+                duration=float(entry.get("duration") or 0),
+                url=entry.get("webpage_url") or entry.get("url") or "",
+            ))
+
+        if missing:
+            raise RuntimeError("playlist download incomplete:\n" + "\n".join(missing))
+        if not parts:
+            raise RuntimeError(f"yt-dlp playlist returned no usable videos: {url}")
+
+        return DownloadResult(
+            title=info.get("title", "untitled"),
+            platform=platform,
+            video_path="",
+            duration=sum(part.duration for part in parts),
+            parts=parts,
+            subtitle_paths=[],
+            description=info.get("description", ""),
+            is_playlist=True,
+            raw_info=info,
+        )
+
     video_id = info.get("id", "unknown")
     title = info.get("title", "untitled")
     duration = float(info.get("duration") or 0)
 
-    video_path = ""
-    for f in Path(output_dir).iterdir():
-        if f.suffix == ".mp4" and video_id in f.name:
-            video_path = str(f)
-            break
-    if not video_path:
-        mp4s = list(Path(output_dir).glob("*.mp4"))
-        if mp4s:
-            video_path = str(mp4s[0])
+    video_path = _single_video_path(info, output_dir)
 
     return DownloadResult(
         title=title,
@@ -522,12 +606,23 @@ def probe_video_info(url: str, cfg: AppConfig) -> dict:
             if last_exc:
                 raise last_exc
             raise RuntimeError(f"yt-dlp 无法解析 URL: {url}")
+        entries = [entry for entry in (info.get("entries") or []) if entry]
+        total_parts = int(info.get("playlist_count") or info.get("n_entries") or len(entries) or 1)
         return {
             "platform": platform,
             "title": info.get("title", ""),
-            "duration": info.get("duration", 0),
-            "parts": [],
-            "total_parts": 1,
+            "duration": info.get("duration", 0) or sum(float(entry.get("duration") or 0) for entry in entries),
+            "parts": [
+                {
+                    "page": idx,
+                    "part": entry.get("title") or f"part {idx}",
+                    "duration": entry.get("duration", 0),
+                    "url": entry.get("webpage_url") or entry.get("url") or "",
+                    "id": entry.get("id", ""),
+                }
+                for idx, entry in enumerate(entries, start=1)
+            ],
+            "total_parts": total_parts,
         }
 
 
@@ -569,4 +664,4 @@ def download_media(
             "社交媒体下载需要 yt-dlp，请运行: pip install yt-dlp"
         ) from exc
 
-    return _download_yt_dlp(url, output_dir, cfg, progress_hook=progress_hook)
+    return _download_yt_dlp(url, output_dir, cfg, part_indices=part_indices, progress_hook=progress_hook)

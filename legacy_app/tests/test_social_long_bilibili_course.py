@@ -146,8 +146,8 @@ def test_social_long_preserves_board_and_audio_markdown(tmp_path):
     proc._check_cancelled = lambda: None
     proc._report = lambda *_args: None
 
-    def fake_run(video_path_text, output_dir, *_args):
-        stem = Path(video_path_text).stem
+    def fake_run(video_path_text, output_dir, *_args, output_stem=None):
+        stem = output_stem or Path(video_path_text).stem
         board = Path(output_dir) / f"{stem}_板书识别.md"
         transcript = Path(output_dir) / f"{stem}_录音识别.md"
         board.write_text("# board\n", encoding="utf-8")
@@ -163,6 +163,33 @@ def test_social_long_preserves_board_and_audio_markdown(tmp_path):
     assert (part_dir / "lecture_板书识别.md").read_text(encoding="utf-8") == "# board\n"
     assert (part_dir / "lecture_录音识别.md").read_text(encoding="utf-8") == "# audio\n"
     assert not (part_dir / "lecture_识别.md").exists()
+
+
+def test_social_long_skips_existing_clean_pair_before_output_stem_selection(tmp_path):
+    video_path = tmp_path / "lecture.mp4"
+    video_path.write_bytes(b"video")
+    dl = DownloadResult(
+        title="course",
+        platform="youtube",
+        video_path="",
+        duration=10,
+        parts=[
+            DownloadPart(index=1, title="intro", video_path=str(video_path), duration=10),
+        ],
+        is_playlist=True,
+    )
+    part_dir = tmp_path / "out" / "P1_intro"
+    part_dir.mkdir(parents=True)
+    (part_dir / "legacy_\u677f\u4e66\u8bc6\u522b.md").write_text("# board\n", encoding="utf-8")
+    (part_dir / "legacy_\u5f55\u97f3\u8bc6\u522b.md").write_text("# audio\n", encoding="utf-8")
+
+    proc = SocialLongVideoProcessor.__new__(SocialLongVideoProcessor)
+    proc._check_cancelled = lambda: None
+    proc._report = lambda *_args: None
+    proc._output_stem_for_video = lambda *_args, **_kwargs: pytest.fail("clean pair should skip stem selection")
+    proc._run_video_processor = lambda *_args, **_kwargs: pytest.fail("clean pair should skip processing")
+
+    proc._process_multi_parts(dl, str(tmp_path / "out"), None, False, None, True)
 
 
 def test_social_long_fails_when_audio_markdown_is_missing(tmp_path):
@@ -182,8 +209,8 @@ def test_social_long_fails_when_audio_markdown_is_missing(tmp_path):
     proc._check_cancelled = lambda: None
     proc._report = lambda *_args: None
 
-    def fake_run(video_path_text, output_dir, *_args):
-        stem = Path(video_path_text).stem
+    def fake_run(video_path_text, output_dir, *_args, output_stem=None):
+        stem = output_stem or Path(video_path_text).stem
         board = Path(output_dir) / f"{stem}_板书识别.md"
         board.write_text("# board\n", encoding="utf-8")
         return {"board_md": str(board), "transcript_md": str(Path(output_dir) / f"{stem}_录音识别.md")}
@@ -215,6 +242,56 @@ def test_social_long_caps_video_llm_concurrency_for_course_runs():
     assert not video_cfg.video.extract_hotwords_with_text_model
     assert cfg.concurrency.llm_parallel_requests == 15
     assert cfg.video.extract_hotwords_with_text_model
+
+
+def test_social_long_caps_codex_video_batch_size_for_course_runs():
+    cfg = AppConfig().with_updates(
+        codex_vision={"enabled": True, "video_frame_batch_size": 9},
+        video={"batch_size": 9},
+    )
+    proc = SocialLongVideoProcessor.__new__(SocialLongVideoProcessor)
+    proc.cfg = cfg
+
+    video_cfg = proc._video_processor_config()
+
+    assert video_cfg.video.batch_size == 1
+    assert video_cfg.codex_vision.video_frame_batch_size == 1
+    assert cfg.video.batch_size == 9
+    assert cfg.codex_vision.video_frame_batch_size == 9
+
+
+def test_social_long_shortens_output_stem_when_part_paths_are_too_long(tmp_path):
+    title = "Modern Robotics, Chapter 3.2.3: Exponential Coordinates of Rotation (Part 2 of 2)"
+    source_stem = "015_" + title + "_WHn9xJl43nY"
+    part_output = tmp_path / ("P15_" + title.replace(":", "_")[:80])
+    video_path = tmp_path / "_downloads" / f"{source_stem}.mp4"
+
+    stem = SocialLongVideoProcessor._output_stem_for_video(
+        str(part_output),
+        str(video_path),
+        title=title,
+        index=15,
+    )
+
+    assert stem != source_stem
+    assert stem.startswith("015_")
+    assert SocialLongVideoProcessor._output_paths_are_compatible(str(part_output), stem)
+    assert len(str((part_output / f"{stem}_æ¿ä¹¦è¯†åˆ«.md").resolve(strict=False))) <= 240
+
+
+def test_social_long_part_output_name_strips_trailing_after_truncation():
+    part = DownloadPart(
+        index=44,
+        title="Modern Robotics, Chapters 9.1 and 9.2:  Point-to-Point Trajectories (Part 1 of 2)",
+        video_path="lecture.mp4",
+        duration=10,
+    )
+
+    safe_name = SocialLongVideoProcessor._safe_part_output_name(part)
+
+    assert len(safe_name) <= 80
+    assert safe_name.startswith("P44_Modern Robotics")
+    assert not safe_name.endswith((" ", ".", "_"))
 
 
 def test_bilibili_parts_route_as_long_playlist(monkeypatch):

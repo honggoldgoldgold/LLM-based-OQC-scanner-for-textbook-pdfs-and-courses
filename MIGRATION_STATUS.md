@@ -23,6 +23,8 @@ docs/library_migration_decision.md    Library-making decision and rationale.
 docs/ocrllm_module_target_design.md   Target-state module design map.
 docs/legacy_bilibili_social_long_debug_record.md
                                       Legacy Bilibili course robustness record.
+docs/legacy_youtube_playlist_social_long_workflow.md
+                                      Legacy YouTube playlist course workflow.
 docs/legacy_filetrans_codex_debug_record.md
                                       Legacy Filetrans/Codex runtime record.
 Architecture.md                       Suspended future architecture reference.
@@ -129,6 +131,41 @@ This legacy path has resume support for existing downloads, completed video
 phases, and in-flight DashScope FileTrans task IDs. Keep new downstream
 projects importing `ocrllm`; do not expose this legacy processor as a new public
 library boundary.
+
+For multi-part YouTube course playlists, the equivalent maintained legacy
+workflow is documented here:
+
+```text
+docs/legacy_youtube_playlist_social_long_workflow.md
+```
+
+Use the same legacy CLI boundary:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long `
+  "https://youtube.com/playlist?list=PLggLP4f-rq02vX0OQQ5vrCxbJrzamYDfx&si=6VZ5fem42kqyyasd" `
+  --parts 1-97 --resume -o output\youtube_modern_robotics_full
+```
+
+The 2026-07-06 YouTube playlist run is still legacy compatibility work, not a
+public `ocrllm` API. It fixed and documents these additional runtime rules:
+
+- YouTube playlist probe results must expose flat entries and route to
+  `social_long`, not `social_short`.
+- Non-Bilibili yt-dlp downloads must allow playlists and map `--parts` to
+  `playlist_items`.
+- Codex social-long video recognition caps the effective video frame batch size
+  at 1 to avoid incomplete multi-frame markers.
+- Video debug temp directory names must be Windows-safe and stable for YouTube
+  titles.
+- Social-long part output directories must strip trailing spaces/dots after
+  legacy truncation, and long per-part artifact stems must shorten before
+  Windows path limits are reached.
+- Resume skip checks must accept an existing clean board/audio markdown pair
+  before changing artifact stems, otherwise completed parts can be duplicated.
+- DashScope FileTrans sidecars must be shortened using the resolved absolute
+  `.tmp` path length.
 
 The 2026-07-06 Bilibili CS231n run exposed and fixed these legacy runtime
 problems:

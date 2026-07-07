@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 import threading
 import logging
@@ -14,6 +15,8 @@ from pathlib import Path
 from typing import Optional
 
 logger = logging.getLogger(__name__)
+
+_MAX_COMPATIBLE_TEMP_PATH_CHARS = 240
 
 
 class IncrementalMDWriter:
@@ -146,7 +149,7 @@ class IncrementalMDWriter:
 
         try:
             with self._io_lock:
-                tmp_path = self._output_path + ".tmp"
+                tmp_path = self._temp_path()
                 with open(tmp_path, "w", encoding="utf-8") as f:
                     f.write("\n\n".join(parts))
                 os.replace(tmp_path, self._output_path)
@@ -166,6 +169,19 @@ class IncrementalMDWriter:
 
         logger.info("[MD] 全量刷新: %d/%d 槽位", len(parts), self._total_slots)
         self._try_incremental_flush()
+
+    def _temp_path(self) -> Path:
+        output = Path(self._output_path)
+        candidate = output.with_name(output.name + ".tmp")
+        if self._is_compatible_temp_path(candidate):
+            return candidate
+
+        digest = hashlib.sha1(str(output).encode("utf-8", errors="surrogatepass")).hexdigest()[:12]
+        return output.with_name(f".ocrllm-{digest}.tmp")
+
+    @staticmethod
+    def _is_compatible_temp_path(path: Path) -> bool:
+        return len(str(path.resolve(strict=False))) <= _MAX_COMPATIBLE_TEMP_PATH_CHARS
 
     def finalize(self):
         """最终写入：确保所有槽位内容有序写入文件。

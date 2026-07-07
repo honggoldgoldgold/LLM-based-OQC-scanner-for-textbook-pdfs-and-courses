@@ -15,6 +15,7 @@ from OCRLLM.processors.audio import (
 )
 from OCRLLM.processors.audio_filetrans_task_state import (
     filetrans_task_state_path,
+    load_filetrans_task_id,
     save_filetrans_task_state,
 )
 
@@ -325,6 +326,39 @@ class AudioWaitResultTests(unittest.TestCase):
             processor._wait_result.assert_called_once_with("saved-task-id", 5.0, 3600)
             self.assertIn("resumed transcript", output_path.read_text(encoding="utf-8"))
             self.assertFalse(filetrans_task_state_path(str(output_path)).exists())
+
+    def test_filetrans_task_state_path_shortens_long_youtube_titles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            part_dir = Path(tmp) / ("P4_" + ("long title " * 8).strip())
+            output_path = part_dir / (
+                "004_Modern Robotics, Chapter 2.1：  Degrees of Freedom of a Rigid Body_"
+                "z29hYlagOYM_录音识别.md"
+            )
+            audio_path = output_path.with_suffix(".mp3")
+            part_dir.mkdir(parents=True)
+            audio_path.write_bytes(b"fake audio")
+
+            state_path = filetrans_task_state_path(str(output_path))
+            save_filetrans_task_state(
+                str(output_path),
+                task_id="task-long-path",
+                model="qwen3-asr-flash-filetrans",
+                audio_path=str(audio_path),
+                file_url="oss://dashscope/audio.mp3",
+            )
+
+            state_tmp = state_path.with_name(state_path.name + ".tmp").resolve(strict=False)
+            self.assertLessEqual(len(str(state_tmp)), 240)
+            self.assertLess(len(state_path.name), len(output_path.name + ".filetrans_task.json"))
+            self.assertTrue(state_path.exists())
+            self.assertEqual(
+                load_filetrans_task_id(
+                    str(output_path),
+                    model="qwen3-asr-flash-filetrans",
+                    audio_path=str(audio_path),
+                ),
+                "task-long-path",
+            )
 
     def test_filetrans_quality_gate_allows_short_audio(self):
         markdown = "<!-- meta:audio title=short -->\n\n<!-- meta:segment index=1 time=00:00~00:01 -->\n\n是。\n"

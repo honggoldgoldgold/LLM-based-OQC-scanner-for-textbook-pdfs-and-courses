@@ -69,6 +69,35 @@ class ResumeContractTests(unittest.TestCase):
             },
         )
 
+    def test_video_resume_options_restore_output_stem_when_present(self):
+        checkpoint = Checkpoint(
+            task_type="video",
+            source_path="long-lecture.mp4",
+            output_path="out/long-lecture",
+            total_items=5,
+            extra={
+                "stem": "001_short_a1b2c3d4e5",
+                "output_stem": "001_short_a1b2c3d4e5",
+                "source_stem": "long-lecture",
+                "phases": [1, 2, 3, 4, 5],
+                "skip_audio": False,
+            },
+        )
+
+        options = VideoProcessor.resume_options_from_checkpoint(checkpoint)
+
+        self.assertEqual(options["output_stem"], "001_short_a1b2c3d4e5")
+        self.assertEqual(options["video_path"], "long-lecture.mp4")
+
+    def test_video_debug_dir_name_is_windows_safe_for_youtube_titles(self):
+        name = VideoProcessor._debug_dir_name("003_Modern Robotics, Chapters 2 and 3 ")
+
+        self.assertTrue(name.startswith("video_debug_"))
+        self.assertFalse(name.endswith((" ", ".")))
+        self.assertRegex(name, r"_[0-9a-f]{10}$")
+        for char in '<>:"/\\|?*':
+            self.assertNotIn(char, name)
+
     def test_list_incomplete_returns_latest_first(self):
         with tempfile.TemporaryDirectory() as tmp:
             src1 = os.path.join(tmp, "a.pdf")

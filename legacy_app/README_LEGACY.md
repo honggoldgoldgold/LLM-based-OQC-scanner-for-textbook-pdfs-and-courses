@@ -40,12 +40,14 @@ When porting from this folder:
 ## Maintained Compatibility Workflow: Social Long Video
 
 The legacy social-long processor is still the active compatibility path for
-multi-part Bilibili courses. It is intentionally not a new public library API.
+multi-part Bilibili and YouTube course playlists. It is intentionally not a new
+public library API.
 
-Read the detailed robustness record before changing this path:
+Read the detailed robustness records before changing this path:
 
 ```text
 docs/legacy_bilibili_social_long_debug_record.md
+docs/legacy_youtube_playlist_social_long_workflow.md
 ```
 
 Run it through the legacy CLI:
@@ -54,6 +56,15 @@ Run it through the legacy CLI:
 $env:PYTHONPATH='legacy_app'
 D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <bilibili-url> `
   --parts 1-33 --resume -o output\bilibili_cs231n_full
+```
+
+For YouTube playlists, use the same command shape with the playlist URL and
+selected playlist item range:
+
+```powershell
+$env:PYTHONPATH='legacy_app'
+D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <youtube-playlist-url> `
+  --parts 1-97 --resume -o output\youtube_modern_robotics_full
 ```
 
 For each selected part, the expected recognition output is exactly:
@@ -72,6 +83,7 @@ Important behavior fixed during the 2026-07-06 Bilibili CS231n run:
 
 - Multi-part Bilibili links route to `social_long`.
 - `--parts` supports lists and ranges such as `1,3,5-8`.
+- YouTube `--parts` maps to yt-dlp `playlist_items`.
 - Any requested part download failure fails the run instead of silently
   returning a partial course.
 - Bilibili XML danmaku failures fall back to the segmented protobuf API.
@@ -79,6 +91,8 @@ Important behavior fixed during the 2026-07-06 Bilibili CS231n run:
   captured per part.
 - Resume reuses downloads, video phase artifacts, and saved FileTrans task IDs.
 - The social tab accepts free-form text and Markdown-style pasted URLs.
+- In Codex social-long mode, OCRLLM caps the effective video frame batch size
+  at 1 for stable per-frame markers.
 
 The verified CS231n output had 33 part directories, 33 MP4 files, 33 board
 Markdown files, 33 audio Markdown files, no FileTrans sidecars, and a
