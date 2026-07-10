@@ -7,8 +7,8 @@ Then read `MIGRATION_STATUS.md` for the migration history and next steps.
 Read `docs/ocrllm_library_go_no_go.md` before implementing any new library
 feature; it is the authoritative execution decision.
 
-OCRLLM is now being extracted into a Python library that other projects can
-import as `ocrllm`. The previous application code was moved into
+OCRLLM is an importable Python library under active staged development. Other
+projects import it as `ocrllm`. The previous application code was moved into
 `legacy_app/` and should be treated as a reference implementation, not as the
 dependency surface for new projects.
 
@@ -16,16 +16,30 @@ dependency surface for new projects.
 
 The active package is `src/ocrllm`.
 
-The active goal is small and concrete:
+Phase 0 contract honesty is GO. The current phase is **Phase 1 -- real
+board/image**.
 
-- Make the current contract honest: invalid or missing images and empty
-  provider responses must fail before they can look successful.
-- Complete one real board/image path with a lazy provider adapter and real
-  fixtures.
-- Establish a versioned JSON-safe contract, then prove a one-job JSONL worker
-  for Electron.
-- Add PDF, audio, and video only as separately gated vertical slices.
-- Keep file output optional. `output_dir=None` means in-memory results only.
+The current verified contract:
+
+- Valid `.png`, `.jpg`, and `.jpeg` files are decoded before provider dispatch.
+- The synchronous injected provider receives request-scoped validated snapshots
+  isolated from later caller-path changes, not the caller's source paths.
+- Provider failures and invalid output become typed, redacted public errors.
+- Results use canonical `source_type="image"` and `profile="board"`.
+- File output is optional. `output_dir=None` means in-memory results only.
+- Requested Markdown output uses deterministic collision handling and atomic
+  publication.
+- Pillow is installed only through `ocrllm[image]` and is imported lazily.
+
+Phase 1 now adds one lazy DashScope vision adapter and a committed, reproducible
+quality corpus/scorer with real-provider evidence. There is no built-in real
+provider yet, so Phase 0 GO does not advertise board/image recognition as an
+available capability.
+
+The active library also has no local OCR mode, API-key pools, automatic retries
+or model fallback, resume/checkpoint support, PDF recognition, audio
+recognition, or video recognition. Those features must enter through their own
+approved phases rather than through the injected-provider scaffold.
 
 Active PDF work will use PDFium through `pypdfium2`. PyMuPDF/`fitz` is
 legacy-only and must not enter `src/ocrllm`. HarmonyOS/ArkTS compatibility is
@@ -36,9 +50,10 @@ as a future reference.
 
 ## Current Public API
 
-This example shows the current injected-provider scaffold. It is useful for
-contract tests but is not evidence of validated image support; the current
-implementation can still accept invalid paths or empty provider output.
+This example shows the current synchronous injected-provider contract. The
+library validates and snapshots the image before calling the provider. The
+provider shown here is still caller-supplied; it is not the future built-in
+DashScope adapter or recognition-quality evidence.
 
 ```python
 from ocrllm import Config, recognize
@@ -51,7 +66,12 @@ class Provider:
 
 result = recognize("board.jpg", config=Config(provider=Provider()))
 print(result.markdown)
+print(result.source_type)  # image
+print(result.profile)      # board
 ```
+
+Set `output_dir` to request a Markdown file. Without it, recognition stays
+in-memory. Image resume is not implemented.
 
 ## Repository Map
 

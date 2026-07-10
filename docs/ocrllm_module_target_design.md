@@ -14,6 +14,9 @@ execution record.
 
 The active implementation remains the Python-first package in `src/ocrllm`.
 The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
+Phase 0 contract honesty is GO at commit `5018ad0` on the exact clean evidence
+recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is the
+current and only authorized implementation phase.
 
 ## One-Sentence Goal
 
@@ -408,6 +411,22 @@ Design rules:
 - Model queues and key pools are deferred until one-provider failure handling
   is complete and measured need exists.
 
+Future configuration boundaries are recorded, not authorized for Phase 1:
+
+- `board` is a recognition profile, not an execution engine. A possible local
+  OCR engine is orthogonal to profile selection and remains unapproved work.
+- Do not introduce four generic provider categories now. OpenAI-compatible
+  transport, provider SDKs, local engines, and subprocess/session tools have
+  different requirements and are not a closed public enum. A future Codex
+  subprocess/session adapter, in particular, cannot require an API key.
+- If later evidence requires policy objects, provider, model, execution, retry,
+  and recognition-preferences policies are immutable values. A credential pool
+  is stateful operational infrastructure and remains separate from them.
+- `api_key` remains one optional string for the approved adapter path; do not
+  change it to a scalar-or-tuple union. Any future multi-credential pool needs a
+  separate explicit API and decision covering fair selection, cooldown, and
+  provider/model quota and error domains.
+
 ### `RecognitionResult`
 
 `RecognitionResult` is the only normal successful return type.
@@ -550,6 +569,7 @@ src/ocrllm/
 
   imaging/
     decode_image.py                  Image decoding and validation.
+    snapshot_image_group.py          Bounded stable provider-visible snapshots.
     normalize_image.py               Provider-required format conversion.
     resize_image.py                  Provider size-limit enforcement.
 
@@ -607,10 +627,11 @@ tests/
     assert_quality_thresholds.py     Apply predeclared phase thresholds.
 ```
 
-Create these files only when their phase begins. The current `api.py` and
-`processors/board.py` are Phase 0 stubs that must be split rather than expanded.
-The rule is one file, one named responsibility. Do not create empty scaffolding
-for later phases.
+Create these files only when their phase begins. The Phase 0 split is complete
+at commit `5018ad0`; Phase 1 builds on `recognize.py`, `recognize_batch.py`, and
+`processors/recognize_images.py`. Do not recreate the removed `api.py` or
+`processors/board.py` stubs. The rule is one file, one named responsibility. Do
+not create empty scaffolding for later phases.
 
 ## Layering
 
@@ -691,6 +712,10 @@ Responsibilities:
 - Enforce 25 MiB/source, 24,000,000 pixels/image, 10 images/group,
   100 MiB aggregate source, 64,000,000 aggregate pixels, and 20 MiB serialized
   request caps before provider invocation; process decoded images sequentially.
+- Copy validated bytes into bounded stable snapshots and pass only those paths
+  to the synchronous provider method. The provider must finish consuming them
+  before it returns; cleanup starts only after that return, and no provider may
+  retain the paths for background work.
 - Build the board prompt.
 - Call a vision-capable provider.
 - Return `ProcessorOutput` with nonempty Markdown.
@@ -700,6 +725,11 @@ Must not:
 - Import GUI code.
 - Decide provider billing policy.
 - Hide provider failures as empty Markdown.
+
+Snapshot creation, write, and otherwise-successful cleanup failures are typed
+`OUTPUT_WRITE_FAILED` errors. If provider/recognition work already raised a
+typed public error, preserve that primary error and attach only redacted
+`snapshot_cleanup_failed=true` detail before the error crosses the facade.
 
 ### PDF Processor
 
@@ -880,6 +910,12 @@ Config.provider is None            -> allow local PDF text only; otherwise raise
 
 Critical rule: provider adapters own HTTP details, authentication, request
 format, and response parsing. Processors own media-specific workflow.
+
+At the Phase 0 transition, injected-provider `image.board.png` and
+`image.board.jpeg` are `experimental`, not `available`; the required Phase 1
+live-quality and built-in-provider proofs remain. `provider.dashscope.vision` is
+`unavailable` because its adapter has not been implemented. No Phase 0 result
+authorizes a later capability.
 
 ## Optional Dependencies
 
@@ -1073,8 +1109,8 @@ The exact GO conditions live in `docs/ocrllm_library_go_no_go.md`. The order is
 mandatory:
 
 ```text
-Phase 0  Contract honesty                         CURRENT
-Phase 1  Real board/image and one provider
+Phase 0  Contract honesty                         GO at 5018ad0
+Phase 1  Real board/image and one provider        CURRENT
 Phase 2  Versioned JSON contract and Electron JSONL worker
 Phase 3  PDFium text/vision PDF slice
 Phase 4  Short ASR and resumable FileTrans audio

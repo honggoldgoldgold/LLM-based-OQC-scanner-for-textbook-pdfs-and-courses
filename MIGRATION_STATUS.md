@@ -4,9 +4,9 @@ This file is the project memory aid. Read it before changing the repo.
 
 ## One-Sentence Summary
 
-The old OCRLLM app has been moved to `legacy_app/`; the active project is now a
-new importable Python library in `src/ocrllm`, currently at the contract-honesty
-gate before real image support.
+The old OCRLLM app has been moved to `legacy_app/`; the active project is an
+importable Python library in `src/ocrllm`, with contract honesty GO and Phase 1
+real board/image plus one provider now current.
 
 ## First Files To Read
 
@@ -75,14 +75,21 @@ from ocrllm import (
     recognize_batch,
     OCRLLMError,
     ConfigError,
+    DependencyMissing,
+    InvalidSource,
+    NoSpeechDetected,
+    OutputError,
+    OutputExists,
+    ProviderError,
     QuotaExhausted,
     UnsupportedFormat,
     Cancelled,
 )
 ```
 
-The current Phase 0 facade route sends board/image paths to an injected
-provider:
+Phase 0 is GO. The active Phase 1 route validates PNG/JPEG sources and sends
+request-scoped snapshots isolated from later caller-path changes to one
+synchronous injected vision provider:
 
 ```python
 from ocrllm import Config, recognize
@@ -96,26 +103,27 @@ class Provider:
 result = recognize("board.png", config=Config(provider=Provider()))
 ```
 
-No real DashScope, Google, PDF, audio, or video provider has been ported into
-the active library yet.
-
-The current injected-provider path is not yet GO because it does not prove
-input existence, real image decoding, nonempty provider output, or typed
-provider failures. An isolated `qwen-vl-max` trial successfully recognized a
-real PNG, which proves that the provider path is approachable; it does not prove
-the active adapter because that adapter does not exist yet.
-
-A 2026-07-09 negative runtime probe confirmed both blockers rather than merely
-inferring them from source:
+The provider receives ordered snapshot paths, not the caller's mutable paths.
+It must read them and return before `recognize_images()` returns. The library
+then removes the snapshots; a cleanup failure is typed and never silently
+reported as success. The active path now provides:
 
 ```text
-nonexistent .png returned success       true
-provider called for nonexistent source  1 time
-empty provider Markdown returned success true
-provider called for empty-output case   1 time
+allowed inputs                     PNG, JPG, JPEG
+canonical media/profile            image / board
+missing/empty/invalid/oversized     fail before provider invocation
+provider empty/control-only result  PROVIDER_RESPONSE_INVALID
+metadata                            recursively copied and immutable
+output_dir=None                     memory-only
+existing output                     OUTPUT_EXISTS unless overwrite=True
+provider/config secrets             absent from public repr/error/result data
 ```
 
-Therefore Phase 0 remains NO-GO even though the existing eight root tests pass.
+No built-in real DashScope, Google, OpenAI-compatible, Codex, local-OCR, PDF,
+audio, or video adapter exists yet. The injected-provider route is contract
+evidence, not a recognition-quality claim. Phase 1 remains NO-GO until its
+DashScope adapter, committed quality corpus/scorers, two full live runs, and
+clean profile gates pass.
 
 Active PDF policy is decided now even though PDF implementation is not
 authorized yet:
@@ -150,26 +158,49 @@ This is a conditional feasibility GO, not active PDF support. Python 3.10,
 Unicode, encrypted, hostile, large-document, recognition, cancellation, and
 license-notice packaging gates remain.
 
-Local lightweight base-wheel evidence on the recorded Windows reference host:
+Latest Phase 0 gate evidence on the recorded Windows reference host, from code
+checkpoint `5018ad0` plus the final phase-transition documentation tree on
+2026-07-10:
 
 ```text
-wheel size                         9,283 bytes
-wheel SHA-256                      166ACEC563B88203A7C8D1F616AB5838192D40501DC8837A5AA99B78EF865D0C
-isolated no-deps install          26,152 bytes
-Python 3.10, 30 fresh processes   wall median/p95 39.768/45.556 ms
-                                   CPU median/p95 31.250/46.875 ms
-Python 3.13, 30 fresh processes   wall median/p95 26.265/37.334 ms
-                                   CPU median/p95 31.250/31.250 ms
+root tests                         141 passed
+                                  (138 active-library, 3 course-tool tests)
+wheel size                         31,151 bytes
+wheel SHA-256                      FD983CA90944F545A4B670F33A8ABF015712E1DDAC8F866BB4703E0A465C707D
+isolated no-deps install          135,213 bytes
+Python 3.10, 30 fresh processes   wall median/p95/max 58.642/108.161/114.861 ms
+                                   CPU median/p95/max 46.875/78.125/78.125 ms
+Python 3.13, 30 fresh processes   wall median/p95/max 22.865/30.880/31.043 ms
+                                   CPU median/p95/max 23.438/31.250/31.250 ms
 plain-import optional modules     PIL, pypdfium2, openai all absent
 base runtime requirements         none
 native binaries in base wheel     none
+declared extras                    dev, image
+clean image installed delta       15,814,896 bytes
+clean image Pillow                12.3.0
+clean generated-PNG recognition   complete, source_type=image, profile=board
 ```
 
-This passes the current base-profile size/import feasibility budget. It does not
-make image recognition GO: no committed licensed quality corpus or scorer exists
-yet, and the Phase 0 input/output honesty failures remain. Numeric profile
-budgets and objective recognition thresholds are authoritative in
-`docs/ocrllm_library_go_no_go.md`.
+The exact gate ran the authoritative test/build/isolated-target/timing commands.
+For the image-extra proof it generated an 8-by-6 PNG inside the fresh image venv
+after installing the wheel, then decoded and recognized that file; this replaces
+the stale reference to a nonexistent committed `tests/fixtures/images/valid.png`.
+All Phase 0 numeric and behavior gates pass. This does not make recognition
+quality available: no committed licensed quality corpus or scorer exists yet.
+
+The verification entrypoints used were:
+
+```powershell
+& D:\Anaconda\envs\OCRLLM\python.exe -m pytest -q -p no:cacheprovider
+& D:\Anaconda\python.exe -m build --wheel --outdir $wheelDir
+& D:\Anaconda\envs\OCRLLM\python.exe -m pip install --no-deps --target $targetDir $wheel.FullName
+& D:\Anaconda\envs\OCRLLM\python.exe -m venv $imageVenv
+& $imagePython -m pip install "$($wheel.FullName)[image]"
+```
+
+The 30-process/two-warm-up timing loop, metadata/native guard, outside-repo
+import, deterministic PNG generator, and image recognition assertions were run
+exactly as recorded in `docs/ocrllm_library_go_no_go.md`.
 
 A later Python 3.10 repeat measured 48.978 ms median with one 155.312 ms maximum
 and failed the draft maximum-100-ms rule. A post-build run then measured 70.477
@@ -347,6 +378,38 @@ The documents are useful for rebuilding context after memory loss. The
 GO/NO-GO record defines allowed boundaries; tests and real downstream imports
 provide the evidence for advancing a gate.
 
+## Future Provider, Preference, Pool, And Local-OCR Decision
+
+The 2026-07-10 implementation brief is accepted as product direction, but its
+configuration and pooling sketch is not accepted literally:
+
+- `board` is a recognition profile. A future local-OCR path is an execution
+  engine/capability orthogonal to that profile, reached through the same public
+  `recognize()` facade only after an engine, optional dependency, fixtures,
+  quality threshold, and capability name are approved.
+- A universal `category + api_key` requirement is invalid because Codex is a
+  local authenticated CLI and has no per-call API key. Future provider config
+  must be discriminated by adapter category and validate only applicable fields.
+- Do not overload `api_key` as `str | tuple[str, ...]`. Immutable workflow config
+  will compose provider/model choice, recognition preferences, execution policy
+  (batch, in-flight limit, monotonic request-start interval), and retry policy.
+  A credential pool is a separate stateful, concurrency-safe runtime scheduler.
+- A future pool must account for fair rotation, cooldown/health, last use,
+  provider quota domains, and error disposition. It must never persist or print
+  raw keys. Multiple Google keys in one project must not be treated as extra
+  project quota.
+- Model input limits are provider/model capabilities. An impossible request such
+  as 100 images for a 10-image model must fail before upload, not surface as an
+  opaque provider error.
+- Quality/cost/latency preference is task based. Do not hard-code an
+  audio-specific "Pro" model rule into generic configuration.
+- Durable resume remains versioned completed-unit/remote-task state for later
+  long PDF/audio/video jobs. Phase 0 image snapshots are validation isolation,
+  not resume state.
+
+Provider pools, model queues, automatic retry/switching, and local OCR remain
+NO-GO until the one-provider Phase 1 error and quality gates establish evidence.
+
 ## What Is Suspended
 
 `Architecture.md` contains a Rust/PyO3 v3 rewrite plan. That plan is currently
@@ -401,36 +464,29 @@ legacy_app/environment.yml
 
 ## What To Do Next
 
-Current phase: **Phase 0 -- contract honesty**.
+Current phase: **Phase 1 -- real board/image and one provider**.
 
 Implement only this bounded slice:
 
-1. Add tests proving missing, unreadable, empty, oversized, unsupported, and
-   invalid image inputs fail before provider invocation.
+1. Commit the licensed five-class image corpus and manifest required by the
+   authoritative quality gate, including expected units and corruption tests for
+   the scorer itself.
+2. Add the lazy built-in `"dashscope"` adapter through
+   `openai>=2.30,<3`, with explicit credential order and default
+   `qwen-vl-max` only inside the adapter.
+3. Map authentication, quota, timeout, network, cancellation-before-dispatch,
+   and malformed responses to redacted typed failures. Do not add hidden retry,
+   model switching, key rotation, or paid fallback.
+4. Enforce the provider serialized-request limit before dispatch and prove every
+   image/group boundary one below, at, and one above its cap.
+5. Run one live smoke and two independently dispatched full-corpus live runs.
+   Record provider/model, prompt version, hashes, metrics, dependency versions,
+   elapsed time, and UTC time without secrets.
+6. Pass clean `image` and `image,dashscope` package profiles while keeping Pillow
+   and OpenAI absent from plain base import.
 
-2. Reject empty provider output and translate provider failures into typed,
-   secret-safe public errors.
-
-3. Make result metadata JSON-safe and make output collision behavior explicit.
-
-   Change the canonical result media type from `board` to `image`; preserve
-   `board` only as an image recognition profile before the versioned contract
-   freezes.
-
-4. Populate `ocrllm[image]` with `Pillow>=10.4,<13` for lazy decode validation.
-   Remove the empty PDF, audio, video, and all extras. Re-add each later feature
-   extra only when its phase installs and enables it.
-
-5. Split the public functions and routing according to
-   `docs/ocrllm_library_go_no_go.md`; do not create later-phase scaffolding.
-
-6. Run the exact test, temporary-wheel build, clean-target install, outside-repo
-   import, and heavy-module guard commands in
-   `docs/ocrllm_library_go_no_go.md`. Record the commands and results here.
-
-Phase 1 may begin only after all Phase 0 GO conditions pass. PDF, audio, video,
-service, HarmonyOS, Rust, Office, social, GPU, and offline-model work is not the
-next task.
+PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
+Office, social, GPU, and offline-model work are not the next task.
 
 ## Do Not Do This
 

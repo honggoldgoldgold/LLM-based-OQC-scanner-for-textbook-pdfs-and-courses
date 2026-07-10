@@ -7,22 +7,44 @@ this repo intended for direct import by other projects.
 
 ```python
 from ocrllm import (
+    Cancelled,
     Config,
+    ConfigError,
+    DependencyMissing,
+    InvalidSource,
+    NoSpeechDetected,
+    OCRLLMError,
+    OutputError,
+    OutputExists,
+    ProviderError,
+    QuotaExhausted,
     RecognitionResult,
+    UnsupportedFormat,
     recognize,
     recognize_batch,
-    OCRLLMError,
-    ConfigError,
-    QuotaExhausted,
-    UnsupportedFormat,
-    Cancelled,
 )
 ```
 
-The current implementation is a Phase 0 facade, not a completed recognition
-feature. It routes board/image paths to an injected provider, but input
-validation and a built-in real provider have not been ported yet. PDF, audio,
-and video are unsupported.
+Phase 0 contract honesty is GO. The current phase is **Phase 1 -- real
+board/image**.
+
+The current image facade:
+
+- accepts `.png`, `.jpg`, and `.jpeg`;
+- decodes and validates every input before provider dispatch;
+- copies validated bytes into request-scoped snapshots isolated from later
+  caller-path changes;
+- passes those ordered snapshots to one synchronous injected provider;
+- rejects invalid provider output and maps failures to typed/redacted errors;
+- returns `source_type="image"` and `profile="board"`;
+- keeps output in memory unless `output_dir` requests atomic Markdown output;
+- loads Pillow lazily from the optional `ocrllm[image]` extra.
+
+This is not yet a completed recognition capability. There is no built-in real
+provider, committed quality corpus/scorer, local OCR backend, key pool,
+automatic retry/model fallback, or image resume. PDF, audio, and video are also
+unavailable. Phase 1 is specifically one lazy DashScope vision adapter plus
+reproducible quality and live-provider evidence.
 
 Read `../../docs/ocrllm_library_go_no_go.md` before active-library work. It is
 the authoritative source for file responsibilities, GO gates, and the

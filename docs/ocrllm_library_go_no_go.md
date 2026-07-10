@@ -88,25 +88,45 @@ DEFERRED:
 
 ## Current Truth
 
-As of the decision date:
+As of the Phase 0 transition on 2026-07-10:
 
-- The base wheel builds and imports without runtime dependencies.
-- The active package routes image extensions to an injected Python provider.
-- The active package does not validate that an image exists or decodes.
-- The active package can accept empty provider output as success.
-- A 2026-07-09 runtime probe confirmed that a nonexistent `.png` still invoked
-  the provider and returned success, and an empty provider string also returned
-  success. This is direct Phase 0 NO-GO evidence.
-- The active package currently returns `source_type="board"`. Before the JSON
-  contract freezes, change the canonical media type to `image` and represent
-  board recognition as `profile="board"`.
-- A real `qwen-vl-max` image call succeeded in an isolated trial, but no real
-  provider adapter exists in `src/ocrllm/`.
-- PDF, audio, and video are unsupported by the active package.
-- `pyproject.toml` currently advertises empty image, PDF, audio, video, and all
-  extras. In Phase 0, populate `image` with the lazy decoder dependency and
-  remove the other empty feature extras. Add each later extra back only in the
-  phase that installs and enables its tested feature.
+- Phase 0 is GO at commit `5018ad0`; Phase 1 is the current and only authorized
+  implementation phase.
+- The active package validates and decodes PNG/JPEG sources before invoking an
+  injected provider, rejects empty provider output, returns canonical
+  `source_type="image"`, and represents board recognition as `profile="board"`.
+- The active image path snapshots validated source bytes for the provider. The
+  provider call returns before snapshot cleanup begins, so providers must consume
+  the paths synchronously and must not retain them. Snapshot creation/write and
+  otherwise-successful cleanup failures raise typed `OUTPUT_WRITE_FAILED`; when a
+  typed recognition failure is already active, it remains primary and records
+  redacted `snapshot_cleanup_failed=true` detail.
+- The built-in DashScope adapter does not yet exist. The injected-provider
+  `image.board.png` and `image.board.jpeg` paths are `experimental`; they are not
+  `available` until their Phase 1 live-quality/provider gates pass.
+  `provider.dashscope.vision` is `unavailable`. Phase 0 itself makes no
+  recognition capability available.
+- PDF, audio, and video remain unsupported by the active package.
+- Package metadata has no base runtime requirements and advertises exactly the
+  `dev,image` extras. `image` installs `Pillow>=10.4,<13`; no empty PDF,
+  audio, video, provider, or `all` extra is published.
+- The exact clean Phase 0 gate on the final phase-transition tree reported 141
+  tests passed. The wheel was 31,151 bytes with SHA-256
+  `FD983CA90944F545A4B670F33A8ABF015712E1DDAC8F866BB4703E0A465C707D`; its
+  isolated no-deps target was 135,213 bytes, with no base requirements or native
+  files. An outside-repository import reported version `0.1.0` and
+  `forbidden modules []`.
+- The same clean gate measured Python 3.10 fresh-import wall
+  median/p95/max 58.6417/108.1609/114.8606 ms and process-CPU
+  46.875/78.125/78.125 ms. Python 3.13 measured wall
+  22.86505/30.8795/31.0431 ms and process-CPU 23.4375/31.25/31.25 ms.
+- A fresh `ocrllm[image]` environment installed Pillow 12.3.0 with a
+  15,814,896-byte delta. Pillow remained absent after base import, and a
+  deterministically generated temporary PNG completed recognition through an
+  injected provider.
+- A real `qwen-vl-max` image call succeeded in an earlier isolated trial, but no
+  real provider adapter exists in `src/ocrllm/`; that trial alone is not a
+  capability gate.
 - A Windows/Python 3.13 PDFium trial passed with pypdfium2 5.11.0 and PDFium
   151.0.7920.0: text extraction distinguished a text page from a raster-only
   page, both pages rendered at 1224 by 1584, and malformed input raised
@@ -116,7 +136,8 @@ As of the decision date:
   8,306,352 bytes installed. Twenty warm-cache fresh-process imports had a
   98.442 ms median; the first cold-cache observation was 279.718 ms. This is an
   optional feature cost, not part of the base import budget.
-- The final isolated base verification built a 9,283-byte wheel with SHA-256
+- An earlier pre-Phase-0 baseline verification built a 9,283-byte wheel with
+  SHA-256
   `166ACEC563B88203A7C8D1F616AB5838192D40501DC8837A5AA99B78EF865D0C` and
   installed to 26,152 bytes. Thirty measured fresh processes after two warm-ups
   gave CPython 3.10.20 wall median/p95 39.768/45.556 ms and CPU
@@ -147,9 +168,9 @@ As of the decision date:
 - Legacy behavior is evidence only; it is not an active import or service
   boundary.
 
-Therefore the current active phase is contract honesty. Real-image hardening is
-the next phase. The current phase is not PDF migration, audio migration, video
-migration, service work, or native work.
+Therefore contract honesty is complete and real board/image work is the current
+phase. The current phase is not PDF migration, audio migration, video migration,
+service work, local-OCR work, or native work.
 
 Capability status vocabulary is fixed:
 
@@ -401,8 +422,9 @@ REQUEST_NOT_ACTIVE
 Processors may add structured redacted details, but callers must branch on the
 stable code rather than message text.
 
-The current `api.py` is a Phase 0 facade stub. Split it into `recognize.py` and
-`recognize_batch.py`; remove routing logic from the facade when Phase 1 lands.
+The Phase 0 facade split is complete at commit `5018ad0`. Phase 1 builds on
+`recognize.py`, `recognize_batch.py`, and `processors/recognize_images.py`; do
+not recreate or expand the removed `api.py` or `processors/board.py` stubs.
 
 ### Source validation and routing
 
@@ -426,6 +448,12 @@ src/ocrllm/validate_same_type_group.py
 ```text
 src/ocrllm/imaging/decode_image.py
     Decode and validate an image through the optional image dependency.
+
+src/ocrllm/imaging/snapshot_image_group.py
+    Copy an ordered image group into bounded provider-visible snapshots after
+    validation. Yield stable paths only for the synchronous provider call, then
+    remove them after that call returns. Map snapshot write/cleanup failures to
+    typed errors without replacing an already-active typed recognition failure.
 
 src/ocrllm/imaging/normalize_image.py
     Convert only formats the chosen provider cannot consume directly.
@@ -454,6 +482,13 @@ including base64 expansion and prompt, is at most 20 MiB. Validate every group
 member and the final serialized size before the first provider call. Decode,
 normalize, and close images sequentially; never retain the whole group's decoded
 pixel buffers. These are fixed version-1 caps, not caller overrides.
+
+The provider receives only validated snapshot paths, not caller-owned paths.
+Those paths remain valid until the synchronous provider method returns and are
+deleted before `recognize()` returns or writes final output. A provider must not
+return while background work still needs a snapshot. An otherwise-successful
+cleanup failure is `OUTPUT_WRITE_FAILED`; if another typed failure is already
+active, preserve it and attach only redacted cleanup-failure detail.
 
 Phase 0 and Phase 1 accept `.png`, `.jpg`, and `.jpeg` only. Add BMP, WebP, TIFF,
 HEIC, or HEIF only after a valid fixture passes decoder, provider, packaging,
@@ -544,6 +579,23 @@ src/ocrllm/providers/dashscope/map_dashscope_error.py
 
 Provider model queues and key pools are NO-GO until one-provider error handling
 is complete and tests prove why the extra policy is needed.
+
+Future provider architecture is recorded here without authorizing it:
+
+- A recognition profile such as `board` describes the task and prompt; the
+  execution engine is an orthogonal choice. A local OCR engine is neither a
+  board profile nor an approved capability or active-phase task.
+- Do not freeze four provider categories now. OpenAI-compatible transport,
+  direct provider SDKs, local engines, and subprocess/session tools have
+  different contracts and are not a closed current enum. In particular, a
+  future Codex session/subprocess adapter cannot require an API key.
+- If measured need later justifies richer configuration, immutable provider,
+  model, execution, retry, and recognition-preferences policies stay separate
+  from a stateful credential pool. Do not broaden `api_key` to a scalar-or-tuple
+  field.
+- A future credential pool requires an explicit decision covering fair
+  selection, cooldown, and provider/model quota and error domains. It remains
+  NO-GO until the single-provider path and its error classification are proven.
 
 Phase 1 provider policy is concrete:
 
@@ -1089,7 +1141,7 @@ Capability status and phase advancement are separate decisions:
 - Phase 5 requires both `video.mp4-h264` and `video.mp4-h264-aac`.
 - Phase 0 is a contract gate and makes no recognition capability available.
 
-### Phase 0: Contract honesty -- current
+### Phase 0: Contract honesty -- GO at `5018ad0`
 
 GO when all are true:
 
@@ -1099,8 +1151,10 @@ GO when all are true:
   fail before provider invocation.
 - Empty provider output fails.
 - Provider exceptions are typed and secret-safe.
-- Config repr/error/event/result tests use unique sentinels for provider object,
-  API key, PDF password, and provider `extra`; no sentinel appears in output.
+- Config repr/error/result tests use unique sentinels for provider object, API
+  key, PDF password, and provider `extra`; no sentinel appears in output. Event
+  sentinel proof is N/A in Phase 0 because event DTOs do not exist; it begins
+  with the Phase 2 event contracts.
 - `RecognitionResult` metadata is JSON-safe and immutable to callers. Tests
   mutate the caller's original nested dict/list and attempt mutation through the
   result; neither can change stored state.
@@ -1111,9 +1165,10 @@ GO when all are true:
 - The isolated base wheel/target and fresh-process import probes pass every Base
   numeric budget in `Dependency Profiles` on both recorded Python versions.
 
-NO-GO while the current suffix-only success path remains.
+GO is recorded by the exact clean evidence in `Current Truth`. Regress Phase 0
+to NO-GO if any condition above stops passing.
 
-### Phase 1: Real board/image
+### Phase 1: Real board/image -- current
 
 GO when all are true:
 
@@ -1357,8 +1412,8 @@ try {
 The isolated import command is the base-profile heavy-module guard. Add the
 phase's optional modules to `forbidden` whenever a new extra is introduced.
 
-Before changing Phase 0 from NO-GO to GO, also run this clean image-extra proof;
-it is expected to fail while the current `image=[]` metadata remains:
+To reproduce the Phase 0 clean image-extra proof, generate the fixture inside
+the fresh environment rather than depending on a repository `valid.png` file:
 
 ```powershell
 $imageVenv = Join-Path $env:TEMP ("ocrllm-image-venv-" + [guid]::NewGuid())
@@ -1371,8 +1426,36 @@ if ($LASTEXITCODE -ne 0) { throw "image extra install failed" }
 $imageAfterBytes = (Get-ChildItem -LiteralPath $imageSitePackages -Recurse -File | Measure-Object Length -Sum).Sum
 $imageDeltaBytes = $imageAfterBytes - $imageBaselineBytes
 if ($imageDeltaBytes -gt 26214400) { throw "Image profile exceeds 25 MiB: $imageDeltaBytes" }
-& $imagePython -I -c "import importlib.metadata as m,sys; v=m.version('Pillow'); parts=tuple(map(int,v.split('.')[:2])); assert parts >= (10,4) and parts < (13,0), v; from PIL import Image; p=sys.argv[1]; im=Image.open(p); im.verify(); im.close(); print(v)" (Resolve-Path 'tests\fixtures\images\valid.png')
-if ($LASTEXITCODE -ne 0) { throw "image extra decode proof failed" }
+& $imagePython -I -c "import importlib.metadata as m,sys; import ocrllm; assert 'PIL' not in sys.modules; v=m.version('Pillow'); parts=tuple(map(int,v.split('.')[:2])); assert parts >= (10,4) and parts < (13,0), v; print(v)"
+if ($LASTEXITCODE -ne 0) { throw "image extra lazy-import proof failed" }
+
+$imageFixture = Join-Path $imageVenv 'generated-valid.png'
+$imageSmoke = @'
+from pathlib import Path
+import sys
+
+from PIL import Image
+from ocrllm import Config, recognize
+
+path = Path(sys.argv[1])
+Image.new("RGB", (8, 6), color=(32, 96, 160)).save(path, format="PNG")
+
+class Provider:
+    def recognize_images(self, image_paths, *, prompt, config):
+        assert image_paths[0] != path
+        with Image.open(image_paths[0]) as image:
+            image.verify()
+        return "# Generated fixture recognized\n"
+
+result = recognize(path, config=Config(provider=Provider()))
+assert result.status == "complete"
+assert result.source_type == "image"
+assert result.profile == "board"
+assert result.markdown == "# Generated fixture recognized\n"
+print(result.status)
+'@
+$imageSmoke | & $imagePython -I - $imageFixture
+if ($LASTEXITCODE -ne 0) { throw "generated image recognition proof failed" }
 ```
 
 Each later extra uses a separate new venv and real phase fixture. Phase 1 must
@@ -1416,7 +1499,7 @@ $expectedDistributions = @{
     'video' = $null
 }
 
-$phase = 'phase0'  # Set only to the currently authorized phase.
+$phase = 'phase1'  # Set only to the currently authorized phase.
 if (-not $profilesByPhase.ContainsKey($phase)) { throw "unknown phase: $phase" }
 foreach ($profile in $profilesByPhase[$phase]) {
     $expected = $expectedDistributions[$profile]

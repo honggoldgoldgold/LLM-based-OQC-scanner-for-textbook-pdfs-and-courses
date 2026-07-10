@@ -28,10 +28,24 @@ Public import shape:
 from ocrllm import Config, recognize
 ```
 
-Current phase: contract honesty, followed by a real board/image slice. Read
-`docs/ocrllm_library_go_no_go.md` for the exact GO gates, target file
-responsibilities, and migrate/rewrite/reject matrix. PDF, audio, video, and
-Electron worker work are not authorized until their preceding gates pass.
+Current phase: **Phase 1 -- real board/image**. Phase 0 contract honesty is GO.
+The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
+passes request-scoped validated snapshots isolated from later caller-path
+changes to one synchronous injected provider,
+rejects empty or control-only provider output, returns typed/redacted public
+errors, and reports
+canonical `source_type="image"` with `profile="board"`. File output remains
+optional and atomic; `output_dir=None` stays memory-only. Pillow is installed by
+the `image` extra and remains lazy during plain `import ocrllm`.
+
+Phase 0 GO is a contract result, not a real recognition-capability claim. The
+active library still has no built-in real provider, committed quality corpus,
+local OCR path, API-key pool, retry/model-fallback policy, or resume support.
+PDF, audio, and video are also unavailable. Phase 1 is limited to one lazy
+DashScope vision adapter plus reproducible image-quality evidence. Read
+`MIGRATION_STATUS.md` for current evidence and next steps, and
+`docs/ocrllm_library_go_no_go.md` for exact gates, target responsibilities, and
+the migrate/rewrite/reject matrix.
 
 ## Legacy Application
 
