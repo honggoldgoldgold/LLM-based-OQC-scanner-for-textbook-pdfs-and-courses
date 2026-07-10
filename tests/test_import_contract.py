@@ -3,6 +3,8 @@ from pathlib import Path
 from ocrllm import Config, RecognitionResult, recognize, recognize_batch
 from ocrllm.errors import ConfigError, UnsupportedFormat
 
+from write_test_image import write_test_image
+
 
 class FakeProvider:
     def recognize_images(self, image_paths, *, prompt, config):
@@ -11,20 +13,20 @@ class FakeProvider:
 
 
 def test_import_contract_recognizes_board_without_writing(tmp_path):
-    source = tmp_path / "board.png"
-    source.write_bytes(b"not a real image; provider is faked")
+    source = write_test_image(tmp_path / "board.png")
 
     result = recognize(source, config=Config(provider=FakeProvider()))
 
     assert isinstance(result, RecognitionResult)
-    assert result.source_type == "board"
+    assert result.source_type == "image"
+    assert result.profile == "board"
+    assert result.status == "complete"
     assert result.output_path is None
     assert "board.png" in result.markdown
 
 
 def test_import_contract_writes_when_output_dir_is_set(tmp_path):
-    source = tmp_path / "board.jpg"
-    source.write_bytes(b"fake")
+    source = write_test_image(tmp_path / "board.jpg")
     out_dir = tmp_path / "out"
 
     result = recognize(source, config=Config(provider=FakeProvider(), output_dir=out_dir))
@@ -34,19 +36,21 @@ def test_import_contract_writes_when_output_dir_is_set(tmp_path):
 
 
 def test_batch_returns_one_result_per_source(tmp_path):
-    first = tmp_path / "a.png"
-    second = tmp_path / "b.png"
-    first.write_bytes(b"fake")
-    second.write_bytes(b"fake")
+    first = write_test_image(tmp_path / "a.png", color=(255, 0, 0))
+    second = write_test_image(tmp_path / "b.jpeg", color=(0, 255, 0))
 
     results = recognize_batch([first, second], config=Config(provider=FakeProvider()))
 
-    assert [result.source_type for result in results] == ["board", "board"]
+    assert [result.source_type for result in results] == ["image", "image"]
+    assert [result.profile for result in results] == ["board", "board"]
+    assert [result.markdown.split("Images: ", 1)[1].strip() for result in results] == [
+        "a.png",
+        "b.jpeg",
+    ]
 
 
 def test_provider_is_required_for_board(tmp_path):
-    source = tmp_path / "board.png"
-    source.write_bytes(b"fake")
+    source = write_test_image(tmp_path / "board.png")
 
     try:
         recognize(source)
@@ -63,6 +67,7 @@ def test_unsupported_extension_is_explicit(tmp_path):
     try:
         recognize(source, config=Config(provider=FakeProvider()))
     except UnsupportedFormat as exc:
-        assert ".pdf" in str(exc)
+        assert exc.code == "UNSUPPORTED_FORMAT"
+        assert exc.details["extension"] == ".pdf"
     else:
         raise AssertionError("UnsupportedFormat was not raised")

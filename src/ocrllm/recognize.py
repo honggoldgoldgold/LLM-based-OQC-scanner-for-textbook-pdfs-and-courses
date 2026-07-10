@@ -1,0 +1,76 @@
+"""Validate, route, and execute one recognition request."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+from .config import Config
+from .errors import ConfigError, OCRLLMError
+
+if TYPE_CHECKING:
+    from .result import RecognitionResult
+
+
+def recognize(
+    source: str | Path | Sequence[str | Path],
+    *,
+    config: Config | None = None,
+) -> RecognitionResult:
+    """Recognize one image or one ordered same-context image group."""
+    public_error: OCRLLMError | None = None
+    try:
+        return _recognize(source, config=config)
+    except OCRLLMError as error:
+        public_error = error
+
+    public_error.__cause__ = None
+    public_error.__context__ = None
+    public_error.__suppress_context__ = True
+    public_error.__traceback__ = None
+    raise public_error from None
+
+
+def _recognize(
+    source: str | Path | Sequence[str | Path],
+    *,
+    config: Config | None,
+) -> RecognitionResult:
+    from .build_recognition_result import build_recognition_result
+    from .coerce_source_paths import coerce_source_paths
+    from .imaging.snapshot_image_group import snapshot_image_group
+    from .output.build_output_path import build_output_path
+    from .output.write_markdown_atomically import write_markdown_atomically
+    from .processors.recognize_images import recognize_images
+    from .profiles.resolve_image_profile import resolve_image_profile
+    from .validate_same_type_group import validate_same_type_group
+
+    if config is None:
+        cfg = Config()
+    elif isinstance(config, Config):
+        cfg = config
+    else:
+        raise ConfigError("config must be a Config instance", code="CONFIG_INVALID")
+    profile = resolve_image_profile(cfg.profile)
+    source_paths = coerce_source_paths(source)
+    media_type = validate_same_type_group(source_paths)
+
+    if media_type == "image":
+        with snapshot_image_group(source_paths, config=cfg) as validated_paths:
+            output_path = build_output_path(source_paths, profile=profile, config=cfg)
+            processor_output = recognize_images(
+                validated_paths,
+                profile=profile,
+                config=cfg,
+            )
+    else:  # pragma: no cover - routing is closed until another phase is authorized.
+        raise AssertionError(f"unhandled validated media type: {media_type}")
+
+    if output_path is not None:
+        write_markdown_atomically(
+            output_path,
+            processor_output.markdown,
+            overwrite=cfg.overwrite,
+        )
+    return build_recognition_result(processor_output, output_path=output_path)

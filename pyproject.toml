@@ -13,12 +13,13 @@ authors = [{ name = "OCRLLM maintainers" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
-image = []
-pdf = []
-audio = []
-video = []
-all = []
+dev = [
+    "build>=1.2",
+    "hatchling>=1.25",
+    "Pillow>=10.4,<13",
+    "pytest>=8.0",
+]
+image = ["Pillow>=10.4,<13"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ocrllm"]

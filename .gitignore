@@ -69,6 +69,8 @@ cookies*.txt
 
 # Output / data files
 output/
+!src/ocrllm/output/
+!src/ocrllm/output/*.py
 temp/
 *.log
 *.sqlite

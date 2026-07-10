@@ -1,0 +1,110 @@
+import math
+
+import pytest
+
+from ocrllm.errors import (
+    Cancelled,
+    ConfigError,
+    DependencyMissing,
+    InvalidSource,
+    NoSpeechDetected,
+    OCRLLMError,
+    OutputError,
+    OutputExists,
+    ProviderError,
+    QuotaExhausted,
+    UnsupportedFormat,
+)
+
+
+@pytest.mark.parametrize(
+    ("error", "code"),
+    [
+        (ConfigError(), "CONFIG_INVALID"),
+        (DependencyMissing(), "DEPENDENCY_MISSING"),
+        (InvalidSource(), "SOURCE_INVALID"),
+        (OutputError(), "OUTPUT_WRITE_FAILED"),
+        (OutputExists(), "OUTPUT_EXISTS"),
+        (ProviderError(), "PROVIDER_RESPONSE_INVALID"),
+        (QuotaExhausted(), "PROVIDER_QUOTA_EXHAUSTED"),
+        (NoSpeechDetected(), "NO_SPEECH_DETECTED"),
+        (UnsupportedFormat(), "UNSUPPORTED_FORMAT"),
+        (Cancelled(), "CANCELLED"),
+    ],
+)
+def test_public_error_defaults_have_stable_codes(error, code):
+    assert isinstance(error, OCRLLMError)
+    assert error.code == code
+    assert error.retryable is False
+    assert error.details == {}
+
+
+def test_provider_retryability_defaults_follow_stable_failure_category():
+    assert ProviderError(code="PROVIDER_NETWORK").retryable is True
+    assert ProviderError(code="PROVIDER_TIMEOUT").retryable is True
+    assert ProviderError(code="PROVIDER_AUTHENTICATION").retryable is False
+    assert QuotaExhausted().retryable is False
+
+
+def test_existing_error_names_still_accept_redacted_public_messages():
+    error = ConfigError("Config.provider is required", code="CONFIG_MISSING")
+
+    assert str(error) == "Config.provider is required"
+    assert error.code == "CONFIG_MISSING"
+
+
+def test_error_details_are_copied_frozen_and_known_secrets_are_redacted():
+    api_secret = "DETAIL-API-SECRET-1a2b"
+    password_secret = "DETAIL-PASSWORD-SECRET-3c4d"
+    original = {
+        "status_code": 429,
+        "context": {"api_key": api_secret, "password": password_secret},
+        "attempts": [1, 2],
+    }
+
+    error = ProviderError(code="PROVIDER_NETWORK", details=original)
+    original["status_code"] = 500
+    original["attempts"].append(3)  # type: ignore[union-attr]
+
+    assert error.details["status_code"] == 429
+    assert error.details["attempts"] == (1, 2)
+    context = error.details["context"]
+    assert context["api_key"] == "[REDACTED]"  # type: ignore[index]
+    assert context["password"] == "[REDACTED]"  # type: ignore[index]
+    assert api_secret not in repr(error)
+    assert password_secret not in repr(error)
+    with pytest.raises(TypeError):
+        error.details["status_code"] = 200  # type: ignore[index]
+    with pytest.raises(TypeError):
+        context["api_key"] = "changed"  # type: ignore[index]
+
+
+@pytest.mark.parametrize("bad_detail", [math.nan, math.inf, object()])
+def test_error_details_reject_unsupported_values_without_stringifying_them(bad_detail):
+    secret = "DETAIL-INVALID-SECRET-9981"
+
+    with pytest.raises(ValueError) as caught:
+        ProviderError(details={"provider_token": secret, "bad": bad_detail})
+
+    assert secret not in str(caught.value)
+    assert secret not in repr(caught.value)
+
+
+def test_arbitrary_exception_objects_are_not_used_as_public_messages():
+    secret = "RAW-EXCEPTION-SECRET-76dd"
+
+    with pytest.raises(TypeError) as caught:
+        ProviderError(RuntimeError(secret))  # type: ignore[arg-type]
+
+    assert secret not in str(caught.value)
+    assert secret not in repr(caught.value)
+
+
+def test_error_type_rejects_an_unrelated_code_without_echoing_it():
+    secret_code = "SECRET-CODE-4f3a"
+
+    with pytest.raises(ValueError) as caught:
+        InvalidSource(code=secret_code)
+
+    assert secret_code not in str(caught.value)
+    assert secret_code not in repr(caught.value)
