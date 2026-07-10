@@ -32,25 +32,33 @@ import legacy_app.OCRLLM
 When porting from this folder:
 
 - Port one vertical slice at a time.
+- Follow `docs/ocrllm_library_go_no_go.md`; migrate proven behavior, not legacy
+  classes or file structure.
 - Keep public APIs in `src/ocrllm`.
 - Add tests against fake providers before wiring real providers.
 - Avoid dragging GUI, FastAPI, social download, or package-relative path
   behavior into the new library.
+- Do not port the PyMuPDF/`fitz` renderer. The active PDF implementation must be
+  rewritten against PDFium through `pypdfium2`.
+- Active-library trials must not modify legacy code or legacy tests. Create new
+  fixtures and contract tests under root `tests/`; read legacy files and outputs
+  only as behavior evidence.
 
-## Maintained Compatibility Workflow: Social Long Video
+## Historical Compatibility Workflow: Social Long Video
 
-The legacy social-long processor is still the active compatibility path for
-multi-part Bilibili and YouTube course playlists. It is intentionally not a new
-public library API.
+The legacy social-long processor records the prior compatibility path for
+multi-part Bilibili and YouTube course playlists. For the active-library
+migration it is read-only reference code, not a test surface or public API.
 
-Read the detailed robustness records before changing this path:
+For a separately authorized legacy-maintenance task, read the detailed
+robustness records before changing this path:
 
 ```text
 docs/legacy_bilibili_social_long_debug_record.md
 docs/legacy_youtube_playlist_social_long_workflow.md
 ```
 
-Run it through the legacy CLI:
+The historical Bilibili command was:
 
 ```powershell
 $env:PYTHONPATH='legacy_app'
@@ -58,7 +66,7 @@ D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <bilibili-url> `
   --parts 1-33 --resume -o output\bilibili_cs231n_full
 ```
 
-For YouTube playlists, use the same command shape with the playlist URL and
+The historical YouTube command used the same shape with the playlist URL and
 selected playlist item range:
 
 ```powershell
@@ -94,14 +102,15 @@ Important behavior fixed during the 2026-07-06 Bilibili CS231n run:
 - In Codex social-long mode, OCRLLM caps the effective video frame batch size
   at 1 for stable per-frame markers.
 
-The verified CS231n output had 33 part directories, 33 MP4 files, 33 board
+The 2026-07-06 run record reported 33 part directories, 33 MP4 files, 33 board
 Markdown files, 33 audio Markdown files, no FileTrans sidecars, and a
 `bilibili_social_context.md` file with the course resource link plus per-part
-danmaku.
+danmaku. This is historical compatibility evidence, not a currently rerun
+active-library gate.
 
 ## Codex Video Mode Robustness
 
-Codex video mode is maintained here as legacy GUI/CLI behavior. It is not a
+Codex video mode is preserved here as legacy GUI/CLI behavior. It is not a
 public `ocrllm` library boundary.
 
 The current expected clean output for each completed course/video folder is:

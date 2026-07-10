@@ -1,11 +1,16 @@
 # OCRLLM Module Target Design
 
-Status: target-state design map.
+Status: supporting target-state design map.
 
 This document describes the intended completed `ocrllm` Python module as if the
 library already exists. It is not a promise that every name below is frozen.
 Implementation may change when tests, downstream usage, or dependency reality
 prove a better shape.
+
+`docs/ocrllm_library_go_no_go.md` is authoritative for implementation order,
+file responsibilities, migration versus rewrite decisions, PDFium, and GO
+gates. If this target map conflicts with that execution record, follow the
+execution record.
 
 The active implementation remains the Python-first package in `src/ocrllm`.
 The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
@@ -13,9 +18,8 @@ The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
 ## One-Sentence Goal
 
 `ocrllm` is an importable Python library that turns boards, screenshots, PDFs,
-audio, video, and selected office documents into structured Markdown through a
-small public API, explicit providers, optional dependencies, and tested vertical
-slices.
+audio, and video into structured Markdown through a small public API, explicit
+providers, optional dependencies, and tested vertical slices.
 
 ## Architectural Judgment
 
@@ -48,10 +52,14 @@ prove the boundary before optimizing internals.
 - No public API that exposes legacy processor classes directly.
 - No silent catch-all error handling.
 - No Rust/PyO3 dependency until the Python module boundary is proven.
+- No PyMuPDF or `fitz` in the active package; PDF uses PDFium through
+  `pypdfium2` after its phase is authorized.
+- No HarmonyOS/ArkTS implementation or compatibility claim in the active
+  phases.
 
 ## Completed User Experience
 
-The completed package should feel boring to import and predictable to call:
+The completed package must be boring to import and predictable to call:
 
 ```python
 from ocrllm import Config, recognize
@@ -75,7 +83,7 @@ from ocrllm import Config, recognize_batch
 
 results = recognize_batch(
     ["board.png", "slides.pdf", "lecture.mp4"],
-    config=Config(provider="dashscope", output_dir="out"),
+    config=Config(provider="dashscope", pdf_mode="vision", output_dir="out"),
 )
 ```
 
@@ -96,7 +104,7 @@ result = recognize(
 )
 ```
 
-The dependency surface should support both modes:
+The dependency surface supports both modes:
 
 - Built-in provider adapters for normal users.
 - Injected provider objects for host applications that already manage clients,
@@ -104,23 +112,190 @@ The dependency surface should support both modes:
 
 ## Public API
 
-The public API should be small. Everything else is internal unless explicitly
+The public API is small. Everything else is internal unless explicitly
 documented.
 
 ```python
 from ocrllm import (
     Config,
+    Artifact,
     RecognitionResult,
+    CapabilityReport,
     recognize,
     recognize_batch,
+    get_capabilities,
     OCRLLMError,
     ConfigError,
+    DependencyMissing,
+    InvalidSource,
+    OutputError,
+    OutputExists,
     ProviderError,
     QuotaExhausted,
+    NoSpeechDetected,
     UnsupportedFormat,
     Cancelled,
 )
 ```
+
+`get_capabilities()` reports `available`, `experimental`, `unavailable`, or
+`deferred` for each atomic registry name. Installed code alone does not produce
+an `available` result; its atomic subgate and current configuration must agree.
+The initial registry is fixed in `docs/ocrllm_library_go_no_go.md` and
+distinguishes image formats, PDF text/vision/resume, every audio format plus
+short/long flow,
+each video container/codec pair, providers, and worker versions. Do not replace
+those entries with an aggregate modality label that hides an unavailable format.
+Atomic capability status can pass while its phase remains active; phase advance
+uses the separate mandatory-capability list in the authoritative GO/NO-GO file.
+
+```python
+def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ...]:
+    ...
+```
+
+This function performs no network call and imports no optional package. With no
+config it reports local gate/install state and environment-scoped status for the
+built-in DashScope/default model. With config it evaluates that exact named or
+injected provider/model. An unverified injected object is `experimental` at
+most. The worker query uses zero-argument semantics and never exposes secrets.
+
+### Versioned Contract DTOs
+
+The worker contract uses JSON values only. Direct-Python `Path`, provider
+objects, callbacks, and cancellation objects never enter these DTOs.
+
+```python
+JSONValue = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
+WorkerProtocolVersion = Literal["ocrllm.v1alpha1", "ocrllm.v1alpha2"]
+
+
+@dataclass(frozen=True, slots=True)
+class SourceDescriptor:
+    media_type: Literal["image", "pdf", "audio", "video"]
+    uri: str
+
+
+@dataclass(frozen=True, slots=True)
+class ImageRecognitionRequest:
+    protocol_version: Literal["ocrllm.v1alpha1"]
+    command: Literal["recognize"]
+    request_id: str
+    sources: tuple[SourceDescriptor, ...]
+    provider: Literal["dashscope"]
+    model: str | None
+    input_languages: tuple[str, ...]
+    output_language: str | None
+    profile: Literal["board"]
+    options: Mapping[str, JSONValue]
+
+
+@dataclass(frozen=True, slots=True)
+class PdfRecognitionRequest:
+    protocol_version: Literal["ocrllm.v1alpha2"]
+    command: Literal["recognize"]
+    request_id: str
+    sources: tuple[SourceDescriptor, ...]
+    provider: Literal["dashscope"] | None
+    model: str | None
+    input_languages: tuple[str, ...]
+    output_language: str | None
+    profile: None
+    options: Mapping[str, JSONValue]
+
+
+RecognitionRequest = ImageRecognitionRequest | PdfRecognitionRequest
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilitiesCommand:
+    protocol_version: WorkerProtocolVersion
+    command: Literal["capabilities"]
+    request_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class CancelCommand:
+    protocol_version: WorkerProtocolVersion
+    command: Literal["cancel"]
+    request_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class AcceptedEvent:
+    protocol_version: WorkerProtocolVersion
+    event: Literal["accepted"]
+    request_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class ProgressEvent:
+    protocol_version: WorkerProtocolVersion
+    event: Literal["progress"]
+    request_id: str
+    stage: str
+    completed: int
+    total: int | None
+    unit: str
+
+
+@dataclass(frozen=True, slots=True)
+class WarningEvent:
+    protocol_version: WorkerProtocolVersion
+    event: Literal["warning"]
+    request_id: str
+    code: str
+    message: str
+    details: Mapping[str, JSONValue]
+
+
+@dataclass(frozen=True, slots=True)
+class ErrorEvent:
+    protocol_version: WorkerProtocolVersion
+    event: Literal["error"]
+    request_id: str | None
+    code: str
+    message: str
+    retryable: bool
+    details: Mapping[str, JSONValue]
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilityReport:
+    name: str
+    status: Literal["available", "experimental", "unavailable", "deferred"]
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class CapabilitiesEvent:
+    protocol_version: WorkerProtocolVersion
+    event: Literal["capabilities"]
+    request_id: str
+    capabilities: tuple[CapabilityReport, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ResultEvent:
+    protocol_version: WorkerProtocolVersion
+    event: Literal["result"]
+    request_id: str
+    result: "RecognitionResult"
+```
+
+BCP-47 tags are used for language fields. Canonical transport media types are
+`image`, `pdf`, `audio`, and `video`; `board` is an image profile, not a media
+type. `RecognitionRequest.sources` is nonempty, preserves caller order, and
+contains one media type; mixed media belongs in independent batch requests.
+For `ocrllm.v1alpha1`, every source is an image and every `uri` is an absolute
+RFC 8089 `file:` URI. HTTP(S), relative paths, and provider credentials are
+rejected. Phase 3 adds PDF fields under `ocrllm.v1alpha2`; it does not silently
+widen `v1alpha1`. `v1alpha2` carries one PDF file URI with `profile=null`;
+text mode requires `provider=null` and `model=null`, while vision requires
+`provider="dashscope"` and permits a model or its documented default. Added
+options are exactly `pdf_mode`, `pdf_pages`, `pdf_password`,
+`pdf_allow_partial`, and `resume`; resume defaults false, requires output, and
+conflicts with overwrite.
 
 ### `recognize`
 
@@ -144,10 +319,12 @@ Purpose:
 Rules:
 
 - A mixed-type list belongs in `recognize_batch`, not `recognize`.
-- Missing files should fail before provider calls.
-- Unsupported extensions should raise `UnsupportedFormat`.
-- Provider configuration problems should raise `ConfigError`.
-- Provider runtime failures should raise a provider-specific public error.
+- A multi-source `recognize` call is image-only. PDF, audio, and video accept
+  exactly one source until a later gate defines grouped semantics.
+- Missing files must fail before provider calls.
+- Unsupported extensions must raise `UnsupportedFormat`.
+- Provider configuration problems must raise `ConfigError`.
+- Provider runtime failures must raise a provider-specific public error.
 - Partial output is allowed only when represented explicitly in the result.
 
 ### `recognize_batch`
@@ -168,7 +345,7 @@ Purpose:
 - Preserve input order.
 - Allow safe per-item failure policy later without changing the single-file API.
 
-Default behavior should be fail-fast. A later `BatchPolicy` can add
+Default behavior is fail-fast. A later `BatchPolicy` can add
 `continue_on_error` without changing `recognize`.
 
 ### `Config`
@@ -180,20 +357,25 @@ Target fields:
 ```python
 @dataclass(frozen=True, slots=True)
 class Config:
-    provider: str | object | None = None
-    api_key: str | None = None
+    provider: str | object | None = field(default=None, repr=False)
+    api_key: str | None = field(default=None, repr=False)
     model: str | None = None
-    model_queue: tuple[str, ...] = ()
+    profile: str | None = None
+    input_languages: tuple[str, ...] = ()
+    output_language: str | None = None
+    pdf_mode: Literal["text", "vision"] | None = None
+    pdf_pages: tuple[int, ...] | None = None
+    pdf_password: str | None = field(default=None, repr=False)
+    pdf_allow_partial: bool = False
     output_dir: str | Path | None = None
     temp_dir: str | Path | None = None
     cache_dir: str | Path | None = None
-    parallel_requests: int = 8
     timeout_seconds: float = 120.0
-    resume: bool = True
+    resume: bool = False
     overwrite: bool = False
     progress: object | None = None
     cancellation: object | None = None
-    extra: Mapping[str, Any] = field(default_factory=dict)
+    extra: Mapping[str, JSONValue] = field(default_factory=dict, repr=False)
 ```
 
 Design rules:
@@ -202,59 +384,103 @@ Design rules:
 - `temp_dir=None` means a safe OS temp location, not a package directory.
 - `cache_dir=None` means a platform cache location, not a package directory.
 - API keys come from explicit config or environment variables.
+- `provider=None` is valid only for local PDF `text` mode. Image, PDF `vision`,
+  audio, and video requests raise `ConfigError` without a required provider;
+  the library never triggers an implicit paid call.
+- Phase 1 accepts an injected provider object or the exact built-in name
+  `"dashscope"`. The built-in adapter uses `Config.model` when set and otherwise
+  uses `qwen-vl-max`.
 - Config loading from files can exist, but it must not happen implicitly on
   `import ocrllm`.
+- `profile=None` selects the modality's only approved profile; for Phase 1 image
+  recognition that profile is `board`.
+- A PDF request requires explicit `pdf_mode`. `pdf_pages=None` means every page;
+  otherwise it is a nonempty ordered tuple of unique one-based indices.
+- `pdf_password` is secret data: never log, serialize into results, or echo it
+  in errors. `pdf_allow_partial=False` is the default.
+- Generated/custom repr omits provider objects, `api_key`, `pdf_password`, and
+  `extra`. Tests place unique sentinels in each and assert none appears in repr,
+  errors, events, logs, or serialized results.
 - Provider-specific options belong in provider adapters or `extra`, not as an
   exploding list of top-level fields.
+- Provider objects, progress callbacks, and cancellation objects are
+  direct-Python conveniences. They are never serialized into worker requests.
+- Model queues and key pools are deferred until one-provider failure handling
+  is complete and measured need exists.
 
 ### `RecognitionResult`
 
 `RecognitionResult` is the only normal successful return type.
+`Artifact` and `RecognitionResult` live in their separate contract files listed
+below; they are shown together here only to make the relationship explicit.
 
 Target fields:
 
 ```python
 @dataclass(frozen=True, slots=True)
+class Artifact:
+    kind: str
+    uri: str
+    media_type: str
+
+
+@dataclass(frozen=True, slots=True)
 class RecognitionResult:
+    protocol_version: str
+    request_id: str
     markdown: str
-    source_type: str
-    output_path: Path | None = None
-    assets: tuple[Path, ...] = ()
+    source_type: Literal["image", "pdf", "audio", "video"]
+    status: Literal["complete", "partial"] = "complete"
+    output_uri: str | None = None
+    artifacts: tuple[Artifact, ...] = ()
     hotwords: tuple[str, ...] = ()
     warnings: tuple[str, ...] = ()
-    metadata: Mapping[str, Any] = field(default_factory=dict)
+    metadata: Mapping[str, JSONValue] = field(default_factory=dict)
 ```
 
 Design rules:
 
 - `markdown` is always the primary result.
-- `output_path` is `None` unless the caller requested file output.
-- `assets` contains generated side files, not internal temp files.
+- `output_uri` is `None` unless the caller requested file output.
+- `artifacts` contains final user-meaningful files, not internal temp files.
+- Every artifact URI must resolve to an existing final artifact when the result
+  is created.
+- Partial output is `status="partial"`; it is never disguised as complete.
 - `hotwords` is non-empty only when a processor extracts useful terms.
 - `warnings` contains degraded-but-successful conditions.
 - `metadata` is structured, stable enough for debugging, and not required for
   normal user workflows.
+- Config/result/event JSON mappings are deep-copied and recursively frozen;
+  nested caller dict/list mutation cannot change stored contract state.
 
 ### Public Errors
 
-Every error type should communicate the failure category without requiring
+Every error type communicates the failure category without requiring
 string matching.
 
 ```text
 OCRLLMError          Base public exception.
 ConfigError         Invalid or missing caller configuration.
+DependencyMissing   A requested optional capability is not installed.
+InvalidSource       Missing, unreadable, corrupt, empty, or unsafe input.
+OutputError         Base class for output path and write failures.
+OutputExists        OutputError for an existing target without overwrite/resume.
 ProviderError       Provider call failed for a non-quota reason.
 QuotaExhausted      All configured model or key options were exhausted.
+NoSpeechDetected    Valid audio contained no scored speech.
 UnsupportedFormat   The source cannot be routed to a supported processor.
 Cancelled           Caller cancellation was honored.
 ```
 
 Rules:
 
+- Every `OCRLLMError` exposes a stable `.code` from the authoritative code list;
+  callers never branch on message text.
 - No bare `except Exception` in processor or provider paths unless immediately
   wrapped into a public error with useful context.
-- Provider HTTP status, model name, and request category should be preserved in
-  error metadata where practical.
+- Preserve provider HTTP status, model name, and request category in redacted
+  error details when the provider supplies them; use `None` for unavailable
+  values.
 - Secret values must never appear in exception messages.
 
 ## Package Layout
@@ -263,80 +489,143 @@ Target layout:
 
 ```text
 src/ocrllm/
-  __init__.py                 Public facade only.
-  api.py                      recognize and recognize_batch.
-  config.py                   Immutable Config and config normalization.
-  result.py                   RecognitionResult.
-  errors.py                   Public exception hierarchy.
-  protocols.py                Runtime-checkable provider/progress protocols.
-  routing.py                  Source type detection and processor routing.
+  __init__.py                       Public re-exports only.
+  recognize.py                      recognize.
+  recognize_batch.py                recognize_batch.
+  config.py                         Immutable Config.
+  result.py                         Direct-Python compatibility re-export.
+  processor_output.py               Internal processor outcome DTO.
+  build_recognition_result.py       Public result construction/validation.
+  errors.py                         Public typed failures.
+  get_capabilities.py               Installed/configured/proven capabilities.
+  detect_source_type.py             Source-type detection only.
+  validate_source.py                File validation only.
+  validate_same_type_group.py       Same-type group validation only.
+  fingerprint_recognition_request.py Canonical non-secret request SHA-256.
+  freeze_json_value.py              Recursive immutable JSON copy.
+  thaw_json_value.py                Fresh JSON serialization copy.
+
+  contracts/
+    worker_protocol_version.py      Supported worker-version type alias.
+    source_descriptor.py            One JSON-safe source descriptor.
+    image_recognition_request.py    `ocrllm.v1alpha1` image request DTO.
+    pdf_recognition_request.py      `ocrllm.v1alpha2` PDF request DTO.
+    recognition_request.py          Public request union only.
+    capabilities_command.py         Capability-query command DTO.
+    cancel_command.py               Active-job cancellation command DTO.
+    recognition_result.py           Complete/partial result DTO.
+    artifact.py                     One final artifact descriptor.
+    accepted_event.py               Recognition-accepted event DTO.
+    progress_event.py               Progress event DTO.
+    warning_event.py                Redacted degraded-success event DTO.
+    error_event.py                  Typed redacted error DTO.
+    capability_report.py            Four-state capability DTO.
+    capabilities_event.py           Capability-response event DTO.
+    result_event.py                 Successful-result event DTO.
+    source_fingerprint.py           Source URI/size/SHA-256 DTO.
+    completed_unit.py               Resumable completed-unit DTO.
+    remote_task.py                  Resumable provider-task DTO.
+    transcript_segment.py           One timestamped transcript segment.
+    transcription_result.py         Structured ordered transcription result.
+    job_state.py                    Versioned aggregate resume state.
 
   processors/
-    __init__.py               Internal processor package marker.
-    board.py                  Board and screenshot recognition.
-    pdf.py                    PDF recognition.
-    audio.py                  Audio transcription and Markdown assembly.
-    video.py                  Video extraction, board recognition, ASR merge.
-    office.py                 DOCX/PPTX text extraction where supported.
+    recognize_images.py              Image recognition with board profile.
+    recognize_pdf.py                 PDF composition.
+    recognize_audio.py               Audio transcription and assembly.
+    recognize_video.py               Board/audio video composition.
 
   providers/
-    __init__.py               Provider adapter exports.
-    base.py                   Provider protocols and capability checks.
-    dashscope.py              DashScope adapter.
-    google.py                 Google adapter.
-    openai_compatible.py      OpenAI-compatible vision/audio adapter.
-    retry.py                  Retry, backoff, model fallback.
-    key_pool.py               Optional multi-key rotation.
+    vision_provider.py               Vision capability protocol.
+    short_audio_provider.py          Synchronous short-audio protocol.
+    long_audio_provider.py           Resumable long-audio protocol.
+    resolve_provider.py              Explicit provider resolution.
+    dashscope/
+      recognize_images.py            One DashScope vision request.
+      transcribe_short_audio.py       One synchronous short-audio request.
+      submit_filetrans.py             Submit one long-audio task.
+      poll_filetrans.py               Poll one persisted long-audio task.
+      download_filetrans_result.py    Fetch one terminal transcript.
+      map_dashscope_error.py         DashScope-to-public error mapping.
 
   imaging/
-    __init__.py
-    load_image.py             Image loading and format normalization.
-    resize_image.py           Size limits for provider requests.
-    preprocess_board.py       Crop, contrast, and board cleanup.
+    decode_image.py                  Image decoding and validation.
+    normalize_image.py               Provider-required format conversion.
+    resize_image.py                  Provider size-limit enforcement.
+
+  profiles/
+    build_board_prompt.py            BCP-47-aware board prompt construction.
 
   pdf/
-    __init__.py
-    render_pages.py           PDF page rendering behind optional dependency.
-    extract_text.py           Text-layer extraction when useful.
-    split_pages.py            Page selection and batching.
+    require_pdfium.py                Lazy import and version guard.
+    pdfium_lock.py                   Process-wide PDFium serialization.
+    inspect_pdf.py                   Document validation and page metadata.
+    extract_pdf_page_text.py         One-page full-Unicode text extraction.
+    calculate_pdf_render_scale.py    DPI/side/pixel limit calculation.
+    render_pdf_page.py               One-page lossless rendering.
+    rendered_pdf_page.py             Internal temporary-page descriptor.
+    classify_pdf_page.py             Deferred; do not create without new gate.
 
   media/
-    __init__.py
-    find_ffmpeg.py            ffmpeg and ffprobe discovery.
-    extract_audio.py          Video to audio extraction.
-    split_audio.py            Long audio chunking.
-    extract_frames.py         Video frame sampling.
-    detect_slide_changes.py   Frame deduplication and slide changes.
+    find_ffmpeg.py                   ffmpeg and ffprobe discovery.
+    probe_media_duration.py          Duration probing.
+    convert_audio.py                 Provider input conversion.
+    split_audio.py                   Long audio chunking.
+    merge_transcript_segments.py     Timestamp-ordered transcript assembly.
+    extract_video_audio.py           Video-to-audio extraction.
+    extract_video_frames.py          Ordered frame sampling.
+    deduplicate_video_frames.py      Near-identical frame removal.
+    merge_video_recognition.py       Timestamp-ordered video assembly.
 
   output/
-    __init__.py
-    write_markdown.py         Optional Markdown file output.
-    resume_markdown.py        Resume state stored in output where applicable.
-    naming.py                 Stable output filenames.
+    build_output_path.py             Stable collision-safe naming.
+    write_markdown_atomically.py      Atomic optional Markdown output.
+    load_job_state.py                 Versioned resume-state load.
+    save_job_state_atomically.py      Atomic resume-state save.
+    delete_job_state.py               Validated state cleanup.
+    build_job_state_path.py           Deterministic sibling state path.
 
-  testing/
-    __init__.py
-    fake_provider.py          Test helper for downstream projects.
+  worker/
+    read_jsonl_command.py             Read one versioned worker command.
+    write_jsonl_event.py              Write protocol events only.
+    run_worker_job.py                 Run one isolated child and relay events.
+    run_worker_control_loop.py        Commands and 5-second process-tree kill.
+    __main__.py                       Production resolver and loop entrypoint.
+
+tests/
+  fakes/
+    fake_vision_provider.py          Deterministic image response only.
+  quality/
+    load_fixture_manifest.py         Manifest parsing and validation.
+    normalize_content_units.py       NFKC/scoring normalization only.
+    calculate_token_metrics.py       Recall and precision only.
+    score_formula_signatures.py      Formula signature comparison only.
+    score_table_cells.py             Coordinate-based table scoring only.
+    calculate_wer.py                 Latin word error rate only.
+    calculate_cer.py                 CJK character error rate only.
+    calculate_timestamp_errors.py    Median/maximum boundary error only.
+    assert_quality_thresholds.py     Apply predeclared phase thresholds.
 ```
 
-This layout is a target, not a mandate. The rule that matters is one file, one
-responsibility. If a file needs more than a short phrase to describe its job,
-split it.
+Create these files only when their phase begins. The current `api.py` and
+`processors/board.py` are Phase 0 stubs that must be split rather than expanded.
+The rule is one file, one named responsibility. Do not create empty scaffolding
+for later phases.
 
 ## Layering
 
 Allowed dependency direction:
 
 ```text
-errors/result/config
+errors/config/contracts
         |
-protocols/routing
+validation/detection/capabilities
         |
 providers   imaging/pdf/media/output
         \       |       |       /
              processors
                  |
-                api
+       recognize/recognize_batch
                  |
              __init__.py
 ```
@@ -344,53 +633,67 @@ providers   imaging/pdf/media/output
 Rules:
 
 - `__init__.py` re-exports only public names.
-- `api.py` orchestrates; it does not perform OCR, PDF rendering, ASR, or ffmpeg
-  work directly.
+- `recognize.py` and `recognize_batch.py` orchestrate; they do not perform OCR,
+  PDF rendering, ASR, or ffmpeg work directly.
 - Processors call helpers and providers.
 - Helpers do not call processors.
 - Providers do not know about output files.
 - Output writers do not know about providers.
+- Processors never write final Markdown or construct `RecognitionResult`.
+  `recognize.py` calls output helpers, then `build_recognition_result.py` exactly
+  once. Long processors may call job-state helpers at unit boundaries.
 - Tests may use public APIs first and internals only for narrow unit coverage.
 
 ## Processor Contracts
 
-Each processor should be a vertical slice with the same basic shape:
+Each processor is a vertical slice with the same basic shape:
 
 ```python
+@dataclass(frozen=True, slots=True)
+class ProcessorOutput:
+    media_type: Literal["image", "pdf", "audio", "video"]
+    status: Literal["complete", "partial"]
+    markdown: str
+    artifacts: tuple[Artifact, ...]
+    hotwords: tuple[str, ...]
+    warnings: tuple[str, ...]
+    metadata: Mapping[str, JSONValue]
+
+
 def recognize_<type>(
     paths: Sequence[Path],
     *,
     config: Config,
-    provider: object,
-) -> RecognitionResult:
+    provider: object | None,
+) -> ProcessorOutput:
     ...
 ```
 
 The exact function signature can change, but the responsibility must not.
 
-### Board Processor
+### Image Processor: Board Profile
 
-Input:
+Initial Phase 0 and Phase 1 input:
 
 - `.jpg`
 - `.jpeg`
 - `.png`
-- `.bmp`
-- `.webp`
-- `.heic`
-- `.heif`
-- `.tif`
-- `.tiff`
+
+BMP, WebP, TIFF, HEIC, and HEIF remain unavailable until valid fixtures pass
+decoder, provider, packaging, and clean-install tests. HEIC/HEIF also requires
+an explicitly approved optional decoder dependency.
 
 Responsibilities:
 
 - Validate files.
 - Normalize images only when needed.
 - Preserve multi-image order.
+- Enforce 25 MiB/source, 24,000,000 pixels/image, 10 images/group,
+  100 MiB aggregate source, 64,000,000 aggregate pixels, and 20 MiB serialized
+  request caps before provider invocation; process decoded images sequentially.
 - Build the board prompt.
 - Call a vision-capable provider.
-- Return Markdown.
-- Optionally write Markdown output.
+- Return `ProcessorOutput` with nonempty Markdown.
 
 Must not:
 
@@ -406,31 +709,47 @@ Input:
 
 Responsibilities:
 
-- Decide text-layer path versus page-image path.
-- Render pages through an optional PDF dependency.
+- Open and close documents through `pypdfium2` only.
+- Support explicit `text` and `vision` modes. Report `auto` as `deferred`; do not
+  create it until a new decision defines and passes a classifier corpus.
+- Extract text layers through PDFium `get_text_bounded()` so supplementary
+  Unicode is not limited by the UCS-2 `get_text_range()` path.
+- Render vision-mode pages through PDFium.
 - Batch pages predictably.
-- Preserve page markers in Markdown.
+- Preserve one-based page order with
+  `<!-- ocrllm:page index=N -->` markers in Markdown.
 - Support resume when output is long-running.
+- Translate encrypted, malformed, empty, out-of-range, and oversized inputs to
+  typed failures before provider calls.
 
 Must not:
 
-- Make PDF dependencies required for board-only installs.
+- Make PDF dependencies required for image-only installs.
 - Write temporary pages into the package directory.
-- Treat every PDF as image-only without checking whether text extraction is
-  better.
+- Import PyMuPDF or `fitz`.
+- Call PDFium concurrently from multiple threads. Serialize all calls behind one
+  process-wide lock or use process isolation only after measurement.
+- Implement a second vision client; vision mode composes the image processor
+  with the board profile.
+- Claim success for a selected text-mode page with no usable text.
+- Default to lossy page artifacts before PNG-versus-JPEG recognition accuracy
+  has been measured; Phase 3 starts with PNG.
+- Put rendered temporary pages in public `Artifact` values. A rendered page is
+  an internal `RenderedPdfPage` and is deleted after the image processor has
+  consumed it.
 
 ### Audio Processor
 
-Input:
+Phase 4 trial capabilities; each remains unavailable until its own atomic
+format/flow subgate passes:
 
-- `.wav`
-- `.mp3`
-- `.m4a`
-- `.aac`
-- `.flac`
-- `.ogg`
-- `.opus`
-- `.wma`
+- `.wav` with PCM signed 16-bit audio.
+- `.mp3` with MPEG Layer III audio.
+- `.m4a` with AAC-LC audio.
+
+AAC, FLAC, Ogg, Opus, and WMA extensions are deferred until one licensed fixture
+per extension/codec passes probe, conversion, live transcription, packaging,
+and cleanup tests.
 
 Responsibilities:
 
@@ -438,24 +757,25 @@ Responsibilities:
 - Choose direct transcription or chunked transcription.
 - Preserve timestamps when available.
 - Merge transcript chunks into coherent Markdown.
-- Extract hotwords when useful.
 
 Must not:
 
 - Swallow failed chunks silently.
 - Require video dependencies for audio-only use.
 - Mix provider retry policy into audio splitting code.
+- Extract hotwords in the first audio slice. `RecognitionResult.hotwords` stays
+  empty until a separately gated `extract_hotwords.py` behavior is justified.
 
 ### Video Processor
 
-Input:
+Phase 5 trial capabilities; each remains unavailable until its own atomic
+container/codec subgate passes. Phase 5 advances only when both pass:
 
-- `.mp4`
-- `.avi`
-- `.mkv`
-- `.mov`
-- `.flv`
-- `.wmv`
+- `.mp4` with H.264 video and optional AAC audio.
+
+AVI, MKV, MOV, FLV, WMV, and other codec/container combinations are deferred
+until one licensed fixture per advertised combination passes probe, extraction,
+recognition, packaging, and cleanup tests.
 
 Responsibilities:
 
@@ -472,32 +792,39 @@ Must not:
 - Own generic ffmpeg discovery.
 - Make social downloader behavior part of core video recognition.
 
-### Office Processor
+### Deferred Input Types
 
-Input:
-
-- `.docx`
-- `.pptx`
-
-Responsibilities:
-
-- Extract text and embedded media when dependencies allow.
-- Preserve headings, slide/page boundaries, and images where useful.
-- Return Markdown.
-
-Must not:
-
-- Support old binary `.doc` or `.ppt` as a first target.
-- Pull office dependencies into `import ocrllm`.
+Office documents, social URLs, and browser content are outside the active
+library phases. Do not add `.doc`, `.docx`, `.ppt`, `.pptx`, HTML, or social
+download routing without a new explicit product decision after the core four
+modalities are GO.
 
 ## Provider Contracts
 
-Provider adapters are replaceable. Processors should care about capabilities,
+Provider adapters are replaceable. Processors must depend on capabilities,
 not vendor classes.
 
 Minimum target capabilities:
 
 ```python
+@dataclass(frozen=True, slots=True)
+class TranscriptSegment:
+    text: str
+    start_seconds: float | None
+    end_seconds: float | None
+    language: str | None
+    confidence: float | None
+    provider_segment_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class TranscriptionResult:
+    status: Literal["complete", "partial"]
+    segments: tuple[TranscriptSegment, ...]
+    warnings: tuple[str, ...]
+    metadata: Mapping[str, JSONValue]
+
+
 class VisionProvider(Protocol):
     def recognize_images(
         self,
@@ -509,23 +836,46 @@ class VisionProvider(Protocol):
         ...
 
 
-class AudioProvider(Protocol):
-    def transcribe_audio(
+class ShortAudioProvider(Protocol):
+    def transcribe_short_audio(
         self,
         audio_path: Path,
         *,
         prompt: str | None,
         config: Config,
-    ) -> str:
+    ) -> TranscriptionResult:
+        ...
+
+
+class LongAudioProvider(Protocol):
+    def submit_long_audio(self, audio_path: Path, *, config: Config) -> RemoteTask:
+        ...
+
+    def poll_long_audio(self, task: RemoteTask, *, config: Config) -> RemoteTask:
+        ...
+
+    def download_long_audio_result(
+        self,
+        task: RemoteTask,
+        *,
+        config: Config,
+    ) -> TranscriptionResult:
         ...
 ```
+
+Segments are ordered, nonempty, and satisfy `0 <= start <= end` when timestamps
+exist; confidence is `None` or in `[0, 1]`. Timestamp-required capability gates
+fail when the provider returns `None`. Provider adapters return these DTOs;
+processors never recover timestamps from Markdown.
 
 Provider resolution:
 
 ```text
 Config.provider is an object       -> use it directly after capability checks.
-Config.provider is a string        -> load the matching built-in adapter.
-Config.provider is None            -> use a documented default only if safe.
+Config.provider == "dashscope"     -> load the built-in adapter lazily.
+Config.provider is another string  -> raise ConfigError.
+Config.provider is None            -> allow local PDF text only; otherwise raise
+                                      ConfigError and never spend implicitly.
 ```
 
 Critical rule: provider adapters own HTTP details, authentication, request
@@ -533,29 +883,41 @@ format, and response parsing. Processors own media-specific workflow.
 
 ## Optional Dependencies
 
-The base install should support importing the package and running fake-provider
-board tests.
+The base install must import without optional dependencies. Phase 0's image extra
+supports valid-image decoding tests, and fake-provider image tests remain
+offline.
 
 Target extras:
 
 ```text
-ocrllm[image]    Image loading, conversion, preprocessing.
-ocrllm[pdf]      PDF rendering and text extraction.
-ocrllm[audio]    Audio probing and transcription helpers.
-ocrllm[video]    ffmpeg-based video/audio helpers.
-ocrllm[providers] Built-in network provider adapters.
+ocrllm[image]    Pillow>=10.4,<13 for lazy image decoding and conversion.
+ocrllm[pdf-text] pypdfium2>=5.11.0,<5.12 without Pillow.
+ocrllm[pdf-vision] pypdfium2>=5.11.0,<5.12 and Pillow>=10.4,<13.
+ocrllm[dashscope] Lazy openai>=2.30,<3 for the first DashScope vision adapter.
+ocrllm[audio]    Do not create until Phase 4 proves exact Python requirements;
+                 ffmpeg remains external.
+ocrllm[video]    Do not create until Phase 5; include approved audio requirements
+                 and do not bundle ffmpeg.
 ocrllm[all]      All supported optional features.
 ocrllm[dev]      Test and development tools.
 ```
 
 Rules:
 
-- Missing optional dependencies should raise `ConfigError` or a dedicated
-  dependency error with the required extra name.
-- Optional dependency imports should live inside the function or module that
+- Missing optional dependencies must raise `DependencyMissing` with the exact
+  required extra name.
+- Optional dependency imports must live inside the function or module that
   needs them.
 - Importing `ocrllm` must not require ffmpeg, PyQt, FastAPI, browser tools, or
   provider SDKs.
+- `ocrllm[pdf-text]` and `ocrllm[pdf-vision]` must use PDFium through
+  `pypdfium2`; PyMuPDF/`fitz` is rejected.
+- PDF binary distributions must include pypdfium2, PDFium, and bundled
+  dependency license notices.
+- `ocrllm[all]` must not exist until every included extra is independently GO.
+- Every phase must pass the exact base/profile installed-size and import budgets
+  in `docs/ocrllm_library_go_no_go.md`; recording a number without meeting its
+  threshold is not GO.
 
 ## Output And Resume
 
@@ -564,19 +926,76 @@ The default result is in memory.
 When `output_dir` is set:
 
 - Create the directory if needed.
-- Use deterministic output names.
-- Return the Markdown path in `RecognitionResult.output_path`.
-- Store only user-meaningful assets in `RecognitionResult.assets`.
+- For the initial image contract, use `{source_stem}_{profile}.md` for one image
+  and `{first_stem}_plus_{additional_count}_{profile}.md` for an ordered group.
+- PDF uses `{source_stem}_{pdf_mode}.md`; audio uses
+  `{source_stem}_transcript.md`; video uses `{source_stem}_video.md`.
+- If the target exists, raise `OutputExists` unless `overwrite=True` or an
+  applicable explicit resume state is set.
+- Write through a sibling temporary file and replace atomically.
+- Return the Markdown URI in `RecognitionResult.output_uri`.
+- Store only final user-meaningful files in `RecognitionResult.artifacts`.
 
-Resume support should be added only for long-running processors where it is
-worth the complexity:
+Resume support applies only to these long-running processors:
 
 - PDF.
 - Audio.
 - Video.
 
-Resume state should live with output files or in an explicit caller-provided
-state path. It must not depend on hidden package directories.
+Version 1 uses no caller-selected or hidden state location. With final output
+`lecture_vision.md`, state is the sibling
+`lecture_vision.ocrllm-state.json`. `resume=True` requires `output_dir` and
+conflicts with `overwrite=True`.
+
+```python
+@dataclass(frozen=True, slots=True)
+class SourceFingerprint:
+    uri: str
+    byte_size: int
+    sha256: str
+
+
+@dataclass(frozen=True, slots=True)
+class CompletedUnit:
+    unit_id: str
+    markdown: str
+    artifact_uris: tuple[str, ...]
+    artifact_sha256: Mapping[str, str]
+    metadata: Mapping[str, JSONValue]
+
+
+@dataclass(frozen=True, slots=True)
+class RemoteTask:
+    provider: str
+    kind: str
+    task_id: str
+    source_sha256: str
+    state: Literal["submitted", "running", "succeeded", "failed", "cancelled"]
+
+
+@dataclass(frozen=True, slots=True)
+class JobState:
+    state_version: Literal["ocrllm.job.v1"]
+    request_fingerprint: str
+    processor_name: str
+    processor_version: str
+    sources: tuple[SourceFingerprint, ...]
+    completed_units: tuple[CompletedUnit, ...]
+    remote_tasks: tuple[RemoteTask, ...]
+    final_markdown_sha256: str | None
+```
+
+The request fingerprint includes source fingerprints, processor/version,
+provider/model, languages, profile/mode, page selection, and safety settings.
+It excludes API keys, PDF passwords, output location, progress, and cancellation
+objects. Save after each completed unit and immediately after a remote task ID;
+reject corrupt or mismatched state instead of silently starting over. Before
+completion, persist the final Markdown hash, atomically replace the output, then
+delete state. If a crash leaves state plus output, matching hashes finish without
+provider calls and mismatched hashes fail. Completed-unit Markdown is plaintext
+beside caller-selected output, so the caller owns directory permissions. Resume
+of an encrypted PDF must reopen/authenticate with the current password before
+state reuse; store only whether a password was supplied, never its value.
 
 ## Configuration And Secrets
 
@@ -584,18 +1003,12 @@ Secret lookup order:
 
 ```text
 Explicit Config.api_key
-Provider-specific environment variable
-OCRLLM_API_KEY
+DASHSCOPE_API_KEY for the Phase 1 built-in adapter
 ConfigError
 ```
 
-Provider-specific examples:
-
-```text
-DASHSCOPE_API_KEY
-GOOGLE_API_KEY
-OPENAI_API_KEY
-```
+Future provider adapters define and test their own environment variable before
+their phase begins. There is no provider-agnostic fallback secret.
 
 Rules:
 
@@ -606,28 +1019,33 @@ Rules:
 
 ## Testing Strategy
 
-Tests define the real contract. Documentation does not.
+This decision defines allowed boundaries and required gates. Tests and runtime
+trials provide the evidence for a GO status; they do not override a NO-GO or
+deferred boundary.
 
 Required test groups:
 
 ```text
-tests/test_import_contract.py        Public imports and fake-provider board path.
-tests/test_routing.py                Extension routing and mixed input rules.
-tests/test_config.py                 Config normalization and secret lookup.
-tests/test_errors.py                 Public error categories.
-tests/test_output.py                 In-memory versus file output.
-tests/test_provider_contracts.py     Fake provider capability checks.
-tests/test_board_processor.py        Board vertical slice.
-tests/test_pdf_processor.py          PDF vertical slice with local fixtures.
-tests/test_audio_processor.py        Audio vertical slice with local fixtures.
-tests/test_video_processor.py        Video vertical slice with local fixtures.
+tests/test_import_contract.py             Public facade and lightweight import.
+tests/test_validate_source.py             Missing/corrupt/oversized input gates.
+tests/test_detect_source_type.py          Source detection and mixed groups.
+tests/test_config.py                      Config normalization and secrets.
+tests/test_errors.py                      Typed, redacted public failures.
+tests/test_output.py                      In-memory/file output and collisions.
+tests/test_provider_contracts.py          Fake capability checks.
+tests/test_recognize_images.py            Image/board-profile vertical slice.
+tests/test_jsonl_worker.py                Protocol-only worker events.
+tests/test_pdfium_backend.py              Open/text/render/error PDFium behavior.
+tests/test_recognize_pdf.py               Text and vision PDF composition.
+tests/test_recognize_audio.py             Audio vertical slice.
+tests/test_recognize_video.py             Video composition.
 ```
 
-Network provider tests should be opt-in and skipped by default unless required
+Network provider tests are opt-in and skipped by default unless required
 environment variables are present.
 
-Golden tests should exist for behavior preservation, but they must be small and
-reviewable. They should prove output structure, not exact provider wording.
+Golden tests are small and reviewable. They prove output structure, not exact
+provider wording.
 
 ## Completion Criteria
 
@@ -638,76 +1056,44 @@ The module can be considered library-complete only when these are true:
 - `import ocrllm` works from outside the repo.
 - `import ocrllm` has no heavyweight side effects.
 - The public facade is documented and tested.
-- Board recognition works with fake and real providers.
+- Image recognition with the board profile works with fake and real providers.
+- PDF uses PDFium through pypdfium2 and passes text/vision/error fixtures.
 - PDF, audio, and video are separate tested vertical slices.
 - Optional dependencies are isolated behind extras.
 - Output defaults are safe for installed-package use.
 - Errors are typed and do not require string matching.
 - At least one downstream project imports the package without using
   `legacy_app`.
+- An Electron Node harness consumes the versioned JSONL worker.
+- HarmonyOS/ArkTS remains explicitly outside the completion claim.
 
 ## Implementation Phases
 
-### Phase 0: Keep The Import Contract Honest
+The exact GO conditions live in `docs/ocrllm_library_go_no_go.md`. The order is
+mandatory:
 
-Current active phase.
+```text
+Phase 0  Contract honesty                         CURRENT
+Phase 1  Real board/image and one provider
+Phase 2  Versioned JSON contract and Electron JSONL worker
+Phase 3  PDFium text/vision PDF slice
+Phase 4  Short ASR and resumable FileTrans audio
+Phase 5  Video composed from image and audio
+Phase 6  Distribution, SBOM, and downstream proof
+```
 
-- Preserve the small public facade.
-- Keep fake-provider board recognition passing.
-- Keep `import ocrllm` lightweight.
-- Add tests before widening the API.
+Do not work on two phases concurrently. A later phase starts only after the
+current phase's offline and required real gates pass and `MIGRATION_STATUS.md`
+records the evidence.
 
-### Phase 1: Real Board Slice
+Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
+models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;
+each requires a new explicit decision after Phase 6 or an approved product
+priority change.
 
-- Add image validation.
-- Add optional image preprocessing.
-- Add one real provider adapter.
-- Keep provider injection working.
-- Add representative board fixtures.
-
-### Phase 2: Routing And Output Hardening
-
-- Move source detection into `routing.py`.
-- Add deterministic output naming.
-- Add explicit missing-file behavior.
-- Add output tests.
-
-### Phase 3: PDF Slice
-
-- Add optional PDF extra.
-- Add page rendering and/or text extraction.
-- Add page-batched provider calls.
-- Add resume only if needed.
-
-### Phase 4: Audio Slice
-
-- Add optional audio extra.
-- Add duration probing.
-- Add short and long audio paths.
-- Add provider transcription capability.
-
-### Phase 5: Video Slice
-
-- Add optional video extra.
-- Add ffmpeg discovery.
-- Add frame extraction and deduplication.
-- Reuse audio and board logic instead of duplicating them.
-
-### Phase 6: Packaging And Downstream Proof
-
-- Build wheels.
-- Test installation from another project.
-- Document extras.
-- Keep the old app isolated under `legacy_app`.
-
-### Phase 7: Revisit Rust Only With Evidence
-
-Rust can be reconsidered only when:
-
-- A Python module boundary is stable.
-- A specific module has measured performance or reliability pressure.
-- Golden tests can compare behavior before and after replacement.
-- The Rust build does not make basic Python installation fragile.
+A browser React application cannot import the Python wheel. Future React use
+requires the separately authorized service boundary; the JSON-safe DTOs reduce
+future adapter work but are not a current React compatibility claim.
 
 ## Rejection Rules
 
@@ -721,6 +1107,11 @@ Reject changes that do any of the following:
 - Add hidden output paths under `src/ocrllm`.
 - Add broad exception swallowing around provider or processor logic.
 - Put GUI, server, or social downloader behavior into the core library.
+- Add PyMuPDF or `fitz` to the active package.
+- Call PDFium concurrently from multiple threads.
+- Begin a later phase before the current GO gate passes.
+- Add HarmonyOS/ArkTS, Rust/PyO3, Office, GPU, WASM, or offline-model work
+  without a new explicit decision.
 
 ## Reader Reset
 
@@ -728,10 +1119,11 @@ When returning after losing context, use this order:
 
 1. `START_HERE.md`
 2. `MIGRATION_STATUS.md`
-3. `docs/library_migration_decision.md`
-4. `docs/ocrllm_module_target_design.md`
-5. `src/ocrllm/README_ACTIVE_LIBRARY.md`
-6. `tests/test_import_contract.py`
+3. `docs/ocrllm_library_go_no_go.md`
+4. `docs/library_migration_decision.md`
+5. `docs/ocrllm_module_target_design.md`
+6. `src/ocrllm/README_ACTIVE_LIBRARY.md`
+7. `tests/test_import_contract.py`
 
 The current implementation is smaller than this document. That is intentional.
 This file is a map for the completed module, not evidence that the module is

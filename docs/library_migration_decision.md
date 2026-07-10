@@ -1,6 +1,11 @@
 # OCRLLM Library Migration Decision
 
-Status: active migration decision.
+Status: foundational migration decision.
+
+This file records why the repository was split into active and legacy code.
+The authoritative implementation GO/NO-GO record is now
+`docs/ocrllm_library_go_no_go.md`. Use that file for current phase order, file
+responsibilities, PDFium, migration, rewrite, and rejection rules.
 
 ## What I Found
 
@@ -32,9 +37,19 @@ The new library starts with a narrow, stable facade:
 - `ocrllm.recognize_batch`
 - public exception types
 
-The first supported vertical slice is board/image recognition through an
-injected provider. PDF, audio, video, provider HTTP clients, and Rust internals
-are future additions, not part of the first import contract.
+The initial facade scaffold routes board/image recognition through an injected
+provider. It is not completed image support. PDF, audio, video, provider HTTP
+clients, and Rust internals were not part of that first import contract.
+
+The later execution decision makes the boundary more precise:
+
+- The current injected-provider path is a Phase 0 facade, not completed image
+  support.
+- Active PDF work uses PDFium through `pypdfium2`; PyMuPDF/`fitz` remains
+  legacy-only.
+- A versioned JSON-safe contract and Electron JSONL worker proof happen before
+  broad distribution work.
+- HarmonyOS/ArkTS integration is deferred.
 
 ## Why This Path
 
@@ -64,6 +79,7 @@ legacy_app/README_LEGACY.md           Local legacy-app boundary.
 legacy_app/AGENTS.md                  Local legacy-app agent rules.
 docs/legacy_bilibili_social_long_debug_record.md
                                       Legacy Bilibili course runtime record.
+docs/ocrllm_library_go_no_go.md       Active execution and GO/NO-GO record.
 Architecture.md                       Suspended future Rust/PyO3 reference.
 ```
 
@@ -80,9 +96,5 @@ The migration is only useful when these are true:
 
 ## Future Work
 
-1. Add real provider implementations behind the provider interface.
-2. Port board preprocessing only after its contract is tested.
-3. Add optional dependency groups for image, PDF, audio, and video.
-4. Port PDF, audio, and video one vertical slice at a time.
-5. Revisit Rust only for measured bottlenecks or modules whose boundaries are
-   already stable.
+Do not use this historical list as an implementation queue. Follow the current
+phase and exact GO gate in `docs/ocrllm_library_go_no_go.md`.

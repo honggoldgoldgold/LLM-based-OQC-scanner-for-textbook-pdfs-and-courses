@@ -5,7 +5,8 @@ This file is the project memory aid. Read it before changing the repo.
 ## One-Sentence Summary
 
 The old OCRLLM app has been moved to `legacy_app/`; the active project is now a
-new importable Python library in `src/ocrllm`.
+new importable Python library in `src/ocrllm`, currently at the contract-honesty
+gate before real image support.
 
 ## First Files To Read
 
@@ -17,9 +18,11 @@ START_HERE.md                         One-screen repo map.
 README.md                             Short public overview.
 src/ocrllm/README_ACTIVE_LIBRARY.md   Active package boundary.
 src/ocrllm/AGENTS.md                  Active package editing rules.
+docs/ocrllm_library_go_no_go.md       Authoritative execution decision, file
+                                      responsibilities, and phase GO gates.
+docs/library_migration_decision.md    Foundational library-making rationale.
 legacy_app/README_LEGACY.md           Legacy app boundary.
 legacy_app/AGENTS.md                  Legacy app editing rules.
-docs/library_migration_decision.md    Library-making decision and rationale.
 docs/ocrllm_module_target_design.md   Target-state module design map.
 docs/legacy_bilibili_social_long_debug_record.md
                                       Legacy Bilibili course robustness record.
@@ -43,8 +46,10 @@ other projects:
 - It defaulted output/temp paths into the package directory.
 - It exposed implementation classes before there was a stable library facade.
 
-The active decision is to make a small Python-first library and port behavior
-from legacy code only after the public contract is clear.
+The active decision is to make a small Python-first library and migrate proven
+behavior one vertical slice at a time. Implementations are rewritten behind the
+new contract; legacy classes and files are not ported. Exact rules are in
+`docs/ocrllm_library_go_no_go.md`.
 
 ## What Is Current
 
@@ -68,6 +73,7 @@ from ocrllm import (
     RecognitionResult,
     recognize,
     recognize_batch,
+    OCRLLMError,
     ConfigError,
     QuotaExhausted,
     UnsupportedFormat,
@@ -75,7 +81,7 @@ from ocrllm import (
 )
 ```
 
-The first supported feature is board/image recognition with an injected
+The current Phase 0 facade route sends board/image paths to an injected
 provider:
 
 ```python
@@ -93,10 +99,95 @@ result = recognize("board.png", config=Config(provider=Provider()))
 No real DashScope, Google, PDF, audio, or video provider has been ported into
 the active library yet.
 
-## Legacy Social-Long Course Path
+The current injected-provider path is not yet GO because it does not prove
+input existence, real image decoding, nonempty provider output, or typed
+provider failures. An isolated `qwen-vl-max` trial successfully recognized a
+real PNG, which proves that the provider path is approachable; it does not prove
+the active adapter because that adapter does not exist yet.
+
+A 2026-07-09 negative runtime probe confirmed both blockers rather than merely
+inferring them from source:
+
+```text
+nonexistent .png returned success       true
+provider called for nonexistent source  1 time
+empty provider Markdown returned success true
+provider called for empty-output case   1 time
+```
+
+Therefore Phase 0 remains NO-GO even though the existing eight root tests pass.
+
+Active PDF policy is decided now even though PDF implementation is not
+authorized yet:
+
+- Use PDFium through `pypdfium2`.
+- Keep `pypdfium2` behind future `ocrllm[pdf-text]` and
+  `ocrllm[pdf-vision]` extras and out of base import. Text-only installs do not
+  install Pillow.
+- Rewrite PDF rendering and text extraction; do not port PyMuPDF/`fitz` code.
+- Start with `pypdfium2>=5.11.0,<5.12` and `Pillow>=10.4,<13`; lock the first CI
+  proof to pypdfium2 5.11.0 and Pillow 12.2.0.
+- Serialize PDFium calls behind one process-wide lock. Do not port the legacy
+  threaded renderer because PDFium is not thread-safe.
+- Do not mark PDF supported until the Phase 3 gate in
+  `docs/ocrllm_library_go_no_go.md` passes.
+
+Local PDFium feasibility evidence on Windows/Python 3.13:
+
+```text
+pypdfium2 5.11.0
+PDFium 151.0.7920.0
+2-page mixed PDF opened
+text page extracted expected content
+raster-only page extracted no text
+both pages rendered at 1224 x 1584
+malformed PDF raised PdfiumError error code 3
+wheel size 3,778,234 bytes
+installed size 8,306,352 bytes
+```
+
+This is a conditional feasibility GO, not active PDF support. Python 3.10,
+Unicode, encrypted, hostile, large-document, recognition, cancellation, and
+license-notice packaging gates remain.
+
+Local lightweight base-wheel evidence on the recorded Windows reference host:
+
+```text
+wheel size                         9,283 bytes
+wheel SHA-256                      166ACEC563B88203A7C8D1F616AB5838192D40501DC8837A5AA99B78EF865D0C
+isolated no-deps install          26,152 bytes
+Python 3.10, 30 fresh processes   wall median/p95 39.768/45.556 ms
+                                   CPU median/p95 31.250/46.875 ms
+Python 3.13, 30 fresh processes   wall median/p95 26.265/37.334 ms
+                                   CPU median/p95 31.250/31.250 ms
+plain-import optional modules     PIL, pypdfium2, openai all absent
+base runtime requirements         none
+native binaries in base wheel     none
+```
+
+This passes the current base-profile size/import feasibility budget. It does not
+make image recognition GO: no committed licensed quality corpus or scorer exists
+yet, and the Phase 0 input/output honesty failures remain. Numeric profile
+budgets and objective recognition thresholds are authoritative in
+`docs/ocrllm_library_go_no_go.md`.
+
+A later Python 3.10 repeat measured 48.978 ms median with one 155.312 ms maximum
+and failed the draft maximum-100-ms rule. A post-build run then measured 70.477
+ms wall median/108.311 ms p95, while a separate unchanged-package probe measured
+36.382/40.744 ms wall and 31.250/46.875 ms process CPU median/p95. The final gate
+uses 30 fresh processes after two warm-ups: wall median <= 100 ms/p95 <= 200 ms
+and process-CPU median <= 60 ms/p95 <= 100 ms; maxima remain diagnostic. This
+change separates package CPU work from bounded scheduler/antivirus noise rather
+than waiving a CPU or percentile failure.
+
+HarmonyOS/ArkTS integration is deferred. It is not an active feature, phase, or
+compatibility claim.
+
+## Historical Legacy Social-Long Course Path
 
 The Bilibili/social downloader still lives under `legacy_app/OCRLLM/`. It is a
-maintained compatibility workflow, not a public `ocrllm` library API.
+read-only behavior reference for this migration, not a public `ocrllm` library
+API or an active test surface.
 
 Detailed incident history, implementation map, verification commands, and
 operational rules are in:
@@ -105,7 +196,7 @@ operational rules are in:
 docs/legacy_bilibili_social_long_debug_record.md
 ```
 
-For multi-part Bilibili courses, the reusable path is:
+The recorded multi-part Bilibili command was:
 
 ```powershell
 $env:PYTHONPATH='legacy_app'
@@ -132,14 +223,14 @@ phases, and in-flight DashScope FileTrans task IDs. Keep new downstream
 projects importing `ocrllm`; do not expose this legacy processor as a new public
 library boundary.
 
-For multi-part YouTube course playlists, the equivalent maintained legacy
+For multi-part YouTube course playlists, the equivalent recorded legacy
 workflow is documented here:
 
 ```text
 docs/legacy_youtube_playlist_social_long_workflow.md
 ```
 
-Use the same legacy CLI boundary:
+The recorded command used the same legacy CLI boundary:
 
 ```powershell
 $env:PYTHONPATH='legacy_app'
@@ -188,7 +279,8 @@ problems:
 - Social media GUI input must accept free-form text and Markdown-style pasted
   links, not only lines beginning with `http`.
 
-Completion evidence from the supervised Bilibili course output:
+Historical completion evidence recorded for the supervised Bilibili course
+run; this is not current active-library evidence:
 
 ```text
 33 part directories
@@ -223,7 +315,7 @@ ways:
 - Board-only reruns with `--phases 2 3 4` preserve existing audio transcripts
   instead of invalidating Phase 5 artifacts.
 
-Completion evidence from the 2026-07-06 audit:
+Historical evidence recorded by the 2026-07-06 audit:
 
 ```text
 40 target course folders scanned
@@ -233,15 +325,27 @@ Completion evidence from the 2026-07-06 audit:
 0 active legacy video checkpoints remained
 ```
 
-Read `docs/legacy_filetrans_codex_debug_record.md` before changing this path.
+Use `docs/legacy_filetrans_codex_debug_record.md` as behavior evidence. Do not
+change or rerun this path for an active-library phase gate.
 
-## Target Module Design
+## Active Execution Decision And Target Design
+
+`docs/ocrllm_library_go_no_go.md` is the controlling implementation record. It
+defines:
+
+- the current GO and NO-GO boundaries,
+- one responsibility for each target file,
+- which legacy behaviors to preserve,
+- which implementations must be rewritten,
+- which legacy areas are rejected or deferred,
+- exact phase gates and verification commands.
 
 `docs/ocrllm_module_target_design.md` describes the intended completed Python
-library as if it already exists. It is a design map, not a frozen contract.
+library. It is a supporting design map, not the execution queue.
 
-The document is useful for rebuilding context after memory loss, but tests and
-real downstream imports decide the actual implementation.
+The documents are useful for rebuilding context after memory loss. The
+GO/NO-GO record defines allowed boundaries; tests and real downstream imports
+provide the evidence for advancing a gate.
 
 ## What Is Suspended
 
@@ -254,6 +358,10 @@ Rust can come back later only after:
 - At least one real downstream project imports `ocrllm`.
 - The module boundary to rewrite is stable.
 - Tests can compare behavior against the Python implementation.
+
+HarmonyOS/ArkTS is also deferred. Do not add a native bridge, ArkTS client, or
+compatibility claim without a new explicit decision after the active library
+and its distribution contracts are stable.
 
 ## What Was Moved
 
@@ -272,7 +380,7 @@ ocrllmstart.bat
 legacy_app/start.bat
 ```
 
-The maintained GUI launcher is now:
+The preserved historical GUI launcher is:
 
 ```text
 legacy_app/launch_gui.bat
@@ -293,30 +401,36 @@ legacy_app/environment.yml
 
 ## What To Do Next
 
-1. Verify the new package:
+Current phase: **Phase 0 -- contract honesty**.
 
-   ```bash
-   pip install -e .
-   python -c "import ocrllm; print(ocrllm.__version__)"
-   pytest
-   ```
+Implement only this bounded slice:
 
-2. Add a real provider behind the existing injected-provider seam.
+1. Add tests proving missing, unreadable, empty, oversized, unsupported, and
+   invalid image inputs fail before provider invocation.
 
-3. Port only the minimum board-image preprocessing needed for a tested real
-   board flow.
+2. Reject empty provider output and translate provider failures into typed,
+   secret-safe public errors.
 
-4. Add optional dependency groups when real features need them:
+3. Make result metadata JSON-safe and make output collision behavior explicit.
 
-   ```text
-   ocrllm[image]
-   ocrllm[pdf]
-   ocrllm[audio]
-   ocrllm[video]
-   ocrllm[all]
-   ```
+   Change the canonical result media type from `board` to `image`; preserve
+   `board` only as an image recognition profile before the versioned contract
+   freezes.
 
-5. Add PDF, audio, and video as separate vertical slices.
+4. Populate `ocrllm[image]` with `Pillow>=10.4,<13` for lazy decode validation.
+   Remove the empty PDF, audio, video, and all extras. Re-add each later feature
+   extra only when its phase installs and enables it.
+
+5. Split the public functions and routing according to
+   `docs/ocrllm_library_go_no_go.md`; do not create later-phase scaffolding.
+
+6. Run the exact test, temporary-wheel build, clean-target install, outside-repo
+   import, and heavy-module guard commands in
+   `docs/ocrllm_library_go_no_go.md`. Record the commands and results here.
+
+Phase 1 may begin only after all Phase 0 GO conditions pass. PDF, audio, video,
+service, HarmonyOS, Rust, Office, social, GPU, and offline-model work is not the
+next task.
 
 ## Do Not Do This
 
@@ -325,6 +439,12 @@ legacy_app/environment.yml
 - Do not expose legacy processors as public API.
 - Do not freeze a `1.0` API until real downstream usage proves it.
 - Do not make the Rust plan active again without a measured reason.
+- Do not add PyMuPDF or `fitz` to the active package; Phase 3 uses PDFium through
+  `pypdfium2`.
+- Do not start a later phase before the current GO gate passes.
+- Do not begin or claim HarmonyOS/ArkTS compatibility.
+- Do not claim support from code existence, mocks, installed dependencies, or
+  historical logs alone.
 
 ## Done Criteria For This Migration Step
 
@@ -336,3 +456,7 @@ legacy_app/environment.yml
 - `Architecture.md` is clearly marked as suspended future planning.
 - `legacy_app/` is clearly marked as old app/reference code.
 - New tests prove the active import contract.
+- `docs/ocrllm_library_go_no_go.md` is the single authoritative execution
+  record and all navigation docs point to it.
+- PDFium is the only active PDF decision; PyMuPDF is explicitly legacy-only.
+- HarmonyOS/ArkTS is explicitly deferred.

@@ -16,6 +16,8 @@ Use for:
 
 Read next:
 
+- `MIGRATION_STATUS.md`
+- `docs/ocrllm_library_go_no_go.md`
 - `src/ocrllm/README_ACTIVE_LIBRARY.md`
 - `src/ocrllm/AGENTS.md`
 - `docs/ocrllm_module_target_design.md`
@@ -26,16 +28,21 @@ Public import shape:
 from ocrllm import Config, recognize
 ```
 
+Current phase: contract honesty, followed by a real board/image slice. Read
+`docs/ocrllm_library_go_no_go.md` for the exact GO gates, target file
+responsibilities, and migrate/rewrite/reject matrix. PDF, audio, video, and
+Electron worker work are not authorized until their preceding gates pass.
+
 ## Legacy Application
 
 Path: `legacy_app/`
 
 Use for:
 
-- Old GUI, CLI, FastAPI, processors, and launchers
-- GUI launcher fixes for `legacy_app/launch_gui.bat`
-- Behavior reference while porting one tested vertical slice at a time
-- Legacy test suite under `legacy_app/tests/`
+- Read-only behavior reference for old GUI, CLI, FastAPI, processors, and
+  launchers
+- Historical outputs and incident records used to define active-library
+  fixtures
 
 Read next:
 
@@ -79,9 +86,11 @@ Do not infer architecture from generated output or temporary files.
 ```text
 Need to change the public library API      -> src/ocrllm/ and tests/
 Need to add a downstream import feature    -> src/ocrllm/ and tests/
-Need to fix GUI launcher/Codex/Google UI   -> legacy_app/
 Need to compare old product behavior       -> legacy_app/
+Need to fix or maintain the old app        -> stop; require a separately scoped
+                                               legacy-maintenance request
 Need to record migration state             -> MIGRATION_STATUS.md
+Need to decide GO/NO-GO or port behavior   -> docs/ocrllm_library_go_no_go.md
 Need to debug Bilibili social-long courses -> docs/legacy_bilibili_social_long_debug_record.md
 Need to debug YouTube playlist courses    -> docs/legacy_youtube_playlist_social_long_workflow.md
 Need to design the completed module shape  -> docs/ocrllm_module_target_design.md
@@ -96,10 +105,14 @@ Need to revisit future Rust/PyO3 design    -> Architecture.md
   media dependencies.
 - Do not treat `Architecture.md` as the active implementation plan.
 - Do not put runtime output defaults inside package directories.
+- Do not add PyMuPDF or `fitz` to the active library. Active PDF work uses
+  PDFium through `pypdfium2` only after the PDF phase is authorized.
+- Do not begin or claim HarmonyOS/ArkTS compatibility. It is deferred by the
+  active GO/NO-GO decision.
 
 ## Verification Commands
 
-Root library contract:
+The short local check is:
 
 ```bash
 pip install -e .
@@ -107,6 +120,10 @@ python -c "import ocrllm; print(ocrllm.__version__)"
 pytest
 ```
 
-Legacy app checks must be run from the legacy context and may include external
-service tests. Prefer targeted tests when changing launchers, GUI settings, or
-provider mode routing.
+Before reporting completion, run the temporary-wheel install and outside-repo
+heavy-module guard in `docs/ocrllm_library_go_no_go.md`.
+
+Active-library migration tests must not modify or run the legacy suite as a
+phase gate. Create fixtures and tests under root `tests/`. Legacy commands and
+tests are historical reference unless a separate legacy-maintenance request
+explicitly authorizes that work.

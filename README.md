@@ -4,6 +4,8 @@ Read this first if you are returning to the project after losing context:
 `START_HERE.md`.
 
 Then read `MIGRATION_STATUS.md` for the migration history and next steps.
+Read `docs/ocrllm_library_go_no_go.md` before implementing any new library
+feature; it is the authoritative execution decision.
 
 OCRLLM is now being extracted into a Python library that other projects can
 import as `ocrllm`. The previous application code was moved into
@@ -16,18 +18,27 @@ The active package is `src/ocrllm`.
 
 The active goal is small and concrete:
 
-- Make `pip install -e .` work.
-- Make `import ocrllm` work from any current working directory.
-- Expose a stable facade: `Config`, `RecognitionResult`, `recognize`,
-  `recognize_batch`, and public errors.
-- Support the first vertical slice: board/image recognition through an injected
-  provider.
+- Make the current contract honest: invalid or missing images and empty
+  provider responses must fail before they can look successful.
+- Complete one real board/image path with a lazy provider adapter and real
+  fixtures.
+- Establish a versioned JSON-safe contract, then prove a one-job JSONL worker
+  for Electron.
+- Add PDF, audio, and video only as separately gated vertical slices.
 - Keep file output optional. `output_dir=None` means in-memory results only.
+
+Active PDF work will use PDFium through `pypdfium2`. PyMuPDF/`fitz` is
+legacy-only and must not enter `src/ocrllm`. HarmonyOS/ArkTS compatibility is
+deferred and is not an active claim.
 
 The old Rust/PyO3 rewrite plan in `Architecture.md` is suspended and kept only
 as a future reference.
 
 ## Current Public API
+
+This example shows the current injected-provider scaffold. It is useful for
+contract tests but is not evidence of validated image support; the current
+implementation can still accept invalid paths or empty provider output.
 
 ```python
 from ocrllm import Config, recognize
@@ -55,6 +66,7 @@ legacy_app/                           Old GUI/CLI/FastAPI application.
 legacy_app/README_LEGACY.md           Local legacy-app boundary.
 legacy_app/AGENTS.md                  Local legacy-app agent rules.
 docs/                                 Active migration decisions.
+docs/ocrllm_library_go_no_go.md       Authoritative execution decision.
 Architecture.md                       Suspended future architecture reference.
 output/, temp/, ocrllm_social_e2e/    Runtime artifacts, not source.
 ```
@@ -62,20 +74,22 @@ output/, temp/, ocrllm_social_e2e/    Runtime artifacts, not source.
 ## Legacy Runtime Notes
 
 The old GUI, Codex video mode, Filetrans audio mode, and Bilibili/social-long
-workflow are legacy compatibility surfaces under `legacy_app/`. Current
-runtime incident notes live in:
+workflow are read-only behavior references under `legacy_app/` for this
+migration. Historical runtime incident notes live in:
 
 ```text
 docs/legacy_bilibili_social_long_debug_record.md
 docs/legacy_filetrans_codex_debug_record.md
 ```
 
-Use the Bilibili record first when touching multi-part Bilibili course
-downloads, comment/danmaku capture, `social_long --parts`, social URL input, or
-resume behavior for the legacy course workflow.
+For a separately authorized legacy-maintenance task, use the Bilibili record
+first when touching multi-part course downloads, comment/danmaku capture,
+`social_long --parts`, social URL input, or resume behavior. It is not an
+active-library phase gate.
 
-As of the 2026-07-06 robustness audit, the supervised Bilibili CS231n course
-run was considered clean only when the output tree had all of the following:
+The 2026-07-06 robustness record reported a clean supervised Bilibili CS231n
+course run with the following output. Treat this as historical legacy evidence,
+not as a currently revalidated active-library test:
 
 ```text
 33 part directories
@@ -99,9 +113,9 @@ input from stdin`, `[WinError 10061]`, embedded Codex diagnostic dumps, or a
 missing board/audio Markdown after the job has completed. These checks belong
 to the legacy workflow; they are not part of the public `ocrllm` library API.
 
-The reusable Bilibili course command is documented in
-`docs/legacy_bilibili_social_long_debug_record.md`; it intentionally runs
-through the legacy CLI:
+The historical Bilibili course command is documented in
+`docs/legacy_bilibili_social_long_debug_record.md`. It is reference evidence,
+not an active-library verification command:
 
 ```powershell
 $env:PYTHONPATH='legacy_app'
@@ -111,13 +125,17 @@ D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <bilibili-url> `
 
 ## Rules For New Work
 
-- New projects should import only from `ocrllm`, never from `legacy_app`.
+- New projects must import only from `ocrllm`, never from `legacy_app`.
 - Do not port a legacy module wholesale. Extract one tested vertical slice at a
   time.
 - Do not make GUI, FastAPI, social download, or heavyweight media dependencies
   import on `import ocrllm`.
 - Do not make package-relative output directories the default.
 - Keep the public API boring and stable before revisiting Rust internals.
+- Use PDFium through `pypdfium2` for active PDF work; do not port PyMuPDF.
+- Follow the phase gates in `docs/ocrllm_library_go_no_go.md`; code existence,
+  mocks, and historical output are not enough to mark a feature supported.
+- Do not start HarmonyOS/ArkTS work without a new explicit decision.
 
 ## Verification
 
@@ -126,3 +144,7 @@ pip install -e .
 python -c "import ocrllm; print(ocrllm.__version__)"
 pytest
 ```
+
+This is the short local check. The required temporary-wheel install,
+outside-repo import, and heavy-module guard are in
+`docs/ocrllm_library_go_no_go.md`.

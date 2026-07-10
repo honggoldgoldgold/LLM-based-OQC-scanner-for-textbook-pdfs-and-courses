@@ -11,6 +11,7 @@ from ocrllm import (
     RecognitionResult,
     recognize,
     recognize_batch,
+    OCRLLMError,
     ConfigError,
     QuotaExhausted,
     UnsupportedFormat,
@@ -18,9 +19,14 @@ from ocrllm import (
 )
 ```
 
-The first supported vertical slice is board/image recognition through an
-injected provider. Real DashScope, Google, PDF, audio, and video providers have
-not been ported into this package yet.
+The current implementation is a Phase 0 facade, not a completed recognition
+feature. It routes board/image paths to an injected provider, but input
+validation and a built-in real provider have not been ported yet. PDF, audio,
+and video are unsupported.
+
+Read `../../docs/ocrllm_library_go_no_go.md` before active-library work. It is
+the authoritative source for file responsibilities, GO gates, and the
+migrate/rewrite/reject boundary.
 
 ## Belongs Here
 
@@ -37,6 +43,8 @@ not been ported into this package yet.
 - Desktop launcher behavior.
 - Package-relative runtime output defaults.
 - Direct imports from `legacy_app` or uppercase `OCRLLM`.
+- PyMuPDF or `fitz`; the future PDF slice uses PDFium through `pypdfium2`.
+- HarmonyOS/ArkTS code or compatibility claims; that work is deferred.
 
 ## Tests
 
