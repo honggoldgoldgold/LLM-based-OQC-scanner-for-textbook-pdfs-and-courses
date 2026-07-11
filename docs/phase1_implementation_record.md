@@ -276,3 +276,13 @@ manifest SHA-256 is
 The isolated suite passes 588 tests; fixtures are byte-identical, `compileall`
 passes, and changed Python files pass Ruff. Fresh repeated v5 evidence remains
 required.
+
+The complete v5 live gate ran from clean full commit
+`081dd2d8bb3d9f47f3fa3998476481294c1fa111`. All 13 calls returned and both
+full runs completed. Run B passed all six dispatches. Run A passed every
+non-handwriting dispatch; handwriting reached 30/30 recall, 38/40 precision,
+6/6 critical tokens, and 10/10 slots but hallucinated `111110` from six plasmid
+hatch strokes. The hard unexpected-critical gate correctly rejected it. The
+95,483-byte evidence SHA-256 is
+`0ceb74a7f05ed2ca5cbcac8eb3eb1c340dfac4bf43ceb84e6883cbe4c40e2343`.
+Do not add the digits to truth. Test a generic diagram-texture exclusion next.

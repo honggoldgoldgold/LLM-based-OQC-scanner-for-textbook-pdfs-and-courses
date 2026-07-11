@@ -1668,6 +1668,16 @@ required recall, 6/6 critical tokens, 10/10 slots, and zero unexpected critical
 tokens. The isolated suite passes 588 tests; fixture generation, compilation,
 and changed-file Ruff checks pass. Fresh repeated v5 gate evidence is required.
 
+The complete v5 gate then made all 13 calls with zero provider failures. Both
+full runs completed; run B passed all six dispatches. Run A failed only
+handwriting despite 30/30 recall, 38/40 precision, 6/6 critical tokens, and
+10/10 slots: Qwen hallucinated `111110` from six plasmid hatch strokes. Preserve
+the 95,483-byte evidence at
+`evidence/phase1/phase1-quality-v5-2026-07-11-cn-beijing.json` (SHA-256
+`0ceb74a7f05ed2ca5cbcac8eb3eb1c340dfac4bf43ceb84e6883cbe4c40e2343`).
+Do not accept the digits or weaken the hard gate. Test a generic hatch/fill/
+texture exclusion while keeping one `board` capability.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:

@@ -868,6 +868,18 @@ The isolated suite passes 588 tests, fixtures are byte-identical, `compileall`
 passes, and changed Python files pass Ruff. Commit/push v5, repeat the clean
 preflight, then run a new v5 evidence path; Phase 1 remains NO-GO meanwhile.
 
+The complete v5 gate is preserved at
+`evidence/phase1/phase1-quality-v5-2026-07-11-cn-beijing.json`, 95,483 bytes,
+SHA-256
+`0ceb74a7f05ed2ca5cbcac8eb3eb1c340dfac4bf43ceb84e6883cbe4c40e2343`.
+All 13 calls returned, both full runs completed, and run B passed all six
+dispatches. Run A failed only handwriting: 30/30 recall, 38/40 precision, 6/6
+critical-token accuracy, and 10/10 slots, but one unexpected critical token.
+The model hallucinated `111110` from six plasmid hatch strokes. Do not accept
+those digits as optional truth. Add a generic hatch/fill/texture exclusion to
+the prompt and test it without splitting `board` or weakening the gate. See
+`docs/phase1_live_quality_result_v5_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
