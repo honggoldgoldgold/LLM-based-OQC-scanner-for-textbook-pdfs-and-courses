@@ -128,6 +128,12 @@ retains only exact allowlisted rows before two-of-three quorum and all v14
 guards. All 696 offline tests pass; live evidence is pending. See
 `docs/phase1_v15_thinking_scout_and_allowlist_extraction_2026-07-11.md`.
 
+The complete v15 gate returned all 52 calls with zero scout abstentions. One
+run failed only a diagram arrow restored into handwriting; the other failed
+only source-equivalent one-letter `\mathrm{X}` outside the restricted formula
+dialect. Phase 1 remains NO-GO; see
+`docs/phase1_live_quality_result_v15_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

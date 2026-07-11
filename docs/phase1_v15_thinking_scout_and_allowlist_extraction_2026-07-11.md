@@ -2,8 +2,8 @@
 
 Date: 2026-07-11.
 
-Status: targeted Beijing probes and all offline gates pass; complete live gate
-pending.
+Status: targeted Beijing probes and all offline gates pass; the complete live
+gate finished with one distinct failure in each full run.
 
 ## Decision
 
@@ -94,5 +94,17 @@ evidence baseline.
 - Generated fixtures are byte-identical; compileall, Ruff, diff, and conflict
   checks pass.
 
-Phase 1 remains NO-GO pending a fresh complete live gate with two passing full
-runs and clean package profiles.
+## Complete Live Result
+
+The frozen v15 gate completed all 13 recognitions and 52 calls in about 67
+minutes 27 seconds with no terminal failure. Scout availability is solved: all
+recorded abstention counts are zero, and Run B handwriting passes with one safe
+restoration. Run A fails only because scouts restore a diagrammatic `←`; Run B
+fails only because the primary uses source-equivalent one-letter
+`\mathrm{X}` notation outside formula dialect v6. Preserve the 99,223-byte
+evidence SHA-256
+`65dad6a47206562c526f643bab600d87e0f68987f443cc6757e7f07ec9fff95b`.
+See `phase1_live_quality_result_v15_2026-07-11.md`.
+
+Phase 1 remains NO-GO pending those two local policy fixes, a fresh complete
+passing gate, and clean package profiles.

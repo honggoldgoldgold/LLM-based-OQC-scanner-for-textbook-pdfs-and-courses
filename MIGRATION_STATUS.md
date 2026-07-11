@@ -1087,6 +1087,17 @@ The 37,864-byte manifest SHA-256 is
 159 focused and all 696 isolated tests pass. See
 `docs/phase1_v15_thinking_scout_and_allowlist_extraction_2026-07-11.md`.
 
+The v15 gate completed all 13 recognitions and 52 calls from pushed commit
+`248c627` in about 67 minutes 27 seconds. Both full runs completed with zero
+scout abstentions. Run A failed only when an auxiliary diagrammatic `←` was
+inserted into otherwise complete handwriting. Run B handwriting passed with
+one safe restoration, but formula failed only because source-equivalent
+one-letter `\mathrm{X}` is outside dialect v6. Preserve the 99,223-byte
+evidence SHA-256
+`65dad6a47206562c526f643bab600d87e0f68987f443cc6757e7f07ec9fff95b`.
+V16 must exclude directional arrows from auxiliary restoration and narrowly
+unwrap one-letter `\mathrm{X}` in labeled formulas. Do not split handwriting.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

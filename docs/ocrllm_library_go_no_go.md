@@ -2325,6 +2325,15 @@ all 696 isolated tests pass. Phase 1 remains NO-GO pending complete live
 evidence. See
 `phase1_v15_thinking_scout_and_allowlist_extraction_2026-07-11.md`.
 
+The complete v15 run returned all 52 calls with zero scout abstentions. Run A
+failed only a diagrammatic arrow restored into complete handwriting; Run B
+handwriting passed with one safe restoration, while formula failed only
+source-equivalent one-letter `\mathrm{X}` outside dialect v6. Preserve the
+99,223-byte evidence SHA-256
+`65dad6a47206562c526f643bab600d87e0f68987f443cc6757e7f07ec9fff95b`.
+Phase 1 remains NO-GO. See
+`phase1_live_quality_result_v15_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

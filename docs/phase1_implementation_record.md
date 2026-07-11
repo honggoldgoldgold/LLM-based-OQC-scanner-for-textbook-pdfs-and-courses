@@ -455,4 +455,13 @@ deduplicating exact per-scout records and applying the unchanged two-of-three
 quorum and v14 guards. The 37,864-byte manifest
 SHA-256 is
 `9c5fe09635142c457c464d52f2c4bba8e78964f61e3c06cb4b786d8bf6bf3c11`;
-159 focused and 696 exact isolated tests pass. Live v15 evidence is pending.
+159 focused and 696 exact isolated tests pass.
+
+The v15 live gate returned all 52 calls after about 67 minutes 27 seconds. All
+scout abstention counts are zero, and Run B handwriting passes with one safe
+restoration. Run A fails only a scout-restored diagram arrow; Run B fails only
+source-equivalent one-letter `\mathrm{X}` outside formula dialect v6. Preserve
+the 99,223-byte evidence SHA-256
+`65dad6a47206562c526f643bab600d87e0f68987f443cc6757e7f07ec9fff95b`.
+Next exclude arrows from the auxiliary channel and add restricted formula
+dialect v7; no routing, call-count, retry, or truth change is justified.

@@ -1,0 +1,2504 @@
+{
+  "active_attempt": null,
+  "code_identity": {
+    "bundle_algorithm": "sha256-length-framed-path-and-bytes-v1",
+    "packaging": {
+      "file_count": 1,
+      "files": [
+        {
+          "bytes": 703,
+          "path": "pyproject.toml",
+          "sha256": "a557378897dabf2b6bce2fca112ecbf8d21523fa1921cd28c9b5e6f4a30e0ca8"
+        }
+      ],
+      "name": "packaging",
+      "sha256": "d3cacad1742e6687822764786b6ba2a3b4a1f747e8cafb036ce3658d40fc7c95"
+    },
+    "quality": {
+      "file_count": 44,
+      "files": [
+        {
+          "bytes": 68,
+          "path": "tests/quality/__init__.py",
+          "sha256": "eb65bbaf0512b9e0660c605cb23aadfebeceabf7b53aa3d15c21a0abe8e489e2"
+        },
+        {
+          "bytes": 11228,
+          "path": "tests/quality/assert_quality_thresholds.py",
+          "sha256": "2858318f3bc9e70d2df3c339579fc98aaadea4caf78dc8a11958c98e1f825df4"
+        },
+        {
+          "bytes": 2524,
+          "path": "tests/quality/build_phase1_dispatch_plan.py",
+          "sha256": "b21fd43b56753d38559f6792d740a62a4b9c7a17ab84f74df93b64c05fd10261"
+        },
+        {
+          "bytes": 8546,
+          "path": "tests/quality/build_scorer_expectations.py",
+          "sha256": "be8e89b1820dd22358c73455dbfa088365183bfebc86efb7fae4962116d407f6"
+        },
+        {
+          "bytes": 10712,
+          "path": "tests/quality/build_scoring_views.py",
+          "sha256": "5535499c6952291d04ee2f87728e2463361eefb7c83d57274013e6aaf634001d"
+        },
+        {
+          "bytes": 3834,
+          "path": "tests/quality/calculate_language_token_metrics.py",
+          "sha256": "48958316683c7189e2f8901141581ee6a76d474d2e6ea7743acab594537c6d31"
+        },
+        {
+          "bytes": 2006,
+          "path": "tests/quality/calculate_language_token_metrics_with_optional_content.py",
+          "sha256": "54313bc55ce88172ae0b1fb24b0b6c65f6ae64d2370e3a8238199e3df473f4dd"
+        },
+        {
+          "bytes": 7215,
+          "path": "tests/quality/calculate_token_metrics.py",
+          "sha256": "423a1765cbffe4b3b32fcf416034c5ccb7daf8129517d2d059bd47a24d1ff530"
+        },
+        {
+          "bytes": 2485,
+          "path": "tests/quality/calculate_token_metrics_with_optional_content.py",
+          "sha256": "efdcc798879c56d8ca08ffec7c6a14ea00edea750672175e0a84d9e28038a85e"
+        },
+        {
+          "bytes": 7572,
+          "path": "tests/quality/capture_quality_repository_identity.py",
+          "sha256": "4ce3ef07d3b48d1b34753925ff2684e81790d5940a05ea458a2338bc0fce9add"
+        },
+        {
+          "bytes": 5069,
+          "path": "tests/quality/fixture_manifest.py",
+          "sha256": "25bae3d8467312d2f2ee16ec30a7a070ff5ff20bb7594404ad9b6a83dc29f19e"
+        },
+        {
+          "bytes": 71,
+          "path": "tests/quality/generators/__init__.py",
+          "sha256": "21915997c0f17741cd7e053a76906650d19e638f610184b774672a503a52220f"
+        },
+        {
+          "bytes": 1732,
+          "path": "tests/quality/generators/draw_formula_text.py",
+          "sha256": "78b19e3bff0ddfefcdcefa64a01f7bf4d4109e9086f447ecb50b189bc812d465"
+        },
+        {
+          "bytes": 2281,
+          "path": "tests/quality/generators/generate_bilingual_slide.py",
+          "sha256": "bf5fdc430dc69b745e1dfefa2b755751c042d73469078f97471a616fe6895fb9"
+        },
+        {
+          "bytes": 3542,
+          "path": "tests/quality/generators/generate_calibration_table.py",
+          "sha256": "87e228aaab1f4dd3aa0fba54234e0f96fa3a2411211ddedc04b7815cded102d8"
+        },
+        {
+          "bytes": 1831,
+          "path": "tests/quality/generators/generate_formula_board.py",
+          "sha256": "0146fd27fec3f4a0164ac2b8e359b28a637fddacb61db182ada0ec08eb512c69"
+        },
+        {
+          "bytes": 2930,
+          "path": "tests/quality/generators/generate_phase1_fixtures.py",
+          "sha256": "6a1b441463ab99bdf4886e4a1c114965a4c52622b94a43d5d8c7e0350f51bacc"
+        },
+        {
+          "bytes": 2806,
+          "path": "tests/quality/generators/generate_projected_slide_derivative.py",
+          "sha256": "615c891f31e7135c67eeed670830f3251fc2579a7ec637db6f0be26e39d8f2bb"
+        },
+        {
+          "bytes": 1430,
+          "path": "tests/quality/generators/load_quality_font.py",
+          "sha256": "d0f9266e9ec00d0752a9e79a74eeab34b659870ad7a14080ea322e3e76b64295"
+        },
+        {
+          "bytes": 3750,
+          "path": "tests/quality/generators/phase1_fixture_content.py",
+          "sha256": "1aaae9874b077411c00dc41d85b2308812409347ef151b949b73e24efd230526"
+        },
+        {
+          "bytes": 3525,
+          "path": "tests/quality/hash_quality_bundle.py",
+          "sha256": "267fa4d35b643c96fe5bf356f81017fec3b72d394b96a7fe2db2281d3c70be80"
+        },
+        {
+          "bytes": 58083,
+          "path": "tests/quality/load_fixture_manifest.py",
+          "sha256": "57f9689696fcf10bd533f7deb0d8f21fa1b2fd75e768b7ce122a7db763e1115c"
+        },
+        {
+          "bytes": 6244,
+          "path": "tests/quality/normalize_content_units.py",
+          "sha256": "1c5845ff5763f74327a10873d61d2aacef4e5b01d8262a47ccce548bd3ad680f"
+        },
+        {
+          "bytes": 7987,
+          "path": "tests/quality/normalize_recognized_markdown_v2.py",
+          "sha256": "b58bdc4ad495b79a99a76b65495733e5febfd34095cb534cc21f8c67de09ee78"
+        },
+        {
+          "bytes": 708,
+          "path": "tests/quality/normalize_recognized_markdown_v3.py",
+          "sha256": "722cd7e8162083a01e743f5339e1b8011fec6ed9489559dfa959472e3649433c"
+        },
+        {
+          "bytes": 1237,
+          "path": "tests/quality/normalize_recognized_markdown_v4.py",
+          "sha256": "b9bb655f4e85661fecd9f2e75900e2c75387820ab7b3155b616ff0aa6f4bc2e5"
+        },
+        {
+          "bytes": 1178,
+          "path": "tests/quality/normalize_recognized_markdown_v5.py",
+          "sha256": "4ba9c033cb6344adade5361630e7b405889dbbbb266bfa8660457c0bbf82097c"
+        },
+        {
+          "bytes": 1206,
+          "path": "tests/quality/normalize_recognized_markdown_v6.py",
+          "sha256": "15a16df85b10782fd1230c1362c8a37b17ff793fa6ccdffae027a44d4de78a18"
+        },
+        {
+          "bytes": 18557,
+          "path": "tests/quality/parse_formula_signature.py",
+          "sha256": "3b8867aedc8e842e81edfe6665b526368a490357783d3e144989b00f215c0062"
+        },
+        {
+          "bytes": 2145,
+          "path": "tests/quality/parse_markdown_tables.py",
+          "sha256": "7cd584d5b14ff79c8439056d024635945b9a230b6bb90bfb515a78fd59f57fa0"
+        },
+        {
+          "bytes": 2678,
+          "path": "tests/quality/phase1_quality_thresholds.py",
+          "sha256": "1d5408d61b11289cb18b0d5d0194a33485bb7b0fc936019c31c307d9f769a208"
+        },
+        {
+          "bytes": 1189,
+          "path": "tests/quality/rational_score.py",
+          "sha256": "42b68b67c7e971a4f0229d4b3a8ee23f34386a77357598b22952affc301b9e54"
+        },
+        {
+          "bytes": 46545,
+          "path": "tests/quality/run_phase1_quality.py",
+          "sha256": "8291e39f4e1cfb46f0f9eb1cd0bbdc08c6cab465d08408db2b54d766471e3c91"
+        },
+        {
+          "bytes": 9383,
+          "path": "tests/quality/score_critical_slots.py",
+          "sha256": "a617e72ec2af13641fb1ff0f014ecca20af07288643dacd4abd560eee94288d4"
+        },
+        {
+          "bytes": 6747,
+          "path": "tests/quality/score_formula_signatures.py",
+          "sha256": "25cb3acef08c0e743a137fab7581f8cf8958338121c244ad7383ae5e530a391e"
+        },
+        {
+          "bytes": 8264,
+          "path": "tests/quality/score_ordered_anchors.py",
+          "sha256": "e6b2cb0377c347d453928e7292b0318f2a1bff96ad4055dafb7d9968652fd2eb"
+        },
+        {
+          "bytes": 17006,
+          "path": "tests/quality/score_recognition_result.py",
+          "sha256": "449fa0dc78938c1c0a6594c34faf2dc627dfd97977677a86f54a2393a208bb55"
+        },
+        {
+          "bytes": 6719,
+          "path": "tests/quality/score_table_cells.py",
+          "sha256": "986268922702554d3d991c5f7939c19afbe289b7925c9528f5ed1974e8e11ca8"
+        },
+        {
+          "bytes": 5024,
+          "path": "tests/quality/serialize_recognition_quality_report.py",
+          "sha256": "efb43e8510a491ef4b6dd3d7364acc9178dc6c81c70a612b30fa97dcecc6ff16"
+        },
+        {
+          "bytes": 3647,
+          "path": "tests/quality/tokenize_content_units.py",
+          "sha256": "c18f85366f38d0a4ba444e3ac0fc8edaa6143df86861bf8f7736418a48a8fe6c"
+        },
+        {
+          "bytes": 3313,
+          "path": "tests/quality/validate_phase1_recognition_result.py",
+          "sha256": "40ea0c1b2e6101b0bdbe9379858369f1b8cdf043f646a939283e69ebebdfce29"
+        },
+        {
+          "bytes": 15337,
+          "path": "tests/quality/verify_fixture_artifacts.py",
+          "sha256": "a3906ba57bfc5faa487e8e8095d31178a13b9e59ff98dfdb626c06c258171886"
+        },
+        {
+          "bytes": 4126,
+          "path": "tests/quality/verify_quality_import_origins.py",
+          "sha256": "5674dfeb016409d5defc416ef40e2cf7be46b0ff7e70eea826fbf74138f72f44"
+        },
+        {
+          "bytes": 4470,
+          "path": "tests/quality/write_quality_evidence_atomically.py",
+          "sha256": "0f96d0c26a48ed88267a8cd063b48a254cbe9f10d51813aafcf70e07aa153f62"
+        }
+      ],
+      "name": "quality",
+      "sha256": "8f101108f2e1ff64cb4dbb0b0149f45517e2e9cffd2750386e6fe9b3709c001e"
+    },
+    "runtime": {
+      "file_count": 60,
+      "files": [
+        {
+          "bytes": 1035,
+          "path": "src/ocrllm/__init__.py",
+          "sha256": "7ba7870af147ef1d09c7a6cec4e808d7909f51d050f0cee3c9463b1491e066a3"
+        },
+        {
+          "bytes": 1322,
+          "path": "src/ocrllm/build_recognition_result.py",
+          "sha256": "170f23ce99f980038b21c524f613771bf52ad009e79356716e1fe02dd59842bf"
+        },
+        {
+          "bytes": 923,
+          "path": "src/ocrllm/coerce_source_paths.py",
+          "sha256": "7dee18e81ccee783a32fb12d179cb4a93d3ee71510f0f678e63a3edc7a26f628"
+        },
+        {
+          "bytes": 11640,
+          "path": "src/ocrllm/config.py",
+          "sha256": "076db1909e6cae41f8f70558a7ae00a74cd412fc305e3dd08bf2bc8ee667c129"
+        },
+        {
+          "bytes": 916,
+          "path": "src/ocrllm/detect_source_type.py",
+          "sha256": "9526b98353fd67db45ec1fb1bc5760f2c78f49adc7988b9d39b30557ef97203f"
+        },
+        {
+          "bytes": 8403,
+          "path": "src/ocrllm/errors.py",
+          "sha256": "fc05e004afcedad5d866091bf304d7cea5f86b0fc03b0d27686dab46dac08b74"
+        },
+        {
+          "bytes": 3016,
+          "path": "src/ocrllm/freeze_json_value.py",
+          "sha256": "8797b9a2ccfe68f62573274d36ea0fcd830d51e2a145b13d997928b9c418ef5d"
+        },
+        {
+          "bytes": 49,
+          "path": "src/ocrllm/imaging/__init__.py",
+          "sha256": "63cc71d117ee58235cef88eb4287762fe56cb93db8004ec21d356ba952464529"
+        },
+        {
+          "bytes": 1864,
+          "path": "src/ocrllm/imaging/decode_image.py",
+          "sha256": "a980190f81a40c5b00af6cf288a58dcba5605de00e7f88075a71dc2634c17044"
+        },
+        {
+          "bytes": 4599,
+          "path": "src/ocrllm/imaging/decode_image_bytes.py",
+          "sha256": "cdec2741e90403962d381e53d5f15d312f14fe2763024e8185ff1da6ec97f531"
+        },
+        {
+          "bytes": 482,
+          "path": "src/ocrllm/imaging/decoded_image_info.py",
+          "sha256": "eaf2220af0bbaf0a29f79f55e084fd63be0ce6603ec812950d390de5f4be8d19"
+        },
+        {
+          "bytes": 7036,
+          "path": "src/ocrllm/imaging/snapshot_image_group.py",
+          "sha256": "aeddb7d55f9a2a50df6d85594e851331ff816402a62496eaf3a5a572e97b1f73"
+        },
+        {
+          "bytes": 37,
+          "path": "src/ocrllm/output/__init__.py",
+          "sha256": "0034f027c985bad6659c3cb05ae1fca10a30bff4a8868feaecf3a00778dd5944"
+        },
+        {
+          "bytes": 1938,
+          "path": "src/ocrllm/output/build_output_path.py",
+          "sha256": "dde8cc8ba8da2f943993c38cd7d2974012027e22fb3eb4fc814d057f5a23cde5"
+        },
+        {
+          "bytes": 603,
+          "path": "src/ocrllm/output/normalize_output_stem.py",
+          "sha256": "9fca32848641e880fdb7773f32108e100c2cb992be8d89b54512c3648bfb776a"
+        },
+        {
+          "bytes": 2344,
+          "path": "src/ocrllm/output/write_markdown_atomically.py",
+          "sha256": "9b959cd87f687217662d75de49c19c56abb245d29f18d5e624edb5b7ffc67586"
+        },
+        {
+          "bytes": 2266,
+          "path": "src/ocrllm/processor_output.py",
+          "sha256": "79cb444114c9784ab2667d555140430117ff6542c804029809234c255c291433"
+        },
+        {
+          "bytes": 60,
+          "path": "src/ocrllm/processors/__init__.py",
+          "sha256": "27bd5ad61d6b1b615f483fe55c50e8312da783d7900872c72ae06cdbcba2944a"
+        },
+        {
+          "bytes": 1322,
+          "path": "src/ocrllm/processors/count_standalone_sign_representations.py",
+          "sha256": "6df9a3b315d3ea79346db1509ccea4332803be8c496e353f745f74b7df838142"
+        },
+        {
+          "bytes": 1164,
+          "path": "src/ocrllm/processors/extract_supported_standalone_sign_events.py",
+          "sha256": "3f7a5305e25747a15fbf6b2d14f122eba58e884e83b2741ff99da9e7ac895e1a"
+        },
+        {
+          "bytes": 414,
+          "path": "src/ocrllm/processors/is_gfm_pipe_table_row.py",
+          "sha256": "5dec1811a5f965dc70857dbd64d0c1de23c38dc0187c89fb8b591da60b866fec"
+        },
+        {
+          "bytes": 2338,
+          "path": "src/ocrllm/processors/parse_standalone_sign_ledger.py",
+          "sha256": "b498b9369819b3d06f98ea417d65e0780bdf9c140c9e2537fa05f9b5ec0c8ed5"
+        },
+        {
+          "bytes": 6979,
+          "path": "src/ocrllm/processors/recognize_images.py",
+          "sha256": "c92e9bb31cc637f8caf7d8eaf0aa79481dff514562dc2906ff4f50780fa73e98"
+        },
+        {
+          "bytes": 8164,
+          "path": "src/ocrllm/processors/restore_quorum_standalone_signs.py",
+          "sha256": "cfc466b00c652cb7b7658aab5d3e796625b1fe8218b86cf109e932960c8f2a9d"
+        },
+        {
+          "bytes": 35,
+          "path": "src/ocrllm/profiles/__init__.py",
+          "sha256": "2d4cd115e333a78090682a5422593cfe8628a47daf9ceef8dae4994ec4eeba21"
+        },
+        {
+          "bytes": 1717,
+          "path": "src/ocrllm/profiles/build_board_consensus_prompt.py",
+          "sha256": "791145bf3beea681574276387041e40d7b78e3f92cb7b2d12bcf186fea1f9751"
+        },
+        {
+          "bytes": 2838,
+          "path": "src/ocrllm/profiles/build_board_prompt.py",
+          "sha256": "2921ef1ce08ea74ee77cc7d3d9b7e11ae3526fa079fb3dcdcadafcb84c68e808"
+        },
+        {
+          "bytes": 1249,
+          "path": "src/ocrllm/profiles/build_board_review_prompt.py",
+          "sha256": "ee809f69329f56d4cfedb32095ac195c58f1da3635b91f0c328ffbe5d17dbbb0"
+        },
+        {
+          "bytes": 1395,
+          "path": "src/ocrllm/profiles/build_board_sign_scout_prompt.py",
+          "sha256": "a8e659938b09f45d4a3938543f318afd71637f1a4b301fc2adc27b137915d6aa"
+        },
+        {
+          "bytes": 1299,
+          "path": "src/ocrllm/profiles/build_board_symbol_audit_prompt.py",
+          "sha256": "3a2cc38b7d311e84f08924ff83da4ebd0278eb38519d39def4f49e178bb4f56e"
+        },
+        {
+          "bytes": 525,
+          "path": "src/ocrllm/profiles/resolve_image_profile.py",
+          "sha256": "304282727701dc45995aa4f0d05385c2a9455fc697c7d748e5641a4fa440d8ac"
+        },
+        {
+          "bytes": 61,
+          "path": "src/ocrllm/providers/__init__.py",
+          "sha256": "d34f4c656c69b0f32d1a9ebcff1c3a833679d8713e567998d43277de34ac9bd4"
+        },
+        {
+          "bytes": 2555,
+          "path": "src/ocrllm/providers/call_vision_provider.py",
+          "sha256": "16ee23be151a70f2b8ffae73ec1688a241397bc38d51197916d8200f5bd4e602"
+        },
+        {
+          "bytes": 155,
+          "path": "src/ocrllm/providers/dashscope/__init__.py",
+          "sha256": "5e76e917c09c48b4128c48a67afd4eb09f1b629ff90d88075a2c75150251ca3b"
+        },
+        {
+          "bytes": 14335,
+          "path": "src/ocrllm/providers/dashscope/build_dashscope_image_request.py",
+          "sha256": "e6f0031438f51c0b853ecdfe7860249aaac103a62d295801099d0325805d149a"
+        },
+        {
+          "bytes": 604,
+          "path": "src/ocrllm/providers/dashscope/create_dashscope_openai_client.py",
+          "sha256": "5051c26d06baf03566a891dcbc1c27af8e453b58240c3dcdeb3f4fd2d3ab25ad"
+        },
+        {
+          "bytes": 1358,
+          "path": "src/ocrllm/providers/dashscope/load_openai.py",
+          "sha256": "a8c1a3aa94c88c90301c86649dc3c0f4dc53d108f1477a59eaf7344968985d5d"
+        },
+        {
+          "bytes": 6356,
+          "path": "src/ocrllm/providers/dashscope/map_dashscope_error.py",
+          "sha256": "2fffa035b81075119f59a0a1eb072854702bc5b6477d90d20757a5515ea1e2ff"
+        },
+        {
+          "bytes": 2590,
+          "path": "src/ocrllm/providers/dashscope/parse_dashscope_image_response.py",
+          "sha256": "b837b1d6f7da205aa360756c2d32bfeaab39177ee6ffc3d447750fbd82f8454a"
+        },
+        {
+          "bytes": 2021,
+          "path": "src/ocrllm/providers/dashscope/parse_dashscope_raw_response.py",
+          "sha256": "69db2a2fdfeacb5c16423e24001b602fcc38a348308501f5f3bee15b9001211a"
+        },
+        {
+          "bytes": 4044,
+          "path": "src/ocrllm/providers/dashscope/provider_settings.py",
+          "sha256": "a0ee31629b1513fc770b35efef639ef3ccd5f7137595398826d62db5f2d6bfbe"
+        },
+        {
+          "bytes": 4373,
+          "path": "src/ocrllm/providers/dashscope/recognize_images.py",
+          "sha256": "5204dc14770ec22624dc7cb729712de77b65e5287cd4fd56ce54771862a329c0"
+        },
+        {
+          "bytes": 885,
+          "path": "src/ocrllm/providers/dashscope/resolve_dashscope_credential.py",
+          "sha256": "f200387ef0a0049ac39962d783ae39c9544f623ff4376d1504b23f20b911510b"
+        },
+        {
+          "bytes": 1071,
+          "path": "src/ocrllm/providers/dashscope/resolve_dashscope_model.py",
+          "sha256": "37d7858243439672b70639906af7eb44caef8515881a3e16758b79f09fdadbe2"
+        },
+        {
+          "bytes": 612,
+          "path": "src/ocrllm/providers/dashscope/resolve_sign_scout_enable_thinking.py",
+          "sha256": "9a966958479795e0dd526b98e8ed0f1cad2127cad1689dd8761050cc8cae82ce"
+        },
+        {
+          "bytes": 2325,
+          "path": "src/ocrllm/providers/map_injected_provider_error.py",
+          "sha256": "aa71dfc47fc8d2a8381693215c3ce754ac61bcd7bcc590d5f7e15c465bf4e1d7"
+        },
+        {
+          "bytes": 1806,
+          "path": "src/ocrllm/providers/resolve_vision_provider.py",
+          "sha256": "53990dafeaff924a8a1cb2b9079df8233c127014dd3960cf4cde2f49e6115c34"
+        },
+        {
+          "bytes": 409,
+          "path": "src/ocrllm/providers/resolved_vision_provider.py",
+          "sha256": "e47743f44e5a867e0ad7aeb210011d001d04a0afa0792001041937884eb3771a"
+        },
+        {
+          "bytes": 682,
+          "path": "src/ocrllm/providers/validate_provider_markdown.py",
+          "sha256": "afcd560660de715004fc0da23d56929a0c4293f31babc658ac3c1724edc3c3e9"
+        },
+        {
+          "bytes": 608,
+          "path": "src/ocrllm/providers/vision_provider.py",
+          "sha256": "f369306e4f24259127367365bf2b1a719cdf7a404a8c4c29046c99a5c621acc4"
+        },
+        {
+          "bytes": 1264,
+          "path": "src/ocrllm/raise_if_cancelled.py",
+          "sha256": "0e542f9864253a5b1727e5e6b2273af0dcbe41025da1ccc55ef1a524106aee4e"
+        },
+        {
+          "bytes": 1196,
+          "path": "src/ocrllm/recognition_preferences.py",
+          "sha256": "13e9021a8819fda658f941106ad72621305b5e96e3f8664584f349b3398a90f5"
+        },
+        {
+          "bytes": 2526,
+          "path": "src/ocrllm/recognize.py",
+          "sha256": "d59ec4434dc1aa862b1e7fce011effa29b82b49293864c41aca0f639688d7c8e"
+        },
+        {
+          "bytes": 692,
+          "path": "src/ocrllm/recognize_batch.py",
+          "sha256": "a4563dc6503fc0ccbc5c553b426bbdaf50754faa2a3b248bc4e698387c470f23"
+        },
+        {
+          "bytes": 2409,
+          "path": "src/ocrllm/result.py",
+          "sha256": "821cc136f7bc3c32081957a98f8f1c313a25d2bb21ab7eb148734c3123bfe9aa"
+        },
+        {
+          "bytes": 742,
+          "path": "src/ocrllm/snapshot_config.py",
+          "sha256": "efe458056149bc2a09e36e051d5bd6d372ca299a6a4c6875975eb60ca4e09522"
+        },
+        {
+          "bytes": 407,
+          "path": "src/ocrllm/validate_config.py",
+          "sha256": "5bb6004cac05fcd9ed7b0473e2035ea898d727e5d95b695aa9ea5464e92e43e2"
+        },
+        {
+          "bytes": 2364,
+          "path": "src/ocrllm/validate_image_group.py",
+          "sha256": "48b851c20b391510bffeb7b7b3b71e52b994502db23d698cef2b95f53dc9cb47"
+        },
+        {
+          "bytes": 1122,
+          "path": "src/ocrllm/validate_same_type_group.py",
+          "sha256": "fd7e3676c8e10f4162eeac4beb05c6cb0ac982dcf2c7df5fec8efa86efed7096"
+        },
+        {
+          "bytes": 2471,
+          "path": "src/ocrllm/validate_source.py",
+          "sha256": "221ac52b0536d520d75e15c16162d4840778f3fea5763af83d4737be79eb9952"
+        }
+      ],
+      "name": "runtime",
+      "sha256": "1a821cb6a4e686158ef5c30ee64ff3eeab98842b1f02fb86d819a47df5a6d9f5"
+    }
+  },
+  "dispatch_plan": {
+    "entries": [
+      {
+        "attempt_index": 0,
+        "fixture_ids": [
+          "bilingual-printed-slide"
+        ],
+        "kind": "single",
+        "manifest_sequence": 0,
+        "ordered_request_id": null,
+        "phase": "smoke",
+        "run_index": null
+      },
+      {
+        "attempt_index": 1,
+        "fixture_ids": [
+          "bilingual-printed-slide"
+        ],
+        "kind": "single",
+        "manifest_sequence": 0,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 1
+      },
+      {
+        "attempt_index": 2,
+        "fixture_ids": [
+          "bilingual-projected-slide"
+        ],
+        "kind": "single",
+        "manifest_sequence": 1,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 1
+      },
+      {
+        "attempt_index": 3,
+        "fixture_ids": [
+          "handwritten-whiteboard"
+        ],
+        "kind": "single",
+        "manifest_sequence": 2,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 1
+      },
+      {
+        "attempt_index": 4,
+        "fixture_ids": [
+          "formula-integrity-board"
+        ],
+        "kind": "single",
+        "manifest_sequence": 3,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 1
+      },
+      {
+        "attempt_index": 5,
+        "fixture_ids": [
+          "calibration-data-table"
+        ],
+        "kind": "single",
+        "manifest_sequence": 4,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 1
+      },
+      {
+        "attempt_index": 6,
+        "fixture_ids": [
+          "bilingual-printed-slide",
+          "formula-integrity-board"
+        ],
+        "kind": "ordered",
+        "manifest_sequence": 5,
+        "ordered_request_id": "clean-slide-then-formula-board",
+        "phase": "full",
+        "run_index": 1
+      },
+      {
+        "attempt_index": 7,
+        "fixture_ids": [
+          "bilingual-printed-slide"
+        ],
+        "kind": "single",
+        "manifest_sequence": 0,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 2
+      },
+      {
+        "attempt_index": 8,
+        "fixture_ids": [
+          "bilingual-projected-slide"
+        ],
+        "kind": "single",
+        "manifest_sequence": 1,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 2
+      },
+      {
+        "attempt_index": 9,
+        "fixture_ids": [
+          "handwritten-whiteboard"
+        ],
+        "kind": "single",
+        "manifest_sequence": 2,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 2
+      },
+      {
+        "attempt_index": 10,
+        "fixture_ids": [
+          "formula-integrity-board"
+        ],
+        "kind": "single",
+        "manifest_sequence": 3,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 2
+      },
+      {
+        "attempt_index": 11,
+        "fixture_ids": [
+          "calibration-data-table"
+        ],
+        "kind": "single",
+        "manifest_sequence": 4,
+        "ordered_request_id": null,
+        "phase": "full",
+        "run_index": 2
+      },
+      {
+        "attempt_index": 12,
+        "fixture_ids": [
+          "bilingual-printed-slide",
+          "formula-integrity-board"
+        ],
+        "kind": "ordered",
+        "manifest_sequence": 5,
+        "ordered_request_id": "clean-slide-then-formula-board",
+        "phase": "full",
+        "run_index": 2
+      }
+    ],
+    "sha256": "27072baa0f263367a55e6b1e6488036ccb8a0c1f185478a9f542ef79e7ea26bd"
+  },
+  "environment": {
+    "distributions": {
+      "Pillow": "12.3.0",
+      "httpx": "0.28.1",
+      "ocrllm": "0.1.0",
+      "openai": "2.45.0"
+    },
+    "implementation": "CPython",
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.10.20"
+  },
+  "execution": {
+    "injected_dependencies": [],
+    "mode": "live"
+  },
+  "finished_utc": "2026-07-11T21:53:43.360241Z",
+  "full_runs": [
+    {
+      "dispatches": [
+        {
+          "attempt_index": 1,
+          "elapsed_ms": 214812,
+          "failure": null,
+          "finished_utc": "2026-07-11T20:52:54.302102Z",
+          "fixture_ids": [
+            "bilingual-printed-slide"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 269337,
+              "id": "bilingual-printed-slide-image",
+              "path": "tests/fixtures/phase1/images/bilingual_printed_slide.png",
+              "sha256": "5c1d8b7c4de3aa469007b0da0fba8c42a1646226854651a10f244591d57f7696"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 0,
+          "markdown": "# RELIABLE MULTIMODAL NOTES 可靠的多模态课堂笔记\n\n## CAPTURE / 采集\nRead every image in source order\n按输入顺序读取每张图片\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n## LANGUAGE / 语言\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n## STRUCTURE / 结构\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n## FORMULAS / 公式\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n## TABLES / 表格\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n## ACCURACY / 准确度\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n## OUTPUT / 输出\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n## AUDIT / 审计\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314",
+          "markdown_sha256": "2ba525be15d85ff5643ba463c5970f16ac5a847f6d951fe29eb19d3a215cad2b",
+          "markdown_utf8_bytes": 1364,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 1,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 9,
+                  "numerator": 9
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 0,
+              "failure_codes": [],
+              "fixture_ids": [
+                "bilingual-printed-slide"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "recall": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 176,
+                    "numerator": 176
+                  },
+                  "recall": {
+                    "denominator": 176,
+                    "numerator": 176
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "printed_slide",
+              "table": null,
+              "target": "bilingual-printed-slide",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 31,
+                  "numerator": 31
+                },
+                "precision": {
+                  "denominator": 312,
+                  "numerator": 312
+                },
+                "recall": {
+                  "denominator": 312,
+                  "numerator": 312
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T20:49:19.497016Z"
+        },
+        {
+          "attempt_index": 2,
+          "elapsed_ms": 194141,
+          "failure": null,
+          "finished_utc": "2026-07-11T20:56:09.696353Z",
+          "fixture_ids": [
+            "bilingual-projected-slide"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 328537,
+              "id": "bilingual-projected-slide-image",
+              "path": "tests/fixtures/phase1/images/bilingual_printed_slide_projected.jpg",
+              "sha256": "f3c906cab2755eee3dc9b6291bc06da188008c02a1e6a55c73304993a6f1d7f4"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 1,
+          "markdown": "# RELIABLE MULTIMODAL NOTES\n可靠的多模态课堂笔记\n\n### CAPTURE / 采集\nRead every image in source order\n按输入顺序读取每张图\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n### LANGUAGE / 语言\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n### STRUCTURE / 结构\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n### FORMULAS / 公式\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n### TABLES / 表格\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n### ACCURACY / 准确度\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n### OUTPUT / 输出\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n### AUDIT / 审计\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314",
+          "markdown_sha256": "797b6e37f705681d69f5290ff7cd3a392ab85e35f90a5fd3a528971330d35be6",
+          "markdown_utf8_bytes": 1369,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 1,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 9,
+                  "numerator": 9
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 1,
+              "failure_codes": [],
+              "fixture_ids": [
+                "bilingual-projected-slide"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "recall": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 175,
+                    "numerator": 175
+                  },
+                  "recall": {
+                    "denominator": 176,
+                    "numerator": 175
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "degraded_printed_slide",
+              "table": null,
+              "target": "bilingual-projected-slide",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 31,
+                  "numerator": 31
+                },
+                "precision": {
+                  "denominator": 311,
+                  "numerator": 311
+                },
+                "recall": {
+                  "denominator": 312,
+                  "numerator": 311
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T20:52:55.559884Z"
+        },
+        {
+          "attempt_index": 3,
+          "elapsed_ms": 396563,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:02:47.439351Z",
+          "fixture_ids": [
+            "handwritten-whiteboard"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 593407,
+              "id": "handwritten-whiteboard-image",
+              "path": "tests/fixtures/phase1/images/handwritten_whiteboard.jpg",
+              "sha256": "bcb0dcbf3c62fdecab3f01d32a30cfe0d6ded9f676edcae7a2e4109248908b1d"
+            }
+          ],
+          "input_languages": [
+            "en-US"
+          ],
+          "kind": "single",
+          "manifest_sequence": 2,
+          "markdown": "MCS\nPlasmid Vector\nSticky End\nATCG\nBlunt End\nEnzymens\n-> Nuclease: Cut\n-> Ligase: join\nforeign gene\nTAG\nTA\n+\nI:V\n3:1 Ratio\nTransformation\n+\nValidation\n- Selection\n- Screening\nR-DNA / Replasmid\n←\nRG\nOR\nAmp RG",
+          "markdown_sha256": "3d5f3bc6d29336b3f56c33e62c408bdb687a73ff1870f8d7017c38d10d72f7cb",
+          "markdown_utf8_bytes": 209,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "3a154887345b1d18cc18d5a9884190daaf388eb679813a859a4c3d760ec779c8",
+          "prompt_utf8_bytes": 2674,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 1,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 1,
+          "scorer": {
+            "failure": {
+              "code": "SCORER_REJECTED",
+              "message": "unsupported visible character U+2190 at offset 183",
+              "retryable": false,
+              "stage": "scorer"
+            },
+            "report": null,
+            "status": "rejected"
+          },
+          "started_utc": "2026-07-11T20:56:10.884801Z"
+        },
+        {
+          "attempt_index": 4,
+          "elapsed_ms": 397500,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:09:26.034786Z",
+          "fixture_ids": [
+            "formula-integrity-board"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 116507,
+              "id": "formula-board-image",
+              "path": "tests/fixtures/phase1/images/formula_board.png",
+              "sha256": "b329e0734d406e8a02404a66df0f8178a7b7ee7335818aa6bea42a236a8ecb7b"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 3,
+          "markdown": "# FORMULA INTEGRITY BOARD / 公式完整性校验\n\nF01: $a_1 + a_2 = 17$\n\nF02: $x_1 - 3x_2 \\le -4$\n\nF03: $y = 2x^2 - 5x + 7$\n\nF04: $s_4 = 1 + 2 + 3 + 4 = 10$\n\nF05: $P(A \\mid B) = 0.625$\n\nF06: $\\det(M) = 3 \\times 8 - 2 \\times 5 = 14$\n\nF07: $v_2 = (-3, 4)$\n\nF08: $f'(x) = 6x - 5$\n\nF09: $\\| u \\|_2 = \\sqrt{25} = 5$\n\nF10: $z_3 \\ge 1.25$\n\nF11: $E[X_2] = 2.4$\n\nF12: $R_n = n(n + 1) / 2$\n\nORDER-LAST: ZENITH-926",
+          "markdown_sha256": "8ae84081e4029dc5b938245a9379e5053049fd330fa7452051d32a1ec880857a",
+          "markdown_utf8_bytes": 404,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 1,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 1,
+                  "numerator": 1
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 3,
+              "failure_codes": [],
+              "fixture_ids": [
+                "formula-integrity-board"
+              ],
+              "formulas": {
+                "atom_precision": {
+                  "denominator": 133,
+                  "numerator": 133
+                },
+                "critical_accuracy": {
+                  "denominator": 108,
+                  "numerator": 108
+                },
+                "missing_atom_count": 0,
+                "missing_labels": [],
+                "signature_accuracy": {
+                  "denominator": 12,
+                  "numerator": 12
+                },
+                "unexpected_atom_count": 0,
+                "unexpected_labels": []
+              },
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 6,
+                    "numerator": 6
+                  },
+                  "recall": {
+                    "denominator": 6,
+                    "numerator": 6
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 7,
+                    "numerator": 7
+                  },
+                  "recall": {
+                    "denominator": 7,
+                    "numerator": 7
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "formula_board",
+              "table": null,
+              "target": "formula-integrity-board",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 4,
+                  "numerator": 4
+                },
+                "precision": {
+                  "denominator": 17,
+                  "numerator": 17
+                },
+                "recall": {
+                  "denominator": 17,
+                  "numerator": 17
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:02:48.541686Z"
+        },
+        {
+          "attempt_index": 5,
+          "elapsed_ms": 285406,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:14:15.018888Z",
+          "fixture_ids": [
+            "calibration-data-table"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 98496,
+              "id": "calibration-table-image",
+              "path": "tests/fixtures/phase1/images/calibration_table.png",
+              "sha256": "f5c3834984653559add7bec7b9b64eba39937dcfd388b516a9b4607ef4d2ef18"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 4,
+          "markdown": "# CALIBRATION RUNS / 校准数据\n\n| Run<br>组次 | Load (N)<br>载荷 | Drift (mm)<br>漂移 | Temp (°C)<br>温度 | Gain<br>增益 | Status<br>状态 |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| A-01 | 12.57 | +0.18 | 18.6 | 1.025 | PASS |\n| A-02 | 24.83 | −0.07 | 19.1 | 0.998 | PASS |\n| B-01 | 36.14 | +1.25 | 18.9 | 1.104 | CHECK |\n| B-02 | 48.92 | −1.40 | 20.2 | 0.875 | PASS |\n| C-01 | 60.31 | +2.05 | 21.7 | 1.25 | HOLD |",
+          "markdown_sha256": "baea23f13f5ae96e3f281f32aec293fb12600ab8e683b2f0da057b23aa9b105f",
+          "markdown_utf8_bytes": 438,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 1,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": null,
+              "dispatch_sequence": 4,
+              "failure_codes": [],
+              "fixture_ids": [
+                "calibration-data-table"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 2,
+                    "numerator": 2
+                  },
+                  "recall": {
+                    "denominator": 2,
+                    "numerator": 2
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 4,
+                    "numerator": 4
+                  },
+                  "recall": {
+                    "denominator": 4,
+                    "numerator": 4
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "table",
+              "table": {
+                "critical_accuracy": {
+                  "denominator": 25,
+                  "numerator": 25
+                },
+                "data_cell_accuracy": {
+                  "denominator": 30,
+                  "numerator": 30
+                },
+                "header_accuracy": {
+                  "denominator": 6,
+                  "numerator": 6
+                },
+                "unexpected_coordinate_count": 0,
+                "unexpected_critical_cell_count": 0
+              },
+              "target": "calibration-data-table",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 1,
+                  "numerator": 1
+                },
+                "precision": {
+                  "denominator": 7,
+                  "numerator": 7
+                },
+                "recall": {
+                  "denominator": 7,
+                  "numerator": 7
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:09:29.626308Z"
+        },
+        {
+          "attempt_index": 6,
+          "elapsed_ms": 486641,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:22:23.280818Z",
+          "fixture_ids": [
+            "bilingual-printed-slide",
+            "formula-integrity-board"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 269337,
+              "id": "bilingual-printed-slide-image",
+              "path": "tests/fixtures/phase1/images/bilingual_printed_slide.png",
+              "sha256": "5c1d8b7c4de3aa469007b0da0fba8c42a1646226854651a10f244591d57f7696"
+            },
+            {
+              "bytes": 116507,
+              "id": "formula-board-image",
+              "path": "tests/fixtures/phase1/images/formula_board.png",
+              "sha256": "b329e0734d406e8a02404a66df0f8178a7b7ee7335818aa6bea42a236a8ecb7b"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "ordered",
+          "manifest_sequence": 5,
+          "markdown": "# RELIABLE MULTIMODAL NOTES 可靠的多模态课堂笔记\n\n**CAPTURE / 采集**\nRead every image in source order\n按输入顺序读取每张图片\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n**LANGUAGE / 语言**\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n**STRUCTURE / 结构**\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n**FORMULAS / 公式**\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n**TABLES / 表格**\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n**ACCURACY / 准确度**\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n**OUTPUT / 输出**\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n**AUDIT / 审计**\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314\n\n# FORMULA INTEGRITY BOARD / 公式完整性校验\n\nF01: $a_1 + a_2 = 17$\nF02: $x_1 - 3x_2 \\le -4$\nF03: $y = 2x^2 - 5x + 7$\nF04: $s_4 = 1 + 2 + 3 + 4 = 10$\nF05: $P(A \\mid B) = 0.625$\nF06: $\\det(M) = 3 \\times 8 - 2 \\times 5 = 14$\nF07: $v_2 = (-3, 4)$\nF08: $f'(x) = 6x - 5$\nF09: $\\| u \\|_2 = \\sqrt{25} = 5$\nF10: $z_3 \\ge 1.25$\nF11: $E[X_2] = 2.4$\nF12: $R_n = n(n + 1) / 2$\n\nORDER-LAST: ZENITH-926",
+          "markdown_sha256": "c88909100a22d8ecacb8ee9473fe78ae8f351e215aa6be3b8eb6da5682105252",
+          "markdown_utf8_bytes": 1767,
+          "ordered_request_id": "clean-slide-then-formula-board",
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 2,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 1,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 10,
+                  "numerator": 10
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 5,
+              "failure_codes": [],
+              "fixture_ids": [
+                "bilingual-printed-slide",
+                "formula-integrity-board"
+              ],
+              "formulas": {
+                "atom_precision": {
+                  "denominator": 133,
+                  "numerator": 133
+                },
+                "critical_accuracy": {
+                  "denominator": 108,
+                  "numerator": 108
+                },
+                "missing_atom_count": 0,
+                "missing_labels": [],
+                "signature_accuracy": {
+                  "denominator": 12,
+                  "numerator": 12
+                },
+                "unexpected_atom_count": 0,
+                "unexpected_labels": []
+              },
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 111,
+                    "numerator": 111
+                  },
+                  "recall": {
+                    "denominator": 111,
+                    "numerator": 111
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 183,
+                    "numerator": 183
+                  },
+                  "recall": {
+                    "denominator": 183,
+                    "numerator": 183
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": {
+                "anchors_do_not_overlap": true,
+                "duplicate_occurrence_count": 0,
+                "first_appearances_in_order": true,
+                "first_token_offsets": [
+                  306,
+                  323
+                ],
+                "image_count_matches": true,
+                "presence": {
+                  "denominator": 2,
+                  "numerator": 2
+                },
+                "source_order_matches": true
+              },
+              "passes": true,
+              "profile": "ordered_request",
+              "table": null,
+              "target": "clean-slide-then-formula-board",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 35,
+                  "numerator": 35
+                },
+                "precision": {
+                  "denominator": 329,
+                  "numerator": 329
+                },
+                "recall": {
+                  "denominator": 329,
+                  "numerator": 329
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:14:16.632334Z"
+        }
+      ],
+      "passes": false,
+      "run_index": 1,
+      "status": "complete"
+    },
+    {
+      "dispatches": [
+        {
+          "attempt_index": 7,
+          "elapsed_ms": 200859,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:25:46.208176Z",
+          "fixture_ids": [
+            "bilingual-printed-slide"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 269337,
+              "id": "bilingual-printed-slide-image",
+              "path": "tests/fixtures/phase1/images/bilingual_printed_slide.png",
+              "sha256": "5c1d8b7c4de3aa469007b0da0fba8c42a1646226854651a10f244591d57f7696"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 0,
+          "markdown": "# RELIABLE MULTIMODAL NOTES 可靠的多模态课堂笔记\n\n### CAPTURE / 采集\nRead every image in source order\n按输入顺序读取每张图片\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n### LANGUAGE / 语言\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n### STRUCTURE / 结构\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n### FORMULAS / 公式\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n### TABLES / 表格\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n### ACCURACY / 准确度\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n### OUTPUT / 输出\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n### AUDIT / 审计\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314",
+          "markdown_sha256": "3d6f5c9d4802b8cb376aef129607624e73cb1f5e5a0af6180b41bb08814e8cc6",
+          "markdown_utf8_bytes": 1372,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 2,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 9,
+                  "numerator": 9
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 0,
+              "failure_codes": [],
+              "fixture_ids": [
+                "bilingual-printed-slide"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "recall": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 176,
+                    "numerator": 176
+                  },
+                  "recall": {
+                    "denominator": 176,
+                    "numerator": 176
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "printed_slide",
+              "table": null,
+              "target": "bilingual-printed-slide",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 31,
+                  "numerator": 31
+                },
+                "precision": {
+                  "denominator": 312,
+                  "numerator": 312
+                },
+                "recall": {
+                  "denominator": 312,
+                  "numerator": 312
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:22:25.355684Z"
+        },
+        {
+          "attempt_index": 8,
+          "elapsed_ms": 216250,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:29:24.433255Z",
+          "fixture_ids": [
+            "bilingual-projected-slide"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 328537,
+              "id": "bilingual-projected-slide-image",
+              "path": "tests/fixtures/phase1/images/bilingual_printed_slide_projected.jpg",
+              "sha256": "f3c906cab2755eee3dc9b6291bc06da188008c02a1e6a55c73304993a6f1d7f4"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 1,
+          "markdown": "# RELIABLE MULTIMODAL NOTES\n可靠的多模态课堂笔记\n\n### CAPTURE / 采集\nRead every image in source order\n按输入顺序读取每张图\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n### LANGUAGE / 语言\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n### STRUCTURE / 结构\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n### FORMULAS / 公式\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n### TABLES / 表格\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n### ACCURACY / 准确度\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n### OUTPUT / 输出\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n### AUDIT / 审计\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314",
+          "markdown_sha256": "797b6e37f705681d69f5290ff7cd3a392ab85e35f90a5fd3a528971330d35be6",
+          "markdown_utf8_bytes": 1369,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 2,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 9,
+                  "numerator": 9
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 1,
+              "failure_codes": [],
+              "fixture_ids": [
+                "bilingual-projected-slide"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "recall": {
+                    "denominator": 105,
+                    "numerator": 105
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 175,
+                    "numerator": 175
+                  },
+                  "recall": {
+                    "denominator": 176,
+                    "numerator": 175
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "degraded_printed_slide",
+              "table": null,
+              "target": "bilingual-projected-slide",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 31,
+                  "numerator": 31
+                },
+                "precision": {
+                  "denominator": 311,
+                  "numerator": 311
+                },
+                "recall": {
+                  "denominator": 312,
+                  "numerator": 311
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:25:48.184511Z"
+        },
+        {
+          "attempt_index": 9,
+          "elapsed_ms": 357641,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:35:23.226472Z",
+          "fixture_ids": [
+            "handwritten-whiteboard"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 593407,
+              "id": "handwritten-whiteboard-image",
+              "path": "tests/fixtures/phase1/images/handwritten_whiteboard.jpg",
+              "sha256": "bcb0dcbf3c62fdecab3f01d32a30cfe0d6ded9f676edcae7a2e4109248908b1d"
+            }
+          ],
+          "input_languages": [
+            "en-US"
+          ],
+          "kind": "single",
+          "manifest_sequence": 2,
+          "markdown": "MCS\nPlasmid Vector\nSticky End\nBlunt End\nATCG\nACGT\nTGCA\nRG\nOR\nAmp R\nforeign gene\nTAG\nTA\nEnzymens\n-> Nuclease: Cut\n-> Ligase: join\n+\nI:V\n3:1 Ratio\nTransformation.\n+\nValidation\n- Selection\n- Screening.\nR-DNA/Replasmid.",
+          "markdown_sha256": "7122abe1f36b57c38b25b3258d3f4f06e4393805c28a3fc2f711f257a5ff83dc",
+          "markdown_utf8_bytes": 215,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "3a154887345b1d18cc18d5a9884190daaf388eb679813a859a4c3d760ec779c8",
+          "prompt_utf8_bytes": 2674,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 1,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 2,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 10,
+                  "numerator": 10
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 2,
+              "failure_codes": [],
+              "fixture_ids": [
+                "handwritten-whiteboard"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 33,
+                    "numerator": 32
+                  },
+                  "recall": {
+                    "denominator": 24,
+                    "numerator": 24
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": [
+                    16
+                  ]
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "handwriting",
+              "table": null,
+              "target": "handwritten-whiteboard",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 6,
+                  "numerator": 6
+                },
+                "precision": {
+                  "denominator": 39,
+                  "numerator": 38
+                },
+                "recall": {
+                  "denominator": 30,
+                  "numerator": 30
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": [
+                  16
+                ]
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:29:25.590877Z"
+        },
+        {
+          "attempt_index": 10,
+          "elapsed_ms": 347578,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:41:13.480551Z",
+          "fixture_ids": [
+            "formula-integrity-board"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 116507,
+              "id": "formula-board-image",
+              "path": "tests/fixtures/phase1/images/formula_board.png",
+              "sha256": "b329e0734d406e8a02404a66df0f8178a7b7ee7335818aa6bea42a236a8ecb7b"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 3,
+          "markdown": "# FORMULA INTEGRITY BOARD / 公式完整性校验\n\nF01: $a_1 + a_2 = 17$\nF02: $x_1 - 3x_2 \\leqslant -4$\nF03: $y = 2x^2 - 5x + 7$\nF04: $s_4 = 1 + 2 + 3 + 4 = 10$\nF05: $\\mathrm{P}(\\mathrm{A} \\mid \\mathrm{B}) = 0.625$\nF06: $\\det(\\mathrm{M}) = 3 \\times 8 - 2 \\times 5 = 14$\nF07: $v_2 = (-3, 4)$\nF08: $f'(x) = 6x - 5$\nF09: $\\| u \\|_2 = \\sqrt{25} = 5$\nF10: $z_3 \\geqslant 1.25$\nF11: $\\mathrm{E}[X_2] = 2.4$\nF12: $R_n = n(n + 1) / 2$\n\nORDER-LAST: ZENITH-926",
+          "markdown_sha256": "22823644ed07786eafedd554094f5a844c380396ffe34c24a5bfa8408b7777f9",
+          "markdown_utf8_bytes": 450,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 2,
+          "scorer": {
+            "failure": {
+              "code": "SCORER_REJECTED",
+              "message": "unsupported LaTeX command: \\mathrm",
+              "retryable": false,
+              "stage": "scorer"
+            },
+            "report": null,
+            "status": "rejected"
+          },
+          "started_utc": "2026-07-11T21:35:25.908340Z"
+        },
+        {
+          "attempt_index": 11,
+          "elapsed_ms": 296281,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:46:11.423242Z",
+          "fixture_ids": [
+            "calibration-data-table"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 98496,
+              "id": "calibration-table-image",
+              "path": "tests/fixtures/phase1/images/calibration_table.png",
+              "sha256": "f5c3834984653559add7bec7b9b64eba39937dcfd388b516a9b4607ef4d2ef18"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "single",
+          "manifest_sequence": 4,
+          "markdown": "# CALIBRATION RUNS / 校准数据\n\n| Run 组次 | Load (N) 载荷 | Drift (mm) 漂移 | Temp (°C) 温度 | Gain 增益 | Status 状态 |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n| A-01 | 12.57 | +0.18 | 18.6 | 1.025 | PASS |\n| A-02 | 24.83 | −0.07 | 19.1 | 0.998 | PASS |\n| B-01 | 36.14 | +1.25 | 18.9 | 1.104 | CHECK |\n| B-02 | 48.92 | −1.40 | 20.2 | 0.875 | PASS |\n| C-01 | 60.31 | +2.05 | 21.7 | 1.25 | HOLD |",
+          "markdown_sha256": "9d0608d1173e2eb7db32abae95fd76918b0b340a8f1ae580451938cb17b56e3f",
+          "markdown_utf8_bytes": 420,
+          "ordered_request_id": null,
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 1,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 2,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": null,
+              "dispatch_sequence": 4,
+              "failure_codes": [],
+              "fixture_ids": [
+                "calibration-data-table"
+              ],
+              "formulas": null,
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 2,
+                    "numerator": 2
+                  },
+                  "recall": {
+                    "denominator": 2,
+                    "numerator": 2
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 4,
+                    "numerator": 4
+                  },
+                  "recall": {
+                    "denominator": 4,
+                    "numerator": 4
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": null,
+              "passes": true,
+              "profile": "table",
+              "table": {
+                "critical_accuracy": {
+                  "denominator": 25,
+                  "numerator": 25
+                },
+                "data_cell_accuracy": {
+                  "denominator": 30,
+                  "numerator": 30
+                },
+                "header_accuracy": {
+                  "denominator": 6,
+                  "numerator": 6
+                },
+                "unexpected_coordinate_count": 0,
+                "unexpected_critical_cell_count": 0
+              },
+              "target": "calibration-data-table",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 1,
+                  "numerator": 1
+                },
+                "precision": {
+                  "denominator": 7,
+                  "numerator": 7
+                },
+                "recall": {
+                  "denominator": 7,
+                  "numerator": 7
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:41:15.133445Z"
+        },
+        {
+          "attempt_index": 12,
+          "elapsed_ms": 448875,
+          "failure": null,
+          "finished_utc": "2026-07-11T21:53:42.108424Z",
+          "fixture_ids": [
+            "bilingual-printed-slide",
+            "formula-integrity-board"
+          ],
+          "input_artifacts": [
+            {
+              "bytes": 269337,
+              "id": "bilingual-printed-slide-image",
+              "path": "tests/fixtures/phase1/images/bilingual_printed_slide.png",
+              "sha256": "5c1d8b7c4de3aa469007b0da0fba8c42a1646226854651a10f244591d57f7696"
+            },
+            {
+              "bytes": 116507,
+              "id": "formula-board-image",
+              "path": "tests/fixtures/phase1/images/formula_board.png",
+              "sha256": "b329e0734d406e8a02404a66df0f8178a7b7ee7335818aa6bea42a236a8ecb7b"
+            }
+          ],
+          "input_languages": [
+            "en-US",
+            "zh-CN"
+          ],
+          "kind": "ordered",
+          "manifest_sequence": 5,
+          "markdown": "# RELIABLE MULTIMODAL NOTES 可靠的多模态课堂笔记\n\n## CAPTURE / 采集\nRead every image in source order\n按输入顺序读取每张图片\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n## LANGUAGE / 语言\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n## STRUCTURE / 结构\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n## FORMULAS / 公式\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n## TABLES / 表格\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n## ACCURACY / 准确度\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n## OUTPUT / 输出\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n## AUDIT / 审计\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314\n\n# FORMULA INTEGRITY BOARD / 公式完整性校验\n\nF01: $a_1 + a_2 = 17$\nF02: $x_1 - 3x_2 \\le -4$\nF03: $y = 2x^2 - 5x + 7$\nF04: $s_4 = 1 + 2 + 3 + 4 = 10$\nF05: $P(A \\mid B) = 0.625$\nF06: $\\det(M) = 3 \\times 8 - 2 \\times 5 = 14$\nF07: $v_2 = (-3, 4)$\nF08: $f'(x) = 6x - 5$\nF09: $\\| u \\|_2 = \\sqrt{25} = 5$\nF10: $z_3 \\ge 1.25$\nF11: $E[X_2] = 2.4$\nF12: $R_n = n(n + 1) / 2$\n\nORDER-LAST: ZENITH-926",
+          "markdown_sha256": "e6343ca3ff649484500222580e67475a50e51307b6a54701db6a38f9f75a3e65",
+          "markdown_utf8_bytes": 1759,
+          "ordered_request_id": "clean-slide-then-formula-board",
+          "phase": "full",
+          "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+          "prompt_utf8_bytes": 2681,
+          "provider": {
+            "failure": null,
+            "status": "success"
+          },
+          "result_contract": {
+            "metadata": {
+              "draft_candidates": 1,
+              "enable_thinking": true,
+              "image_count": 2,
+              "model": "qwen3.7-plus-2026-05-26",
+              "profile": "board",
+              "prompt_version": "board.v15",
+              "provider": "dashscope",
+              "provider_call_count": 4,
+              "provider_region": "cn-beijing",
+              "review_passes": 0,
+              "standalone_sign_scout_abstention_count": 0,
+              "standalone_sign_scout_count": 3,
+              "standalone_sign_scout_enable_thinking": true,
+              "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+              "standalone_signs_restored": 0,
+              "vl_high_resolution_images": true
+            },
+            "status": "passed"
+          },
+          "run_index": 2,
+          "scorer": {
+            "failure": null,
+            "report": {
+              "critical_slots": {
+                "accuracy": {
+                  "denominator": 10,
+                  "numerator": 10
+                },
+                "duplicate_occurrence_count": 0,
+                "missing_slot_ids": []
+              },
+              "dispatch_sequence": 5,
+              "failure_codes": [],
+              "fixture_ids": [
+                "bilingual-printed-slide",
+                "formula-integrity-board"
+              ],
+              "formulas": {
+                "atom_precision": {
+                  "denominator": 133,
+                  "numerator": 133
+                },
+                "critical_accuracy": {
+                  "denominator": 108,
+                  "numerator": 108
+                },
+                "missing_atom_count": 0,
+                "missing_labels": [],
+                "signature_accuracy": {
+                  "denominator": 12,
+                  "numerator": 12
+                },
+                "unexpected_atom_count": 0,
+                "unexpected_labels": []
+              },
+              "languages": [
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "en-US",
+                  "precision": {
+                    "denominator": 111,
+                    "numerator": 111
+                  },
+                  "recall": {
+                    "denominator": 111,
+                    "numerator": 111
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                },
+                {
+                  "critical_accuracy": {
+                    "denominator": 1,
+                    "numerator": 1
+                  },
+                  "language": "zh-CN",
+                  "precision": {
+                    "denominator": 183,
+                    "numerator": 183
+                  },
+                  "recall": {
+                    "denominator": 183,
+                    "numerator": 183
+                  },
+                  "unexpected_critical_indexes": [],
+                  "unmatched_recognized_indexes": []
+                }
+              ],
+              "ordered_anchors": {
+                "anchors_do_not_overlap": true,
+                "duplicate_occurrence_count": 0,
+                "first_appearances_in_order": true,
+                "first_token_offsets": [
+                  306,
+                  323
+                ],
+                "image_count_matches": true,
+                "presence": {
+                  "denominator": 2,
+                  "numerator": 2
+                },
+                "source_order_matches": true
+              },
+              "passes": true,
+              "profile": "ordered_request",
+              "table": null,
+              "target": "clean-slide-then-formula-board",
+              "text": {
+                "critical_accuracy": {
+                  "denominator": 35,
+                  "numerator": 35
+                },
+                "precision": {
+                  "denominator": 329,
+                  "numerator": 329
+                },
+                "recall": {
+                  "denominator": 329,
+                  "numerator": 329
+                },
+                "unexpected_critical_indexes": [],
+                "unmatched_recognized_indexes": []
+              }
+            },
+            "status": "passed"
+          },
+          "started_utc": "2026-07-11T21:46:13.236395Z"
+        }
+      ],
+      "passes": false,
+      "run_index": 2,
+      "status": "complete"
+    }
+  ],
+  "import_origins": {
+    "matches_repository": true,
+    "quality_package": "tests.quality",
+    "quality_parent_is_namespace": true,
+    "quality_parent_package": "tests",
+    "quality_parent_relative_root": "tests",
+    "quality_relative_root": "tests/quality",
+    "runner_relative_path": "tests/quality/run_phase1_quality.py",
+    "runtime_package": "ocrllm",
+    "runtime_relative_root": "src/ocrllm"
+  },
+  "manifest": {
+    "bytes": 37864,
+    "corpus_id": "phase1-image-quality.v1",
+    "sha256": "9c5fe09635142c457c464d52f2c4bba8e78964f61e3c06cb4b786d8bf6bf3c11"
+  },
+  "repository_identity": {
+    "head_commit": "248c627b8e42ea12349ca9a344da13895b5ee130",
+    "relevant_file_count": 117,
+    "relevant_index_sha256": "0b02fd58964bbb0af4f4853568b9cd60754933db68f0e307e0c7f685241388c7",
+    "relevant_tree_clean": true
+  },
+  "request_contract": {
+    "base_url_sha256": "5891aed827c4e67b2d7c0c73ea819327ce3f2b6ef72213cd79669486a26b1ead",
+    "credential_source": "DASHSCOPE_API_KEY",
+    "draft_candidates": 1,
+    "enable_thinking": true,
+    "endpoint_kind": "shared",
+    "key_rotation": false,
+    "max_completion_tokens": 16384,
+    "model": "qwen3.7-plus-2026-05-26",
+    "model_fallback": false,
+    "profile": "board",
+    "prompt_version": "board.v15",
+    "provider": "dashscope",
+    "provider_calls_per_recognition": 4,
+    "provider_region": "cn-beijing",
+    "request_id_limitation": "The public success result exposes no provider request ID; independence is proven by the frozen invocation plan and code identity.",
+    "review_passes": 0,
+    "runner_retry_count": 0,
+    "sdk_retry_count": 0,
+    "source_type": "image",
+    "standalone_sign_scout_count": 3,
+    "standalone_sign_scout_enable_thinking": true,
+    "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+    "standalone_sign_scout_prompt_sha256": "9dec365d34fb41f5a671c43ed1d4e5ad76d9f6fdb49a2a4f7418c782b400ff70",
+    "standalone_sign_scout_prompt_utf8_bytes": 1037,
+    "success_request_id_available": false,
+    "temperature": 0,
+    "timeout_seconds": 180,
+    "vl_high_resolution_images": true
+  },
+  "schema_version": "ocrllm.phase1-quality-evidence.v15",
+  "smoke": {
+    "attempt_index": 0,
+    "elapsed_ms": 181672,
+    "failure": null,
+    "finished_utc": "2026-07-11T20:49:18.357305Z",
+    "fixture_ids": [
+      "bilingual-printed-slide"
+    ],
+    "input_artifacts": [
+      {
+        "bytes": 269337,
+        "id": "bilingual-printed-slide-image",
+        "path": "tests/fixtures/phase1/images/bilingual_printed_slide.png",
+        "sha256": "5c1d8b7c4de3aa469007b0da0fba8c42a1646226854651a10f244591d57f7696"
+      }
+    ],
+    "input_languages": [
+      "en-US",
+      "zh-CN"
+    ],
+    "kind": "single",
+    "manifest_sequence": 0,
+    "markdown": "# RELIABLE MULTIMODAL NOTES 可靠的多模态课堂笔记\n\n## CAPTURE / 采集\nRead every image in source order\n按输入顺序读取每张图片\nKeep visible labels and markers\n保留可见标签与标记\nCOURSE-ID: QCR-204\n\n## LANGUAGE / 语言\nEnglish text remains in English\n简体中文保持原文\nDo not translate source content\n不要补写缺失内容\nREVISION: 2026-07-10\n\n## STRUCTURE / 结构\nPreserve headings and lists\n保持段落与阅读顺序\nSeparate distinct image regions\n不要重复重叠内容\nBATCH LIMIT: 10 images\n\n## FORMULAS / 公式\nUse LaTeX for equations\n保留变量、符号与下标\nCheck exponents and relations\n不要计算或解释答案\nFORMULA-ID: EQ-731\n\n## TABLES / 表格\nRebuild rows and columns\n完整保留行标题与列标题\nKeep each value in its cell\n不要交换行列位置\nTABLE TOTAL: 128.75 kg\n\n## ACCURACY / 准确度\nCopy names and dates exactly\n数字、小数点与单位必须准确\nReject invented identifiers\n不要猜测模糊字符\nTARGET RECALL: ≥ 95%\n\n## OUTPUT / 输出\nReturn structured Markdown only\n输出应当清晰且可审阅\nKeep meaningful image boundaries\n不要添加总结或翻译\nLATENCY P95: 180 ms\n\n## AUDIT / 审计\nRecord model and prompt version\n记录哈希值与运行时间\nNever print credentials\n两次完整运行必须独立\nCHECKSUM: CN-7319\n\nORDER-FIRST: AURORA-314",
+    "markdown_sha256": "2ba525be15d85ff5643ba463c5970f16ac5a847f6d951fe29eb19d3a215cad2b",
+    "markdown_utf8_bytes": 1364,
+    "ordered_request_id": null,
+    "phase": "smoke",
+    "prompt_sha256": "b724b8339d82abdf02e497055849b2ed4e2e8bb75f8eec76aa0c7b1ea9fed751",
+    "prompt_utf8_bytes": 2681,
+    "provider": {
+      "failure": null,
+      "status": "success"
+    },
+    "result_contract": {
+      "metadata": {
+        "draft_candidates": 1,
+        "enable_thinking": true,
+        "image_count": 1,
+        "model": "qwen3.7-plus-2026-05-26",
+        "profile": "board",
+        "prompt_version": "board.v15",
+        "provider": "dashscope",
+        "provider_call_count": 4,
+        "provider_region": "cn-beijing",
+        "review_passes": 0,
+        "standalone_sign_scout_abstention_count": 0,
+        "standalone_sign_scout_count": 3,
+        "standalone_sign_scout_enable_thinking": true,
+        "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",
+        "standalone_signs_restored": 0,
+        "vl_high_resolution_images": true
+      },
+      "status": "passed"
+    },
+    "run_index": null,
+    "scorer": {
+      "failure": null,
+      "report": {
+        "critical_slots": {
+          "accuracy": {
+            "denominator": 9,
+            "numerator": 9
+          },
+          "duplicate_occurrence_count": 0,
+          "missing_slot_ids": []
+        },
+        "dispatch_sequence": 0,
+        "failure_codes": [],
+        "fixture_ids": [
+          "bilingual-printed-slide"
+        ],
+        "formulas": null,
+        "languages": [
+          {
+            "critical_accuracy": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "language": "en-US",
+            "precision": {
+              "denominator": 105,
+              "numerator": 105
+            },
+            "recall": {
+              "denominator": 105,
+              "numerator": 105
+            },
+            "unexpected_critical_indexes": [],
+            "unmatched_recognized_indexes": []
+          },
+          {
+            "critical_accuracy": {
+              "denominator": 1,
+              "numerator": 1
+            },
+            "language": "zh-CN",
+            "precision": {
+              "denominator": 176,
+              "numerator": 176
+            },
+            "recall": {
+              "denominator": 176,
+              "numerator": 176
+            },
+            "unexpected_critical_indexes": [],
+            "unmatched_recognized_indexes": []
+          }
+        ],
+        "ordered_anchors": null,
+        "passes": true,
+        "profile": "printed_slide",
+        "table": null,
+        "target": "bilingual-printed-slide",
+        "text": {
+          "critical_accuracy": {
+            "denominator": 31,
+            "numerator": 31
+          },
+          "precision": {
+            "denominator": 312,
+            "numerator": 312
+          },
+          "recall": {
+            "denominator": 312,
+            "numerator": 312
+          },
+          "unexpected_critical_indexes": [],
+          "unmatched_recognized_indexes": []
+        }
+      },
+      "status": "passed"
+    },
+    "started_utc": "2026-07-11T20:46:16.684692Z"
+  },
+  "started_utc": "2026-07-11T20:46:15.978740Z",
+  "state": "complete",
+  "summary": {
+    "completed_full_runs": 2,
+    "passed_full_runs": 0,
+    "phase1_gate_passed": false,
+    "planned_provider_calls": 52,
+    "planned_recognize_invocations": 13,
+    "recognize_invocations": 13,
+    "reported_provider_calls": 52,
+    "simulated_plan_passed": false
+  },
+  "terminal_failure": null
+}
