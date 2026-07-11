@@ -59,13 +59,16 @@ the private fake path labels its output `simulated` and cannot set the live gate
 to passed. The frozen zero-retry plan is exactly one clean-slide smoke, six
 dispatches in run A, and six independently dispatched entries in run B.
 
-This is committed offline corpus/scorer/runner infrastructure, not live
-recognition-quality evidence. The user confirmed `cn-beijing` and the stored
-Beijing endpoint on 2026-07-11. Phase 1 remains NO-GO solely pending the 13 live
-calls and resulting two passing full runs, plus the final
-clean-profile/GO-decision update. The local user screenshots under `docs/`
-remain untracked, supplemental, and non-redistributable; they are not part of
-pass/fail evidence.
+The first fixed Beijing gate completed all 13 zero-retry calls on 2026-07-11.
+Both full runs completed, but neither passed; Phase 1 remains NO-GO. There were
+no provider request failures. The live record separates a real handwriting
+quality miss from a deterministic mismatch between reasonable Qwen
+Markdown/LaTeX presentation variants and the frozen v1 scorer grammar. The
+evidence remains unchanged; offline work may prepare a separately versioned
+contract before any newly authorized paid run. See
+`docs/phase1_live_quality_result_2026-07-11.md`. The local user screenshots
+under `docs/` remain untracked, supplemental, and non-redistributable; they are
+not part of pass/fail evidence.
 
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
@@ -163,6 +166,8 @@ legacy_app/README_LEGACY.md           Local legacy-app boundary.
 legacy_app/AGENTS.md                  Local legacy-app agent rules.
 docs/                                 Active migration decisions.
 docs/ocrllm_library_go_no_go.md       Authoritative execution decision.
+docs/phase1_live_quality_result_2026-07-11.md
+                                      First Beijing live-gate result.
 Architecture.md                       Suspended future architecture reference.
 output/, temp/, ocrllm_social_e2e/    Runtime artifacts, not source.
 ```

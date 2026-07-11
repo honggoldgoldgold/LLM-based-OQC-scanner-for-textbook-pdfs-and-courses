@@ -155,14 +155,13 @@ public Config boundary              exact Config only; freshly revalidated
 The built-in DashScope adapter and offline boundary tests now exist. Offline
 checkpoint `e328253` additionally commits the licensed five-class image corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The pinned suite and byte-identity checks pass. This is
-offline gate infrastructure, not live recognition evidence. On 2026-07-11 the
-user confirmed that Aliyun API workflows always use `cn-beijing` and approved
-the explicit key-matching `base_url` recovered from local UI configuration.
-Phase 1 remains NO-GO solely until the committed `fb23d1e` runner executes its
-13-call live plan without retry, both six-dispatch corpus runs pass, and the
-final clean-profile/GO-decision update is recorded. Google, Codex, local-OCR,
-PDF, audio, and video adapters do not exist in the active library.
+live-scoring gate. The pinned suite and byte-identity checks pass. On 2026-07-11
+the user confirmed `cn-beijing` and the key-matching endpoint, and the committed
+runner completed its fixed 13-call plan with zero runner retries. Both full runs
+completed, but neither passed. No provider request or terminal runner failure
+occurred. Phase 1 remains NO-GO. The immutable result is summarized in
+`docs/phase1_live_quality_result_2026-07-11.md`. Google, Codex, local-OCR, PDF,
+audio, and video adapters do not exist in the active library.
 
 Current package metadata still has no base runtime requirements. It declares
 exactly `dev`, `image`, and `dashscope`; `image` installs `Pillow>=10.4,<13`, and
@@ -231,9 +230,9 @@ after installing the wheel, then decoded and recognized that file; this replaces
 the stale reference to a nonexistent committed `tests/fixtures/images/valid.png`.
 All Phase 0 numeric and behavior gates passed at that historical checkpoint.
 Phase 0 alone did not make recognition quality available. Current checkpoint
-`e328253` now supplies the licensed Phase 1 corpus and scorer separately, but no
-live Phase 1 result is available until its remaining smoke and full-run gates
-pass.
+`e328253` supplies the licensed Phase 1 corpus and scorer separately. The first
+live result now exists and is a recorded NO-GO: 13 calls completed, zero of two
+full runs passed.
 
 The historical Phase 0 verification entrypoints used were:
 
@@ -732,28 +731,22 @@ legacy_app/environment.yml
 
 Current phase: **Phase 1 -- real board/image and one provider**.
 
-Finish only this bounded slice. The adapter, corpus, generators, scorers, and
-manifest-authenticated scoring gate and evidence runner are committed; do not
-rebuild them as a second client, corpus, or runner:
+Finish only this bounded slice. The first live gate is complete and failed; do
+not delete, overwrite, selectively retry, or reinterpret its evidence:
 
-1. Use the user-confirmed canonical region `cn-beijing` and the key-matching
-   Beijing endpoint stored under `HKCU:\Software\OCRLLM\QCR\ui`. Do not change
-   either value during the run.
-2. From the exact clean runner checkpoint, run the guarded 13-call live plan
-   once with `--confirm-paid-calls 13`: one clean-slide smoke, full run A with
-   all six dispatches, and independently dispatched full run B with all six
-   dispatches. A failed/truncated call invalidates that complete run; do not
-   retry only a failed fixture or select the better run.
-3. Review the atomically checkpointed raw Markdown and scorer reports. Confirm
-   both full runs pass and that the evidence records provider/model, prompt
-   version, corpus/manifest/code/Git hashes, import origins, every metric,
-   dependency versions, elapsed time, UTC time, `enable_thinking=false`, and
-   `vl_high_resolution_images=true` without secrets.
-4. Rerun the final clean package profiles and update the authoritative decision
-   plus recovery documents. Phase 1 becomes GO only after that explicit update;
-   successful runner output does not edit the decision automatically.
-5. Keep the recorded clean-tree offline/package gate current: rerun it after
-   any source, packaged README, dependency, or package-metadata change.
+1. Preserve and audit
+   `evidence/phase1/phase1-quality-2026-07-11-cn-beijing.json` and its SHA-256
+   `cfb2ee423eafecbc87190f9e30d39439f0ea0a865d1a0348a140f67d8088fa23`.
+2. Design a separately versioned prompt/scorer correction offline. Keep all
+   v1 thresholds and this evidence frozen. Add deliberate-corruption tests
+   before accepting any newly declared presentation equivalence.
+3. Treat the repeated handwriting recall, precision, and critical-slot misses
+   as product quality failures; a formatting-parser correction cannot erase
+   them.
+4. Require a new explicit user decision, a new evidence path, and a clean
+   Git/import/manifest/artifact preflight before another billed call set.
+5. Keep the clean-tree offline/package gate current after source, packaged
+   README, dependency, or package-metadata changes.
 
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.

@@ -23,6 +23,7 @@ Read next:
 - `docs/ocrllm_module_target_design.md`
 - `docs/provider_cost_and_reliability_policy.md`
 - `docs/phase1_implementation_record.md`
+- `docs/phase1_live_quality_result_2026-07-11.md`
 
 Public import shape:
 
@@ -61,11 +62,13 @@ separately labeled simulated path that cannot pass the live gate. Its immutable
 plan is exactly 13 zero-retry calls: one clean-slide smoke, then all six
 dispatches in run A and all six independently dispatched entries in run B.
 On 2026-07-11 the user confirmed `region="cn-beijing"` and the stored Beijing
-endpoint, so the configuration input gate is satisfied. Phase 1 nevertheless
-remains NO-GO solely pending those 13 live calls, two passing full runs, and the
-final clean-profile/GO-decision update; no live call has yet been made. Local
-user screenshots under `docs/` remain untracked, non-redistributable
-supplemental material and are not gate evidence.
+endpoint. The runner then completed all 13 fixed zero-retry calls. Both full
+runs completed, but neither passed, so Phase 1 remains NO-GO. No provider
+request failed. Preserve the evidence and read
+`docs/phase1_live_quality_result_2026-07-11.md` before changing the prompt or
+scorer; a new billed run requires a new explicit decision. Local user
+screenshots under `docs/` remain untracked, non-redistributable supplemental
+material and are not gate evidence.
 
 Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
 the existing secret filename-ignore rules no longer exclude that source module;

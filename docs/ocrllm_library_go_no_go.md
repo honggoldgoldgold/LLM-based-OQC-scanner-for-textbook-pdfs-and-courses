@@ -89,7 +89,7 @@ DEFERRED:
 ## Current Truth
 
 Phase 0 transition evidence and current Phase 1 implementation truth, as of
-2026-07-10:
+2026-07-11:
 
 - Phase 0 is GO at commit `5018ad0`; Phase 1 is the current and only authorized
   implementation phase.
@@ -107,9 +107,9 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   `provider.dashscope.vision` implementations are `experimental`, not
   `available`. Offline checkpoint `e328253` supplies the licensed corpus,
   deterministic generators, scorers, and manifest-authenticated live-scoring
-  gate, but the live smoke and two independent full runs have not happened.
-  Phase 0 itself made no recognition capability available, and Phase 1 remains
-  NO-GO.
+  gate. The first fixed live gate completed all 13 calls, but the smoke and
+  both independent full runs failed their frozen scoring contract. Phase 0
+  itself made no recognition capability available, and Phase 1 remains NO-GO.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
   and advertised exactly `dev,image`. The current Phase 1 tree still has no base
@@ -159,12 +159,14 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   temporary-directory access. Together with the already exact provider-request
   limits, the pinned suite now passes `554` tests, fixture generation remains
   byte-identical, and `compileall` passes without a provider/API call.
-- On 2026-07-11 the user confirmed that Aliyun API workflows always use
-  canonical region `cn-beijing` and approved the explicit key-matching
-  `base_url` recovered from local UI configuration. Phase 1 remains NO-GO solely
-  because the fixed 13-call live plan has not run, its two complete six-dispatch
-  runs therefore have no passing evidence, and the final
-  clean-profile/GO-decision update is pending.
+- On 2026-07-11 the user confirmed canonical region `cn-beijing` and the
+  key-matching endpoint. The fixed plan then invoked all 13 calls with zero
+  runner retries. Both six-dispatch runs completed, zero passed, no provider
+  request failed, and no terminal runner failure occurred. The evidence is
+  preserved at
+  `evidence/phase1/phase1-quality-2026-07-11-cn-beijing.json`; its SHA-256 is
+  `cfb2ee423eafecbc87190f9e30d39439f0ea0a865d1a0348a140f67d8088fa23`.
+  Phase 1 remains NO-GO.
 - Pushed packaging hotfix `3414f47` corrected a filename-ignore defect without
   weakening secret-ignore patterns. The legitimate
   `resolve_dashscope_api_key.py` / `resolve_dashscope_api_key` names matched the
@@ -1319,13 +1321,12 @@ fails closed for non-applicable score channels before it can apply thresholds.
 The guarded evidence runner is committed separately at `fb23d1e`; its offline
 fake/evidence tests pass without a provider/API call.
 
-That offline evidence does not make image recognition `available`. Phase 1
-still has no live clean-slide smoke or two independently dispatched full-corpus
-runs. The region/endpoint gate is now satisfied by the user's 2026-07-11 Beijing
-confirmation. Phase 1 remains NO-GO solely pending the runner's 13 live calls,
-two passing full runs, and the final clean-profile/GO-decision update. PDFium
-remains only a backend feasibility spike; PDF, audio, and video recognition
-remain unavailable under their later gates.
+That offline evidence does not make image recognition `available`. The first
+live gate completed on 2026-07-11, but the smoke and both independently
+dispatched full-corpus runs failed. Preserve the frozen v1 evidence and do not
+lower or reinterpret its thresholds. Phase 1 remains NO-GO. PDFium remains only
+a backend feasibility spike; PDF, audio, and video recognition remain
+unavailable under their later gates.
 
 The user-supplied screenshots currently present under `docs/` are local,
 supplemental, non-redistributable, and remain untracked. Keep them uncommitted.
@@ -1572,10 +1573,10 @@ artifact authentication, scorers, deliberate-corruption tests, guarded evidence
 runner, provider boundary, lazy import, and clean profile work are integrated.
 The pinned full suite reports `554 passed`; generator bytes and `compileall`
 pass, with no provider/API call. The user-confirmed Beijing region/endpoint gate
-is satisfied. Phase 1 remains **NO-GO solely** because none of the 13 required
-paid no-retry calls has been recorded, the two full six-dispatch runs therefore
-have no passing live evidence, and the final clean-profile/GO-decision update
-remains.
+is satisfied. The first 13-call live plan completed with both full runs failing;
+Phase 1 remains **NO-GO**. See
+`phase1_live_quality_result_2026-07-11.md` for the immutable evidence identity,
+per-dispatch result, and versioned-correction decision.
 
 ### Phase 2: JSON contract and Electron worker
 
@@ -2049,18 +2050,19 @@ PDF phase verification must additionally print:
 
 The guarded runner is committed at `fb23d1e`. The user confirmed canonical
 region `cn-beijing` and the recovered key-matching Beijing endpoint on
-2026-07-11. Use those exact settings, a new evidence path, and confirmation
-value 13. The live plan is fixed
-at 13 paid calls with no retry: one clean-slide smoke, all six dispatches in run
-A, then all six independently dispatched entries in run B. A provider failure
-or truncation aborts without another call; never rerun only the failed fixture.
-Simulated evidence cannot satisfy the live gate.
+2026-07-11. The first fixed plan then completed 13 paid calls with no retry: one
+clean-slide smoke, all six dispatches in run A, then all six independently
+dispatched entries in run B. Both full runs failed the frozen gate. Preserve
+that evidence unchanged; never rerun only one failed fixture. Simulated evidence
+cannot satisfy the live gate.
 
 Real provider evidence must preserve raw Markdown plus the provider/model
 identifier, configuration and Git/import/code/corpus/manifest/artifact hashes,
 dependency versions, UTC and elapsed time, every scorer metric, nonempty result
 status, and typed failure category without printing credentials, the full
-endpoint, or other sensitive documents. After both full runs pass, rerun the
+endpoint, or other sensitive documents. A later attempt requires a separately
+versioned offline contract, deliberate-corruption tests, a new explicit paid-run
+decision, and a new evidence path. After both later full runs pass, rerun the
 clean profiles and explicitly update this decision; runner success alone does
 not change Phase 1 from NO-GO to GO.
 

@@ -31,6 +31,7 @@ the image adapter.
 | `51d3f27` | Clean package proof recorded. |
 | `5aaa854` | Missing exact below/at/above input-limit coverage completed. |
 | `8fe4847` | Boundary, package, profile, and endpoint-search evidence recorded. |
+| `7df3514` | Beijing provider policy and the pre-live implementation ledger recorded. |
 
 Use `git show <commit>` for exact patches. New changes must be committed and
 pushed in similarly bounded checkpoints.
@@ -101,7 +102,7 @@ The live runner uses it before and after every paid call.
 - Base, Image, and Image + DashScope profiles pass their size and lazy-import
   budgets. The real client construction proof sends no HTTP request.
 
-## Live Gate Resume Point
+## First Live Gate Result
 
 The user confirmed the following paid-run configuration on 2026-07-11:
 
@@ -110,8 +111,15 @@ region=cn-beijing
 base_url=https://dashscope.aliyuncs.com/compatible-mode/v1
 ```
 
-The next evidence run must use a new path, `--confirm-paid-calls 13`, the pinned
-model, zero retries, and a clean relevant Git/import/manifest/artifact preflight.
-If it fails, preserve and commit the failed evidence and update the decision as
-NO-GO. If both full runs pass, rerun the final package profiles and update all
-GO documents together.
+The guarded runner completed the fixed plan once from source commit `7df3514`:
+13 calls were invoked with zero runner retries, both full runs completed, and
+neither full run passed. No provider request failed and no terminal runner
+failure occurred. The 73,627-byte evidence file has SHA-256
+`cfb2ee423eafecbc87190f9e30d39439f0ea0a865d1a0348a140f67d8088fa23`.
+
+The durable result and diagnosis are in
+`phase1_live_quality_result_2026-07-11.md`. The evidence remains immutable and
+Phase 1 remains NO-GO. Do not rerun a dispatch or begin another billed set under
+the exhausted 13-call confirmation. Offline work may prepare a versioned
+prompt/scorer correction; another live plan requires a new explicit decision
+and a new evidence path.
