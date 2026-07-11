@@ -215,3 +215,16 @@ The complete suite passes `574` tests; fixture generation is byte-identical and
 every non-handwriting dispatch pass. Both handwriting dispatches retain the
 same seven content-quality failures, so v3 does not convert the failed v2 gate
 into GO evidence.
+
+## Exploratory Robustness And Provider Audit
+
+`phase1_exploratory_robustness_2026-07-11.md` records 13 post-gate exploratory
+network requests, four private screenshot diagnostics, the rejected crop and
+thinking variants, both OCR model candidates, the incomplete handwriting
+annotation, and the Qwen3.5-OCR signed-URL security incident. No raw private
+response or temporary provider credential was committed.
+
+No tested path passes handwriting. Printed slides, formulas, tables, ordered
+dense notes, and all four private screenshots return complete results. The
+recommended architecture decision is to split printed/document recognition
+from handwriting rather than lower thresholds or build an unproven ensemble.

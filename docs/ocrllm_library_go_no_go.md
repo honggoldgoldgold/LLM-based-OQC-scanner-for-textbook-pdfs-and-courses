@@ -1618,6 +1618,21 @@ of the immutable v2 output passes every non-handwriting dispatch, while both
 handwriting dispatches retain their original seven quality failures. V3 has no
 live evidence yet and Phase 1 remains NO-GO.
 
+Exploratory evidence after v2 is recorded in
+`phase1_exploratory_robustness_2026-07-11.md`. No tested crop, thinking, or OCR
+model path passes handwriting. The four private dense formula/table screenshots
+all return complete results. The current handwriting annotation omits visible
+source text and must be replaced by a complete source-derived annotation before
+another comparable handwriting run. A Qwen3.5-OCR Responses result also
+contained a temporary signed OSS URL and is rejected from the public result
+contract.
+
+Do not lower handwriting thresholds or add an unproven ensemble. The recommended
+product change is to split printed/document image recognition from an explicit
+handwriting capability, letting each carry its own provider, prompt, annotation,
+and GO status. This boundary change requires explicit user approval before
+implementation.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:

@@ -796,6 +796,22 @@ v2 non-handwriting dispatches pass while handwriting retains the same seven
 quality failures. A clean v3 package proof and meaningful handwriting-quality
 improvement are still required before another full gate.
 
+Post-v2 exploratory work is recorded in
+`docs/phase1_exploratory_robustness_2026-07-11.md`. Thirteen requests tested
+v3 handwriting, deterministic crops, four private dense optimization
+screenshots, thinking mode, Qwen3.5-OCR chat/Responses, and
+`qwen-vl-ocr-latest`. The private screenshots all completed; no tested
+handwriting path passed. Qwen-VL-OCR returned HTTP 403, and Qwen3.5-OCR's
+document-parsing response exposed a temporary signed OSS URL, so neither enters
+the allowlist. The handwriting manifest also omits a visible label and requires
+a complete source-derived reannotation before another handwriting gate.
+
+Architecture decision required: keep the monolithic `board` gate and remain
+blocked on handwriting, or split printed/document recognition from an explicit
+handwriting capability. The split is recommended because printed slides,
+formulas, tables, and dense private notes are viable while handwriting remains
+honestly NO-GO.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
