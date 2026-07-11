@@ -2265,6 +2265,15 @@ SHA-256
 `44b74fdb0ba57662a6c49193c6c203b147b88a723bed8698b983fb9f1a59465f`.
 Phase 1 remains NO-GO. See `phase1_live_quality_result_v11_2026-07-11.md`.
 
+V12 targeted probes pass: two caption-restricted Qwen3.7 primaries pass
+handwriting, and three Qwen-VL Max scouts independently return the same strict
+sign ledger with both plus signs. The production parser fails closed on any
+non-ledger prose or unsafe record; scout prose cannot enter Markdown. The v12
+manifest is 37,853 bytes with SHA-256
+`e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6`;
+661 isolated tests pass. The full 52-call gate remains pending. See
+`phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

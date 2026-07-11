@@ -9,7 +9,7 @@ from ocrllm.profiles.build_board_prompt import (
 def test_board_v7_declares_verified_transcription_without_fixture_specific_labels():
     prompt = build_board_prompt(("en-US", "zh-CN"), None)
 
-    assert BOARD_PROMPT_VERSION == "board.v11"
+    assert BOARD_PROMPT_VERSION == "board.v12"
     assert "LABEL: $formula$" in prompt
     assert "do not put labeled formulas in tables" in prompt
     assert "do not invent labels" in prompt

@@ -12,6 +12,7 @@ from ..processor_output import ProcessorOutput
 from ..profiles.build_board_consensus_prompt import build_board_consensus_prompt
 from ..profiles.build_board_prompt import BOARD_PROMPT_VERSION, build_board_prompt
 from ..profiles.build_board_review_prompt import build_board_review_prompt
+from ..profiles.build_board_sign_scout_prompt import build_board_sign_scout_prompt
 from ..profiles.build_board_symbol_audit_prompt import build_board_symbol_audit_prompt
 from ..providers.call_vision_provider import call_vision_provider
 from ..providers.resolve_vision_provider import resolve_vision_provider
@@ -106,7 +107,7 @@ def recognize_images(
                     call_vision_provider(
                         resolved_scout,
                         image_paths,
-                        prompt=base_prompt,
+                        prompt=build_board_sign_scout_prompt(),
                         config=scout_config,
                     )
                 )

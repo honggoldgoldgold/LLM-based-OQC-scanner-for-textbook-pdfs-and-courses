@@ -15,7 +15,9 @@ def test_symbol_audit_prompt_keeps_full_transcription_and_rejects_texture():
     assert "standalone visible sign or operator" in prompt
     assert "Preserve exact case, identifiers" in prompt
     assert "hatch, fill, shading, and texture strokes" in prompt
-    assert prompt.endswith("Return only complete Markdown.")
+    assert "Return only complete Markdown." in prompt
+    assert "Never create region captions, diagram descriptions" in prompt
+    assert "Do not append explanatory sections" in prompt
 
 
 @pytest.mark.parametrize("value", ("", "  ", None, b"prompt"))

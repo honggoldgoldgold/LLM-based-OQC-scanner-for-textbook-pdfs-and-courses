@@ -74,7 +74,7 @@ DEFAULT_PHASE1_MANIFEST_PATH = (
     Path(__file__).parents[1] / "fixtures" / "phase1" / "manifest.json"
 )
 FROZEN_PHASE1_MANIFEST_SHA256 = (
-    "3b5c5392b1e10ed40261ac08dc5fbf692f0b451c6c13c4c71a44b710f28ec86b"
+    "e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6"
 )
 
 _SCHEMA_VERSION = "ocrllm.phase1-fixture-manifest.v1"
@@ -114,7 +114,7 @@ _PINNED_EVIDENCE_CONTRACT = {
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v11",
+    "prompt_version": "board.v12",
     "draft_candidates": 1,
     "review_passes": 0,
     "standalone_sign_scout_model": "qwen-vl-max",

@@ -14,4 +14,9 @@ def build_board_symbol_audit_prompt(base_prompt: str) -> str:
         "or operator, including small +, -, =, relation, and arrow marks. Preserve exact "
         "case, identifiers, numbers, signs, and formula atoms. Treat hatch, fill, shading, "
         "and texture strokes as drawing rather than text. Return only complete Markdown."
+        " Markdown structure may organize only text and labels literally visible in the "
+        "source. Never create region captions, diagram descriptions, item numbering, "
+        "shape names, or positional words such as left, right, top, middle, circle, or "
+        "segment unless those exact words are visibly written. Do not append explanatory "
+        "sections or prefix visible labels with invented words such as Diagram or Labels."
     )

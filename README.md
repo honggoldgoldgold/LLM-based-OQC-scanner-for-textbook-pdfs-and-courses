@@ -87,6 +87,12 @@ normalizes safe single-letter `\text{X}` formula forms. Its 647-test suite
 passes; fresh complete v11 evidence is pending, so Phase 1 remains NO-GO. See
 `docs/phase1_v11_three_scout_and_formula_dialect_2026-07-11.md`.
 
+V12 replaces full-transcript scouts with strict sign-only ledgers and forbids
+model-created diagram captions in the primary. Two targeted primaries and all
+three independent ledgers pass their acceptance checks; 661 offline tests pass.
+Fresh complete v12 evidence is still pending, so Phase 1 remains NO-GO. See
+`docs/phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

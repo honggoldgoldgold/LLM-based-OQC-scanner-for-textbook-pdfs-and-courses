@@ -8,29 +8,9 @@ from ocrllm.processors.restore_quorum_standalone_signs import (
 )
 
 
-SCOUT_ONE = """foreign gene
-
-+
-
-I:V
-Transformation
-+
-Validation
-"""
-SCOUT_TWO = """Ligase join
-+
-I:V 3:1 Ratio
-Transformation.
-+
-Validation
-"""
-SCOUT_THREE = """foreign gene
-+
-I:V 3:1 Ratio
-Transformation.
-+
-Validation
-"""
+SCOUT_ONE = "+ | foreign gene | I:V\n+ | Transformation | Validation"
+SCOUT_TWO = "+ | Ligase join | I:V 3:1 Ratio\n+ | Transformation. | Validation"
+SCOUT_THREE = "+ | foreign gene | I:V 3:1 Ratio\n+ | Transformation. | Validation"
 
 
 def test_quorum_restores_one_missing_sign_without_copying_scout_prose():
@@ -57,8 +37,8 @@ def test_quorum_counts_inline_isolated_sign_and_leaves_correct_base_byte_identic
 
 def test_nonquorum_sign_is_not_restored():
     base = "foreign gene\nI:V 3:1 Ratio\n"
-    first = "foreign gene\n+\nI:V\n"
-    second = "foreign gene\nI:V\n"
+    first = "+ | foreign gene | I:V"
+    second = "- | Validation | Selection"
 
     result = restore_quorum_standalone_signs(base, (first, second))
 
@@ -90,7 +70,7 @@ def test_restore_rejects_empty_or_nonexact_inputs(base, scouts):
 
 def test_two_of_three_quorum_restores_when_one_scout_omits_the_sign():
     base = "foreign gene\nI:V 3:1 Ratio\nTransformation.\n+\nValidation\n"
-    missing = "foreign gene\nI:V\nTransformation\n+\nValidation\n"
+    missing = "- | Validation | Selection"
 
     result = restore_quorum_standalone_signs(
         base,
@@ -102,17 +82,16 @@ def test_two_of_three_quorum_restores_when_one_scout_omits_the_sign():
     assert result.markdown.count("\n+\n") == 2
 
 
-def test_markdown_thematic_breaks_never_become_sign_quorum_content():
+def test_markdown_thematic_breaks_are_rejected_as_invalid_ledger_signs():
     base = "first source\nsecond source\n"
-    scout = "first source\n---\nsecond source\n"
+    scout = "--- | first source | second source"
 
-    result = restore_quorum_standalone_signs(
-        base,
-        (scout, scout, scout),
-        minimum_agreement=2,
-    )
-
-    assert result == RestoredStandaloneSigns(markdown=base, restored_count=0)
+    with pytest.raises(ValueError, match="unsupported sign"):
+        restore_quorum_standalone_signs(
+            base,
+            (scout, scout, scout),
+            minimum_agreement=2,
+        )
 
 
 @pytest.mark.parametrize("minimum", (True, 0, 1, 4, "2"))

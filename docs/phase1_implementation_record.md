@@ -393,3 +393,12 @@ one plus. Three full-transcript scouts restored zero signs in both. Preserve the
 `44b74fdb0ba57662a6c49193c6c203b147b88a723bed8698b983fb9f1a59465f`.
 Next test a literal-caption exclusion and strict sign-only scout ledger before
 another complete gate.
+
+V12 targeted live proof passes that decision: two Qwen3.7 primaries pass
+handwriting without invented captions, and all three Qwen-VL Max scouts return
+the same strict ledger for the two plus and two minus occurrences. Production
+now rejects any ledger line outside exact `SIGN | BEFORE | AFTER`, plus invalid
+signs, thematic breaks, extra prose, fences, and unsafe neighbors. The scout
+prompt hash/size enters evidence. The v12 manifest is 37,853 bytes with SHA-256
+`e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6`;
+661 isolated tests pass. Complete 52-call evidence is pending.

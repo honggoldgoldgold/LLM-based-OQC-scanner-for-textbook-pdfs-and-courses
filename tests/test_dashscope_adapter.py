@@ -131,7 +131,7 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v11"
+    assert result.metadata["prompt_version"] == "board.v12"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
@@ -266,7 +266,12 @@ def test_builtin_sign_scout_workflow_uses_one_primary_and_two_nonthinking_scouts
     class RequestedModelClient(FakeClient):
         def create(self, **kwargs):
             self.calls.append(kwargs)
-            response = _response(content="# Exact board\n", model=kwargs["model"])
+            content = (
+                "# Exact board\n"
+                if kwargs["model"] != "qwen-vl-max"
+                else "+ | foreign gene | I:V\n"
+            )
+            response = _response(content=content, model=kwargs["model"])
             return SimpleNamespace(headers={}, parse=lambda: response)
 
     source = write_test_image(tmp_path / "board.png", size=(12, 13))
@@ -300,7 +305,7 @@ def test_builtin_sign_scout_workflow_uses_one_primary_and_two_nonthinking_scouts
     ]
     prompts = [call["messages"][0]["content"][-1]["text"] for call in client.calls]
     assert "silently inventory every text-bearing region" in prompts[0]
-    assert "silently inventory every text-bearing region" not in prompts[1]
+    assert "SIGN | BEFORE | AFTER" in prompts[1]
     assert prompts[1] == prompts[2]
     assert prompts[2] == prompts[3]
     assert client.calls[0]["extra_body"]["enable_thinking"] is True
@@ -332,21 +337,20 @@ def test_builtin_sign_scout_workflow_restores_only_two_scout_quorum_sign(
                 ),
                 _response(
                     content=(
-                        "foreign gene\n+\nI:V\nTransformation\n+\nValidation\n"
+                        "+ | foreign gene | I:V\n"
+                        "+ | Transformation | Validation\n"
                     ),
                     model="qwen-vl-max",
                 ),
                 _response(
                     content=(
-                        "Ligase join\n+\nI:V 3:1 Ratio\nTransformation.\n"
-                        "+\nValidation\n"
+                        "+ | Ligase join | I:V 3:1 Ratio\n"
+                        "+ | Transformation. | Validation\n"
                     ),
                     model="qwen-vl-max",
                 ),
                 _response(
-                    content=(
-                        "foreign gene\nI:V\nTransformation.\n+\nValidation\n"
-                    ),
+                    content="- | Validation | Selection\n",
                     model="qwen-vl-max",
                 ),
             )

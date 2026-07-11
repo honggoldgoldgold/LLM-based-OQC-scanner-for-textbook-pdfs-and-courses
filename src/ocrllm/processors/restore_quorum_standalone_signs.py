@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-import re
 from collections import Counter
 from dataclasses import dataclass
 
+from .parse_standalone_sign_ledger import (
+    StandaloneSignEvent,
+    parse_standalone_sign_ledger,
+)
 
-_STANDALONE_SIGN = re.compile(r"^(?:\+|-|=|<=|>=|≤|≥|→|←|↑|↓|↔|⇒|⇐|⇔)+$")
 _MAX_SCOUT_SIGN_EVENTS = 256
 
 
@@ -81,30 +83,6 @@ def restore_quorum_standalone_signs(
     )
 
 
-def _sign_events(markdown: str) -> tuple[tuple[str, str, str], ...]:
-    lines = tuple(line.strip() for line in markdown.splitlines())
-    result = []
-    for index, line in enumerate(lines):
-        if not _is_standalone_sign(line):
-            continue
-        previous = _nearest_anchor(lines, range(index - 1, -1, -1))
-        following = _nearest_anchor(lines, range(index + 1, len(lines)))
-        if previous and following:
-            result.append((line, previous, following))
-    return tuple(result)
-
-
-def _nearest_anchor(lines: tuple[str, ...], indexes: range) -> str:
-    return next(
-        (
-            _normalize_anchor(lines[index])
-            for index in indexes
-            if lines[index] and not _is_standalone_sign(lines[index])
-        ),
-        "",
-    )
-
-
 def _quorum_sign_events(
     scout_markdowns: tuple[str, ...],
     *,
@@ -112,7 +90,9 @@ def _quorum_sign_events(
 ) -> tuple[tuple[str, str, str], ...]:
     clusters: list[list[tuple[int, tuple[str, str, str]]]] = []
     for scout_index, markdown in enumerate(scout_markdowns):
-        for event in _sign_events(markdown):
+        parsed_events = parse_standalone_sign_ledger(markdown)
+        for parsed_event in parsed_events:
+            event = _event_tuple(parsed_event)
             cluster = next(
                 (
                     candidate
@@ -171,14 +151,8 @@ def _shared_anchor(
     return anchor if count >= minimum_agreement else ""
 
 
-def _is_standalone_sign(line: str) -> bool:
-    if _STANDALONE_SIGN.fullmatch(line) is None:
-        return False
-    return not (
-        len(line) >= 3
-        and len(set(line)) == 1
-        and line[0] in {"-", "="}
-    )
+def _event_tuple(event: StandaloneSignEvent) -> tuple[str, str, str]:
+    return event.sign, event.previous, event.following
 
 
 def _find_safe_insertion_index(

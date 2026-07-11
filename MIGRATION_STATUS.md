@@ -1009,6 +1009,20 @@ Do not add more full-transcript scouts. Test literal-caption exclusion and a
 strict sign-only scout ledger next. See
 `docs/phase1_live_quality_result_v11_2026-07-11.md`.
 
+Targeted v12 probes change the failed request shape rather than adding more
+calls. Two independent Qwen3.7 primaries with literal-caption exclusion both
+pass handwriting without invented descriptions. Three independent Qwen-VL Max
+scouts return the same strict `SIGN | BEFORE | AFTER` ledger containing both
+plus and both minus occurrences with literal neighbors.
+
+`board.v12` strictly parses that ledger; extra prose, headings, fences,
+thematic breaks, unsupported signs, overlong neighbors, or malformed records
+fail the request. Only parsed sign/anchor events reach the two-of-three merger.
+The 37,853-byte manifest SHA-256 is
+`e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6`;
+661 isolated tests pass. The complete gate remains 13 recognitions and 52 calls.
+See `docs/phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
