@@ -523,8 +523,9 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `prompt_version="board.v1"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`. It never records the API
   key or request body.
-- The final pre-commit offline gate passed `283` tests, `compileall`, and
-  `git diff --check`. A clean wheel was `50,970` bytes with SHA-256
+- The implementation checkpoint is commit `a6a8b18`. Its final offline gate
+  passed `283` tests, `compileall`, and `git diff --check`. A clean wheel was
+  `50,970` bytes with SHA-256
   `5502B5ED58D9D049F3640F3AF9AF5C4A8732426C14EA630D01125BD2556245AE`,
   `53` entries, no native/bytecode payload, and no base runtime requirement. Its
   isolated no-deps target was `233,115` bytes. Fresh CPython 3.10.20 and 3.14.3
