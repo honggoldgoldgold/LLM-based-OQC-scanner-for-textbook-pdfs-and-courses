@@ -17,6 +17,10 @@ def test_parser_returns_exact_signs_and_normalized_neighbor_anchors():
     )
 
 
+def test_parser_accepts_exact_none_as_a_valid_empty_ledger():
+    assert parse_standalone_sign_ledger("NONE") == ()
+
+
 @pytest.mark.parametrize(
     "ledger",
     (
@@ -28,6 +32,7 @@ def test_parser_returns_exact_signs_and_normalized_neighbor_anchors():
         "+ | NONE | NONE",
         "+ | --- | I:V",
         "* | foreign gene | I:V",
+        " NONE",
     ),
 )
 def test_parser_rejects_extra_prose_unsafe_signs_and_invalid_neighbors(ledger):

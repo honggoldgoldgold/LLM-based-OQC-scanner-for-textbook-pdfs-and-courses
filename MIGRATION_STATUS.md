@@ -1033,6 +1033,19 @@ This is a shared board-workflow protocol defect; do not split handwriting into
 a separate path. Define an exact empty sign ledger and retain fail-closed
 handling for all other malformed scout output.
 
+V13 keeps the primary authoritative and makes the auxiliary channel safely
+optional. Exact `NONE` is a valid empty ledger; a malformed ledger abstains as a
+whole and increments result metadata; quorum still needs two distinct valid
+scouts. The merger now blocks any insertion where the primary already has a
+supported standalone sign between the same anchors, even when the scout sign
+differs. Targeted Beijing probes returned `NONE` three-of-three on the printed
+slide and recovered the missing handwriting plus three-of-three. The
+37,853-byte manifest SHA-256 is
+`890f67941bc2783bc81f91ab42b1290fb4ad1df4c722cb2f458e762dd9ad1522`.
+The focused suite passes 96 tests and the exact isolated repository suite passes
+667 tests.
+See `docs/phase1_v13_auxiliary_scout_abstention_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

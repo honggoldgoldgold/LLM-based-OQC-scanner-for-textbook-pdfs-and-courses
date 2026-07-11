@@ -408,3 +408,13 @@ no selective retry was made. Preserve the 29,606-byte evidence SHA-256
 `ea16775eec1aea7af79681e1f90b76ca075864e9b8e9b1b00dc1c90d125282ea`.
 The next version must represent a legitimate zero-event ledger explicitly;
 this is not a reason to split handwriting from the board workflow.
+
+V13 adds exact `NONE`, whole-ledger auxiliary abstention, an abstention count in
+result metadata, and a conflicting-sign insertion guard. Targeted Beijing
+probes pass both sides: three printed-slide scouts return exact `NONE`, while
+three handwriting scouts recover `foreign gene + I:V`. A disagreeing later
+list sign is blocked because the primary already contains a supported sign at
+those anchors. The manifest remains 37,853 bytes with SHA-256
+`890f67941bc2783bc81f91ab42b1290fb4ad1df4c722cb2f458e762dd9ad1522`.
+The focused suite passes 96 tests and the exact isolated repository suite passes
+667 tests. The complete v13 live gate remains pending.

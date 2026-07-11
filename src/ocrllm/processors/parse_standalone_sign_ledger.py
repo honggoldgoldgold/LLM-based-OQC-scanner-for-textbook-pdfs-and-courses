@@ -11,7 +11,9 @@ _LEDGER_LINE = re.compile(
     r"(?P<before>[^|\r\n]{1,120}) \| "
     r"(?P<after>[^|\r\n]{1,120})$"
 )
-_ALLOWED_SIGN = re.compile(r"^(?:\+|-|=|<=|>=|≤|≥|→|←|↑|↓|↔|⇒|⇐|⇔)$")
+SUPPORTED_STANDALONE_SIGNS = frozenset(
+    {"+", "-", "=", "<=", ">=", "≤", "≥", "→", "←", "↑", "↓", "↔", "⇒", "⇐", "⇔"}
+)
 _MAX_LEDGER_EVENTS = 256
 
 
@@ -29,6 +31,8 @@ def parse_standalone_sign_ledger(ledger: str) -> tuple[StandaloneSignEvent, ...]
 
     if type(ledger) is not str or not ledger.strip():
         raise ValueError("standalone-sign ledger must be nonempty plain text")
+    if ledger == "NONE":
+        return ()
     lines = tuple(line for line in ledger.splitlines() if line.strip())
     if not lines or len(lines) > _MAX_LEDGER_EVENTS:
         raise ValueError("standalone-sign ledger has an invalid event count")
@@ -39,7 +43,7 @@ def parse_standalone_sign_ledger(ledger: str) -> tuple[StandaloneSignEvent, ...]
         if match is None:
             raise ValueError("standalone-sign ledger line violates the strict format")
         sign = match.group("sign")
-        if _ALLOWED_SIGN.fullmatch(sign) is None:
+        if sign not in SUPPORTED_STANDALONE_SIGNS:
             raise ValueError("standalone-sign ledger contains an unsupported sign")
         previous = _parse_anchor(match.group("before"))
         following = _parse_anchor(match.group("after"))

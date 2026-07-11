@@ -1,4 +1,4 @@
-"""Tests for deterministic two-scout standalone-sign restoration."""
+"""Tests for deterministic multi-scout standalone-sign restoration."""
 
 import pytest
 
@@ -23,6 +23,7 @@ def test_quorum_restores_one_missing_sign_without_copying_scout_prose():
             "foreign gene\n+\nI:V 3:1 Ratio\nTransformation.\n+\nValidation\n"
         ),
         restored_count=1,
+        abstained_scout_count=0,
     )
     assert "Ligase join" not in result.markdown
 
@@ -32,7 +33,11 @@ def test_quorum_counts_inline_isolated_sign_and_leaves_correct_base_byte_identic
 
     result = restore_quorum_standalone_signs(base, (SCOUT_ONE, SCOUT_TWO))
 
-    assert result == RestoredStandaloneSigns(markdown=base, restored_count=0)
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=0,
+    )
 
 
 def test_nonquorum_sign_is_not_restored():
@@ -42,7 +47,11 @@ def test_nonquorum_sign_is_not_restored():
 
     result = restore_quorum_standalone_signs(base, (first, second))
 
-    assert result == RestoredStandaloneSigns(markdown=base, restored_count=0)
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=0,
+    )
 
 
 def test_unmatched_quorum_anchors_cannot_inject_a_sign():
@@ -50,7 +59,11 @@ def test_unmatched_quorum_anchors_cannot_inject_a_sign():
 
     result = restore_quorum_standalone_signs(base, (SCOUT_ONE, SCOUT_TWO))
 
-    assert result == RestoredStandaloneSigns(markdown=base, restored_count=0)
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=0,
+    )
 
 
 @pytest.mark.parametrize(
@@ -82,16 +95,65 @@ def test_two_of_three_quorum_restores_when_one_scout_omits_the_sign():
     assert result.markdown.count("\n+\n") == 2
 
 
-def test_markdown_thematic_breaks_are_rejected_as_invalid_ledger_signs():
+def test_two_valid_scouts_restore_while_one_malformed_scout_abstains():
+    base = "foreign gene\nI:V 3:1 Ratio\n"
+
+    result = restore_quorum_standalone_signs(
+        base,
+        (SCOUT_ONE, SCOUT_THREE, "# invalid scout prose"),
+        minimum_agreement=2,
+    )
+
+    assert result.markdown == "foreign gene\n+\nI:V 3:1 Ratio\n"
+    assert result.restored_count == 1
+    assert result.abstained_scout_count == 1
+
+
+def test_invalid_thematic_break_ledgers_abstain_without_mutating_the_primary():
     base = "first source\nsecond source\n"
     scout = "--- | first source | second source"
 
-    with pytest.raises(ValueError, match="unsupported sign"):
-        restore_quorum_standalone_signs(
-            base,
-            (scout, scout, scout),
-            minimum_agreement=2,
-        )
+    result = restore_quorum_standalone_signs(
+        base,
+        (scout, scout, scout),
+        minimum_agreement=2,
+    )
+
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=3,
+    )
+
+
+def test_exact_none_is_valid_empty_evidence_not_an_abstention():
+    base = "first source\nsecond source\n"
+
+    result = restore_quorum_standalone_signs(
+        base,
+        ("NONE", "NONE", "NONE"),
+        minimum_agreement=2,
+    )
+
+    assert result.abstained_scout_count == 0
+    assert result.markdown == base
+
+
+def test_existing_different_sign_blocks_conflicting_restoration_at_same_anchors():
+    base = "Selection\n-\nScreening\n"
+    false_plus = "+ | Selection | Screening"
+
+    result = restore_quorum_standalone_signs(
+        base,
+        (false_plus, false_plus, "NONE"),
+        minimum_agreement=2,
+    )
+
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=0,
+    )
 
 
 @pytest.mark.parametrize("minimum", (True, 0, 1, 4, "2"))

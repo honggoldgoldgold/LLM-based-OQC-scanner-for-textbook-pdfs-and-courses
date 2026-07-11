@@ -131,7 +131,7 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v12"
+    assert result.metadata["prompt_version"] == "board.v13"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
@@ -141,6 +141,7 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.metadata["standalone_sign_scout_model"] is None
     assert result.metadata["standalone_sign_scout_count"] == 0
     assert result.metadata["standalone_signs_restored"] == 0
+    assert result.metadata["standalone_sign_scout_abstention_count"] == 0
     assert api_key_sentinel not in repr(result)
     assert api_key_sentinel not in repr(result.metadata)
 
@@ -259,7 +260,7 @@ def test_builtin_consensus_review_makes_three_no_retry_requests(
     assert all(call["temperature"] == 0 for call in client.calls)
 
 
-def test_builtin_sign_scout_workflow_uses_one_primary_and_two_nonthinking_scouts(
+def test_builtin_sign_scout_workflow_uses_one_primary_and_three_nonthinking_scouts(
     tmp_path,
     monkeypatch,
 ):
@@ -318,6 +319,7 @@ def test_builtin_sign_scout_workflow_uses_one_primary_and_two_nonthinking_scouts
     assert result.metadata["standalone_sign_scout_model"] == "qwen-vl-max"
     assert result.metadata["standalone_sign_scout_count"] == 3
     assert result.metadata["standalone_signs_restored"] == 0
+    assert result.metadata["standalone_sign_scout_abstention_count"] == 0
     assert result.metadata["standalone_sign_scout_enable_thinking"] is False
 
 
@@ -385,6 +387,48 @@ def test_builtin_sign_scout_workflow_restores_only_two_scout_quorum_sign(
     )
     assert result.metadata["provider_call_count"] == 4
     assert result.metadata["standalone_signs_restored"] == 1
+    assert result.metadata["standalone_sign_scout_abstention_count"] == 0
+
+
+def test_builtin_sign_scout_workflow_records_malformed_scout_abstentions(
+    tmp_path,
+    monkeypatch,
+):
+    class MalformedScoutClient(FakeClient):
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            content = (
+                "# Exact primary\n"
+                if kwargs["model"] != "qwen-vl-max"
+                else "| BEFORE | AFTER\n- | panel | border"
+            )
+            response = _response(content=content, model=kwargs["model"])
+            return SimpleNamespace(headers={}, parse=lambda: response)
+
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = MalformedScoutClient()
+    _install_fake_openai(monkeypatch, client)
+    ordinary = _settings()
+    settings = DashScopeSettings(
+        region=ordinary.region,
+        base_url=ordinary.base_url,
+        enable_thinking=True,
+        standalone_sign_scout_model="qwen-vl-max",
+    )
+
+    result = recognize(
+        source,
+        config=Config(
+            provider="dashscope",
+            dashscope=settings,
+            api_key="test-key",
+        ),
+    )
+
+    assert result.markdown == "# Exact primary\n"
+    assert result.metadata["provider_call_count"] == 4
+    assert result.metadata["standalone_signs_restored"] == 0
+    assert result.metadata["standalone_sign_scout_abstention_count"] == 3
 
 
 def test_mutated_review_preferences_fail_before_builtin_provider_work(

@@ -6,6 +6,7 @@ from collections import Counter
 from dataclasses import dataclass
 
 from .parse_standalone_sign_ledger import (
+    SUPPORTED_STANDALONE_SIGNS,
     StandaloneSignEvent,
     parse_standalone_sign_ledger,
 )
@@ -19,6 +20,7 @@ class RestoredStandaloneSigns:
 
     markdown: str
     restored_count: int
+    abstained_scout_count: int
 
 
 def restore_quorum_standalone_signs(
@@ -43,7 +45,7 @@ def restore_quorum_standalone_signs(
     ):
         raise ValueError("minimum_agreement must be between 2 and the scout count")
 
-    quorum_events = _quorum_sign_events(
+    quorum_events, abstained_scout_count = _quorum_sign_events(
         scout_markdowns,
         minimum_agreement=minimum_agreement,
     )
@@ -80,6 +82,7 @@ def restore_quorum_standalone_signs(
     return RestoredStandaloneSigns(
         markdown="\n".join(lines) + suffix,
         restored_count=len(insertions),
+        abstained_scout_count=abstained_scout_count,
     )
 
 
@@ -87,10 +90,15 @@ def _quorum_sign_events(
     scout_markdowns: tuple[str, ...],
     *,
     minimum_agreement: int,
-) -> tuple[tuple[str, str, str], ...]:
+) -> tuple[tuple[tuple[str, str, str], ...], int]:
     clusters: list[list[tuple[int, tuple[str, str, str]]]] = []
+    abstained_scout_count = 0
     for scout_index, markdown in enumerate(scout_markdowns):
-        parsed_events = parse_standalone_sign_ledger(markdown)
+        try:
+            parsed_events = parse_standalone_sign_ledger(markdown)
+        except ValueError:
+            abstained_scout_count += 1
+            continue
         for parsed_event in parsed_events:
             event = _event_tuple(parsed_event)
             cluster = next(
@@ -116,7 +124,7 @@ def _quorum_sign_events(
         following = _shared_anchor(events, anchor_index=2, minimum_agreement=minimum_agreement)
         if previous or following:
             result.append((events[0][0], previous, following))
-    return tuple(result)
+    return tuple(result), abstained_scout_count
 
 
 def _events_match(
@@ -170,7 +178,7 @@ def _find_safe_insertion_index(
         following_index = _find_anchor(lines, following, previous_index + 1)
         if following_index is None:
             return None
-        if _contains_sign(lines, sign, previous_index + 1, following_index):
+        if _contains_any_supported_sign(lines, previous_index + 1, following_index):
             return None
         return following_index
     if following:
@@ -178,7 +186,7 @@ def _find_safe_insertion_index(
         if following_index is None:
             return None
         window_start = max(search_from, following_index - 4)
-        if _contains_sign(lines, sign, window_start, following_index):
+        if _contains_any_supported_sign(lines, window_start, following_index):
             return None
         return following_index
     if previous:
@@ -186,7 +194,7 @@ def _find_safe_insertion_index(
         if previous_index is None:
             return None
         window_end = min(len(lines), previous_index + 5)
-        if _contains_sign(lines, sign, previous_index + 1, window_end):
+        if _contains_any_supported_sign(lines, previous_index + 1, window_end):
             return None
         return previous_index + 1
     return None
@@ -196,8 +204,12 @@ def _count_isolated_tokens(lines: list[str], sign: str) -> int:
     return sum(token == sign for line in lines for token in line.split())
 
 
-def _contains_sign(lines: list[str], sign: str, start: int, stop: int) -> bool:
-    return any(sign in line.split() for line in lines[start:stop])
+def _contains_any_supported_sign(lines: list[str], start: int, stop: int) -> bool:
+    return any(
+        token in SUPPORTED_STANDALONE_SIGNS
+        for line in lines[start:stop]
+        for token in line.split()
+    )
 
 
 def _find_anchor(lines: list[str], anchor: str, start: int) -> int | None:

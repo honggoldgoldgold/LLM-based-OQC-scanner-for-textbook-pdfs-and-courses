@@ -120,7 +120,7 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v12",
+                "prompt_version": "board.v13",
                 "provider_call_count": (
                     config.preferences.draft_candidates
                     + config.preferences.review_passes
@@ -134,6 +134,7 @@ class FakeRecognizer:
                 "standalone_sign_scout_count": 3,
                 "standalone_sign_scout_enable_thinking": False,
                 "standalone_signs_restored": 0,
+                "standalone_sign_scout_abstention_count": 0,
                 "provider": "dashscope",
                 "profile": "board",
                 "provider_region": config.dashscope.region,

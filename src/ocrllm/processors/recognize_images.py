@@ -88,6 +88,7 @@ def recognize_images(
         config.preferences.draft_candidates + config.preferences.review_passes
     )
     restored_sign_count = 0
+    abstained_scout_count = 0
     if scout_model is not None:
         assert config.dashscope is not None
         scout_config = replace(
@@ -140,6 +141,7 @@ def recognize_images(
             ) from None
         markdown = restored.markdown
         restored_sign_count = restored.restored_count
+        abstained_scout_count = restored.abstained_scout_count
         provider_call_count += 3
 
     metadata: dict[str, str | int | bool | None] = {
@@ -154,6 +156,7 @@ def recognize_images(
         "standalone_sign_scout_model": scout_model,
         "standalone_sign_scout_count": 3 if scout_model is not None else 0,
         "standalone_signs_restored": restored_sign_count,
+        "standalone_sign_scout_abstention_count": abstained_scout_count,
     }
     if resolved_provider.name == "dashscope" and config.dashscope is not None:
         metadata.update(

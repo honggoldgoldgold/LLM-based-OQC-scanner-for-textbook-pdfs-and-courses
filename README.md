@@ -95,6 +95,13 @@ because the protocol did not define a valid empty ledger. This is a shared
 workflow defect, not a handwriting split. Phase 1 remains NO-GO. See
 `docs/phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
 
+V13 keeps that unified profile and makes invalid auxiliary scout output a
+counted abstention. Exact `NONE` handles no-sign images, two valid scouts still
+form quorum, and an existing primary sign blocks a conflicting insertion at the
+same anchors. Targeted printed-slide and handwriting probes pass; complete v13
+offline verification passes 667 tests, while live evidence is pending. See
+`docs/phase1_v13_auxiliary_scout_abstention_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

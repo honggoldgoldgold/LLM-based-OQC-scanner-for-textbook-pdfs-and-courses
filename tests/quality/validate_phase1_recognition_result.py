@@ -55,6 +55,9 @@ def validate_phase1_recognition_result(
         "standalone_signs_restored": result.metadata.get(
             "standalone_signs_restored"
         ),
+        "standalone_sign_scout_abstention_count": result.metadata.get(
+            "standalone_sign_scout_abstention_count"
+        ),
         "provider": contract.provider,
         "profile": contract.profile,
         "provider_region": provider_region,
@@ -64,6 +67,12 @@ def validate_phase1_recognition_result(
     restored_count = expected_metadata["standalone_signs_restored"]
     if type(restored_count) is not int or restored_count < 0:
         raise ValueError("recognition result has an invalid restored-sign count")
+    abstention_count = expected_metadata["standalone_sign_scout_abstention_count"]
+    if (
+        type(abstention_count) is not int
+        or not 0 <= abstention_count <= contract.standalone_sign_scout_count
+    ):
+        raise ValueError("recognition result has an invalid scout-abstention count")
     if dict(result.metadata) != expected_metadata:
         raise ValueError(
             "recognition result metadata differs from the frozen request contract"

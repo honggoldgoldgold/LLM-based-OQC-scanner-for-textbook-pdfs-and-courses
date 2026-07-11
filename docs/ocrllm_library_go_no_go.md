@@ -2279,6 +2279,17 @@ selective retry was made. Preserve the 29,606-byte atomic evidence SHA-256
 Phase 1 remains NO-GO. See
 `phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
 
+V13 treats malformed sign ledgers as counted auxiliary abstentions rather than
+discarding an otherwise valid primary transcript. Exact `NONE` is a valid empty
+ledger, two valid scouts are still required for quorum, and an existing
+supported sign at the same primary anchors blocks conflicting restoration.
+Three targeted printed-slide scouts returned `NONE`; three handwriting scouts
+recovered the missing plus. The v13 manifest is 37,853 bytes with SHA-256
+`890f67941bc2783bc81f91ab42b1290fb4ad1df4c722cb2f458e762dd9ad1522`.
+The exact isolated suite passes 667 tests. Phase 1 remains NO-GO pending
+complete live evidence. See
+`phase1_v13_auxiliary_scout_abstention_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:
