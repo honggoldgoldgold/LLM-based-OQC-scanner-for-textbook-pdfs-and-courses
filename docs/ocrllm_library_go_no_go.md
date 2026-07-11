@@ -142,7 +142,7 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
 - The scorer entrypoint authenticates the caller's manifest against a freshly
   strict-loaded byte-frozen manifest before scoring. It fails closed for
   non-applicable channels instead of treating missing evidence as a pass. On the
-  pinned OCRLLM environment, the full offline suite passed `546` tests, the
+  pinned OCRLLM environment, the full offline suite passed `554` tests, the
   generator reproduced every committed generated image byte-for-byte, and
   `compileall` passed.
 - The guarded evidence runner is committed at `fb23d1e` (full commit
@@ -151,6 +151,13 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   bound the strict manifest and artifacts, exact import origins, closed public
   signature, and clean Git identity for 98 tracked relevant files to that full
   commit.
+- Current boundary-completion verification hits exact one-below, at, and
+  one-above values for the per-source byte, decoded-pixel, group-count,
+  aggregate-source-byte, and aggregate-pixel caps. Every rejecting integration
+  path proves zero provider calls; aggregate-source rejection also precedes
+  temporary-directory access. Together with the already exact provider-request
+  limits, the pinned suite now passes `554` tests, fixture generation remains
+  byte-identical, and `compileall` passes without a provider/API call.
 - Phase 1 is still NO-GO solely because the caller has not supplied the
   credential's exact region and `base_url`, the fixed 13-call live plan has not
   run, its two complete six-dispatch runs therefore have no passing evidence,
@@ -174,6 +181,17 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   explicit test-key credential resolver passes without a provider/API call.
   Result-recording edits limited to this decision file and
   `MIGRATION_STATUS.md` do not change the wheel inputs.
+- Current clean optional-profile proof at full commit
+  `51d3f27d308cdeb6e5e7c93ab23f6dcb8434d801` reproduced that exact wheel. The
+  fresh Image profile used Pillow 12.3.0, added `15,904,036` bytes, left Pillow,
+  OpenAI, and HTTPX unloaded on plain import, and completed an actual generated
+  PNG call through the injected-provider path. The separate fresh Image +
+  DashScope profile used Pillow 12.3.0, OpenAI 2.45.0, and HTTPX 0.28.1, added
+  `40,676,876` bytes, preserved the same lazy-import boundary, and constructed
+  and closed the real client with `max_retries=0` without sending HTTP. Both
+  pass the 25 MiB and 64 MiB ceilings. This does not replace the required final
+  decision-time rerun after live evidence or after packaged-source, README,
+  metadata, or dependency changes.
 - The historical Phase 1 adapter-only implementation checkpoint is commit
   `a6a8b18`. Its final offline gate passed `283` tests, `compileall`, and
   `git diff --check`. The wheel was `50,970` bytes with SHA-256
@@ -712,6 +730,13 @@ checkpoint persistence across sudden power loss.
 Current Phase 1 provider-boundary tests are:
 
 ```text
+tests/test_validate_source.py
+    Hit exact below/at/above source-byte, decoded-pixel, group-count, aggregate
+    source-byte, and aggregate-pixel limits.
+
+tests/test_recognize_validation.py
+    Prove every rejecting image/group limit stops before provider dispatch.
+
 tests/test_lightweight_import.py
     Keep PIL, openai, and httpx absent after plain public import.
 
@@ -1271,7 +1296,7 @@ gate. Its byte-frozen manifest is `35,400` bytes with SHA-256
 `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
 The 20 authenticated artifacts include 5 images and total `17,914,515` bytes,
 leaving `8,299,885` bytes below the 25 MiB limit. The pinned full suite passed
-`546` tests, the generator byte-identity check passed, and `compileall` passed.
+`554` tests, the generator byte-identity check passed, and `compileall` passed.
 The integrated scorer
 strict-loads the frozen manifest again, requires exact manifest equality, and
 fails closed for non-applicable score channels before it can apply thresholds.
@@ -1525,15 +1550,16 @@ GO when all are true:
 - Clean Image and Image + DashScope installs pass the 25 MiB and 64 MiB profile
   budgets.
 
-Status after offline checkpoint `e328253`, packaging hotfix `3414f47`, and
-runner checkpoint `fb23d1e`: the corpus, generators, artifact authentication,
-scorers, deliberate-corruption tests, guarded evidence runner, provider
-boundary, lazy import, and clean profile work are integrated. The pinned full
-suite reports `546 passed`; generator bytes and `compileall` pass, with no
-provider/API call. Phase 1 remains **NO-GO solely** because the caller has not
-supplied the exact region and `base_url`, none of the 13 required paid no-retry
-calls has been recorded, the two full six-dispatch runs therefore have no
-passing live evidence, and the final clean-profile/GO-decision update remains.
+Status after offline checkpoint `e328253`, packaging hotfix `3414f47`, runner
+checkpoint `fb23d1e`, and the exact boundary completion: the corpus, generators,
+artifact authentication, scorers, deliberate-corruption tests, guarded evidence
+runner, provider boundary, lazy import, and clean profile work are integrated.
+The pinned full suite reports `554 passed`; generator bytes and `compileall`
+pass, with no provider/API call. Phase 1 remains **NO-GO solely** because the
+caller has not supplied the exact region and `base_url`, none of the 13 required
+paid no-retry calls has been recorded, the two full six-dispatch runs therefore
+have no passing live evidence, and the final clean-profile/GO-decision update
+remains.
 
 ### Phase 2: JSON contract and Electron worker
 

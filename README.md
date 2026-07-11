@@ -46,7 +46,11 @@ live-scoring gate. The byte-frozen manifest is `35,400` bytes with SHA-256
 `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
 Its 20 artifacts include 5 images and total `17,914,515` bytes, leaving
 `8,299,885` bytes under the 25 MiB corpus limit. The pinned full suite passed
-`546` tests; regenerated fixtures were byte-identical and `compileall` passed.
+`554` tests; regenerated fixtures were byte-identical and `compileall` passed.
+The boundary suite now hits exact one-below, at, and one-above values for every
+per-source byte, decoded-pixel, group-count, aggregate-source-byte, and
+aggregate-pixel cap; every rejecting integration case proves zero provider
+calls.
 
 Runner checkpoint `fb23d1e` is committed. Its offline fake/evidence tests and a
 direct live-preflight check pass without a provider/API call. The public live

@@ -80,25 +80,30 @@ def test_validate_source_maps_open_failures_to_unreadable(tmp_path, monkeypatch)
     assert raised.value.code == "SOURCE_UNREADABLE"
 
 
-def test_validate_source_accepts_the_exact_byte_limit(tmp_path):
-    source = tmp_path / "at-limit.png"
+@pytest.mark.parametrize(
+    ("limit_offset", "accepted"),
+    [(-1, True), (0, True), (1, False)],
+    ids=["one-below", "at", "one-above"],
+)
+def test_validate_source_byte_limit_boundary(tmp_path, limit_offset, accepted):
+    source_size = MAX_SOURCE_BYTES + limit_offset
+    source = tmp_path / f"byte-limit-{limit_offset}.png"
     with source.open("wb") as source_file:
         source_file.write(b"x")
-        source_file.truncate(MAX_SOURCE_BYTES)
+        source_file.truncate(source_size)
 
-    assert validate_source(source) == MAX_SOURCE_BYTES
-
-
-def test_validate_source_rejects_one_byte_above_the_limit(tmp_path):
-    source = tmp_path / "too-large.png"
-    with source.open("wb") as source_file:
-        source_file.write(b"x")
-        source_file.truncate(MAX_SOURCE_BYTES + 1)
+    if accepted:
+        assert validate_source(source) == source_size
+        return
 
     with pytest.raises(InvalidSource) as raised:
         validate_source(source)
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
+    assert raised.value.details == {
+        "byte_size": source_size,
+        "maximum_byte_size": MAX_SOURCE_BYTES,
+    }
 
 
 def test_validate_source_rejects_an_unapproved_extension(tmp_path):
@@ -172,31 +177,33 @@ def test_decode_image_does_not_change_pillow_global_pixel_limit(tmp_path):
     assert Image.MAX_IMAGE_PIXELS == original_limit
 
 
-def test_decode_image_rejects_dimensions_above_the_pixel_limit(tmp_path, monkeypatch):
+@pytest.mark.parametrize(
+    ("limit_offset", "accepted"),
+    [(-1, True), (0, True), (1, False)],
+    ids=["one-below", "at", "one-above"],
+)
+def test_decode_image_pixel_limit_boundary(monkeypatch, limit_offset, accepted):
     decode_module = importlib.import_module("ocrllm.imaging.decode_image_bytes")
+    pixel_count = MAX_IMAGE_PIXELS + limit_offset
     fake_module = _FakeImageModule(
-        size=(MAX_IMAGE_PIXELS + 1, 1),
+        size=(pixel_count, 1),
         image_format="PNG",
     )
     monkeypatch.setattr(decode_module, "_load_pillow", lambda: (fake_module, OSError))
+
+    if accepted:
+        decoded = decode_module.decode_image_bytes(b"fake image", suffix=".png")
+        assert decoded.pixel_count == pixel_count
+        return
 
     with pytest.raises(InvalidSource) as raised:
         decode_module.decode_image_bytes(b"fake image", suffix=".png")
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
-
-
-def test_decode_image_accepts_the_exact_pixel_limit(tmp_path, monkeypatch):
-    decode_module = importlib.import_module("ocrllm.imaging.decode_image_bytes")
-    fake_module = _FakeImageModule(
-        size=(MAX_IMAGE_PIXELS, 1),
-        image_format="PNG",
-    )
-    monkeypatch.setattr(decode_module, "_load_pillow", lambda: (fake_module, OSError))
-
-    decoded = decode_module.decode_image_bytes(b"fake image", suffix=".png")
-
-    assert decoded.pixel_count == MAX_IMAGE_PIXELS
+    assert raised.value.details == {
+        "pixel_count": pixel_count,
+        "maximum_pixel_count": MAX_IMAGE_PIXELS,
+    }
 
 
 def test_decode_image_maps_decompression_bomb_warning_to_too_large(tmp_path, monkeypatch):
@@ -214,36 +221,73 @@ def test_decode_image_maps_decompression_bomb_warning_to_too_large(tmp_path, mon
     assert raised.value.code == "SOURCE_TOO_LARGE"
 
 
-def test_validate_image_group_rejects_more_than_ten_before_file_access():
-    sources = tuple(Path(f"{index}.png") for index in range(MAX_IMAGE_GROUP_COUNT + 1))
+@pytest.mark.parametrize(
+    ("limit_offset", "accepted"),
+    [(-1, True), (0, True), (1, False)],
+    ids=["one-below", "at", "one-above"],
+)
+def test_validate_image_group_count_boundary(monkeypatch, limit_offset, accepted):
+    group_module = importlib.import_module("ocrllm.validate_image_group")
+    image_count = MAX_IMAGE_GROUP_COUNT + limit_offset
+    sources = tuple(Path(f"{index}.png") for index in range(image_count))
+
+    if accepted:
+        monkeypatch.setattr(group_module, "validate_source", lambda _source: 1)
+        monkeypatch.setattr(
+            group_module,
+            "decode_image",
+            lambda _source: DecodedImageInfo(format="PNG", width=1, height=1),
+        )
+        assert len(group_module.validate_image_group(sources)) == image_count
+        return
+
+    def fail_on_file_access(_source):
+        raise AssertionError("group count must fail before file access")
+
+    monkeypatch.setattr(group_module, "validate_source", fail_on_file_access)
+    monkeypatch.setattr(group_module, "decode_image", fail_on_file_access)
 
     with pytest.raises(InvalidSource) as raised:
-        validate_image_group(sources)
+        group_module.validate_image_group(sources)
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
+    assert raised.value.details == {
+        "image_count": image_count,
+        "maximum_image_count": MAX_IMAGE_GROUP_COUNT,
+    }
 
 
-def test_validate_image_group_accepts_exactly_ten_images(monkeypatch):
-    group_module = importlib.import_module("ocrllm.validate_image_group")
-    sources = tuple(Path(f"{index}.png") for index in range(MAX_IMAGE_GROUP_COUNT))
-    monkeypatch.setattr(group_module, "validate_source", lambda _source: 1)
-    monkeypatch.setattr(
-        group_module,
-        "decode_image",
-        lambda _source: DecodedImageInfo(format="PNG", width=1, height=1),
-    )
-
-    assert len(group_module.validate_image_group(sources)) == MAX_IMAGE_GROUP_COUNT
-
-
-def test_validate_image_group_rejects_aggregate_source_bytes(monkeypatch):
+@pytest.mark.parametrize(
+    ("limit_offset", "accepted"),
+    [(-1, True), (0, True), (1, False)],
+    ids=["one-below", "at", "one-above"],
+)
+def test_validate_image_group_aggregate_source_byte_boundary(
+    monkeypatch,
+    limit_offset,
+    accepted,
+):
     group_module = importlib.import_module("ocrllm.validate_image_group")
     sources = tuple(Path(f"{index}.png") for index in range(5))
-    bytes_per_source = MAX_AGGREGATE_SOURCE_BYTES // 5 + 1
-    monkeypatch.setattr(group_module, "validate_source", lambda _source: bytes_per_source)
+    aggregate_bytes = MAX_AGGREGATE_SOURCE_BYTES + limit_offset
+    base_size, remainder = divmod(aggregate_bytes, len(sources))
+    source_sizes = iter(
+        base_size + (1 if index < remainder else 0)
+        for index in range(len(sources))
+    )
+    monkeypatch.setattr(group_module, "validate_source", lambda _source: next(source_sizes))
+
+    if accepted:
+        monkeypatch.setattr(
+            group_module,
+            "decode_image",
+            lambda _source: DecodedImageInfo(format="PNG", width=1, height=1),
+        )
+        assert len(group_module.validate_image_group(sources)) == len(sources)
+        return
 
     def fail_if_decoded(_source):
-        raise AssertionError("decode must not run after the aggregate byte cap fails")
+        raise AssertionError("aggregate byte rejection must happen before decode")
 
     monkeypatch.setattr(group_module, "decode_image", fail_if_decoded)
 
@@ -251,52 +295,50 @@ def test_validate_image_group_rejects_aggregate_source_bytes(monkeypatch):
         group_module.validate_image_group(sources)
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
+    assert raised.value.details == {
+        "aggregate_byte_size": aggregate_bytes,
+        "maximum_aggregate_byte_size": MAX_AGGREGATE_SOURCE_BYTES,
+    }
 
 
-def test_validate_image_group_accepts_exact_aggregate_source_bytes(monkeypatch):
+@pytest.mark.parametrize(
+    ("limit_offset", "accepted"),
+    [(-1, True), (0, True), (1, False)],
+    ids=["one-below", "at", "one-above"],
+)
+def test_validate_image_group_aggregate_pixel_boundary(
+    monkeypatch,
+    limit_offset,
+    accepted,
+):
     group_module = importlib.import_module("ocrllm.validate_image_group")
-    sources = tuple(Path(f"{index}.png") for index in range(5))
-    bytes_per_source = MAX_AGGREGATE_SOURCE_BYTES // len(sources)
-    monkeypatch.setattr(group_module, "validate_source", lambda _source: bytes_per_source)
-    monkeypatch.setattr(
-        group_module,
-        "decode_image",
-        lambda _source: DecodedImageInfo(format="PNG", width=1, height=1),
-    )
-
-    assert len(group_module.validate_image_group(sources)) == len(sources)
-
-
-def test_validate_image_group_rejects_aggregate_pixels(monkeypatch):
-    group_module = importlib.import_module("ocrllm.validate_image_group")
-    sources = tuple(Path(f"{index}.png") for index in range(3))
+    sources = tuple(Path(f"{index}.png") for index in range(4))
     monkeypatch.setattr(group_module, "validate_source", lambda _source: 1)
-    monkeypatch.setattr(
-        group_module,
-        "decode_image",
-        lambda _source: DecodedImageInfo(format="PNG", width=8_000, height=3_000),
+    aggregate_pixels = MAX_AGGREGATE_PIXELS + limit_offset
+    base_pixels, remainder = divmod(aggregate_pixels, len(sources))
+    decoded_images = iter(
+        DecodedImageInfo(
+            format="PNG",
+            width=base_pixels + (1 if index < remainder else 0),
+            height=1,
+        )
+        for index in range(len(sources))
     )
+    monkeypatch.setattr(group_module, "decode_image", lambda _source: next(decoded_images))
+
+    if accepted:
+        decoded = group_module.validate_image_group(sources)
+        assert sum(image.pixel_count for image in decoded) == aggregate_pixels
+        return
 
     with pytest.raises(InvalidSource) as raised:
         group_module.validate_image_group(sources)
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
-
-
-def test_validate_image_group_accepts_the_exact_aggregate_pixel_limit(monkeypatch):
-    group_module = importlib.import_module("ocrllm.validate_image_group")
-    sources = tuple(Path(f"{index}.png") for index in range(4))
-    monkeypatch.setattr(group_module, "validate_source", lambda _source: 1)
-    monkeypatch.setattr(
-        group_module,
-        "decode_image",
-        lambda _source: DecodedImageInfo(format="PNG", width=4_000, height=4_000),
-    )
-
-    decoded = group_module.validate_image_group(sources)
-
-    assert len(decoded) == 4
-    assert sum(image.pixel_count for image in decoded) == MAX_AGGREGATE_PIXELS
+    assert raised.value.details == {
+        "aggregate_pixel_count": aggregate_pixels,
+        "maximum_aggregate_pixel_count": MAX_AGGREGATE_PIXELS,
+    }
 
 
 class _FakeBombWarning(RuntimeWarning):

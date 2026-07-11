@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
+import importlib
 import traceback
 from pathlib import Path
 
 import pytest
 
 from ocrllm import Config, InvalidSource, UnsupportedFormat, recognize
+from ocrllm.imaging.decode_image import DecodedImageInfo, MAX_IMAGE_PIXELS
+from ocrllm.validate_image_group import (
+    MAX_AGGREGATE_PIXELS,
+    MAX_AGGREGATE_SOURCE_BYTES,
+)
 from ocrllm.validate_source import MAX_SOURCE_BYTES
 from write_test_image import write_test_image
 
@@ -104,6 +110,61 @@ def test_oversized_source_fails_before_provider(tmp_path):
     assert provider.calls == 0
 
 
+def test_decoded_pixel_one_above_fails_before_provider(tmp_path, monkeypatch):
+    decode_module = importlib.import_module("ocrllm.imaging.decode_image_bytes")
+    source = write_test_image(tmp_path / "pixel-limit.png")
+
+    class FakeImage:
+        size = (MAX_IMAGE_PIXELS + 1, 1)
+        format = "PNG"
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, _error_type, _error, _traceback):
+            return False
+
+        def verify(self):
+            return None
+
+        def load(self):
+            return None
+
+    class FakeBombWarning(RuntimeWarning):
+        pass
+
+    class FakeBombError(Exception):
+        pass
+
+    class FakeImageModule:
+        DecompressionBombWarning = FakeBombWarning
+        DecompressionBombError = FakeBombError
+
+        @staticmethod
+        def open(_source):
+            return FakeImage()
+
+    monkeypatch.setattr(
+        decode_module,
+        "_load_pillow",
+        lambda: (FakeImageModule, OSError),
+    )
+    provider = CountingProvider()
+
+    with pytest.raises(InvalidSource) as captured:
+        recognize(
+            source,
+            config=Config(provider=provider, temp_dir=tmp_path / "snapshots"),
+        )
+
+    assert captured.value.code == "SOURCE_TOO_LARGE"
+    assert captured.value.details == {
+        "pixel_count": MAX_IMAGE_PIXELS + 1,
+        "maximum_pixel_count": MAX_IMAGE_PIXELS,
+    }
+    assert provider.calls == 0
+
+
 def test_invalid_later_group_member_fails_before_provider(tmp_path):
     valid = write_test_image(tmp_path / "valid.png")
     invalid = tmp_path / "invalid.jpg"
@@ -125,4 +186,75 @@ def test_too_many_images_fail_before_file_or_provider_access(tmp_path):
         recognize(sources, config=Config(provider=provider))
 
     assert captured.value.code == "SOURCE_TOO_LARGE"
+    assert provider.calls == 0
+
+
+def test_aggregate_source_one_above_fails_before_provider_or_temp_access(
+    tmp_path,
+    monkeypatch,
+):
+    snapshot_module = importlib.import_module("ocrllm.imaging.snapshot_image_group")
+    sources = tuple(tmp_path / f"missing-{index}.png" for index in range(5))
+    aggregate_bytes = MAX_AGGREGATE_SOURCE_BYTES + 1
+    base_size, remainder = divmod(aggregate_bytes, len(sources))
+    source_sizes = iter(
+        base_size + (1 if index < remainder else 0)
+        for index in range(len(sources))
+    )
+    monkeypatch.setattr(
+        snapshot_module,
+        "validate_source",
+        lambda _source: next(source_sizes),
+    )
+
+    def fail_on_temp_access(_configured_parent):
+        raise AssertionError("aggregate bytes must fail before temporary output")
+
+    monkeypatch.setattr(
+        snapshot_module,
+        "_prepare_temporary_parent",
+        fail_on_temp_access,
+    )
+    provider = CountingProvider()
+
+    with pytest.raises(InvalidSource) as captured:
+        recognize(sources, config=Config(provider=provider))
+
+    assert captured.value.code == "SOURCE_TOO_LARGE"
+    assert provider.calls == 0
+
+
+def test_aggregate_pixels_one_above_fails_before_provider(tmp_path, monkeypatch):
+    group_module = importlib.import_module("ocrllm.validate_image_group")
+    sources = tuple(
+        write_test_image(tmp_path / f"pixel-{index}.png") for index in range(4)
+    )
+    aggregate_pixels = MAX_AGGREGATE_PIXELS + 1
+    base_pixels, remainder = divmod(aggregate_pixels, len(sources))
+    decoded_images = iter(
+        DecodedImageInfo(
+            format="PNG",
+            width=base_pixels + (1 if index < remainder else 0),
+            height=1,
+        )
+        for index in range(len(sources))
+    )
+    monkeypatch.setattr(
+        group_module,
+        "decode_image",
+        lambda _source: next(decoded_images),
+    )
+    provider = CountingProvider()
+
+    with pytest.raises(InvalidSource) as captured:
+        recognize(
+            sources,
+            config=Config(provider=provider, temp_dir=tmp_path / "snapshots"),
+        )
+
+    assert captured.value.code == "SOURCE_TOO_LARGE"
+    assert captured.value.details == {
+        "aggregate_pixel_count": aggregate_pixels,
+        "maximum_aggregate_pixel_count": MAX_AGGREGATE_PIXELS,
+    }
     assert provider.calls == 0

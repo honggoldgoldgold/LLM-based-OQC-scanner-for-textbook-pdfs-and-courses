@@ -50,16 +50,18 @@ The current image facade:
   revalidated copy.
 
 This is not yet a completed recognition capability. The built-in DashScope
-adapter and its offline boundary tests now exist, but the committed quality
-corpus/scorer and required live-provider evidence do not. Phase 1 therefore
-remains NO-GO and no image/provider capability is `available`. The adapter
-requires an explicit regional endpoint, accepts only `qwen3.7-plus` and the
-default pinned `qwen3.7-plus-2026-05-26`, disables OpenAI SDK retries, and builds
-Base64 data URLs rather than sending local paths. There is still no local OCR
-backend, key pool, automatic retry/model fallback, or image resume; PDF, audio,
-and video remain unavailable. Local user screenshots are uncommitted
-supplemental material; only the committed licensed five-class corpus can
-satisfy the quality gate.
+adapter, exact offline boundary tests, committed licensed five-class corpus,
+deterministic scorers, and guarded evidence runner now exist. Required live
+provider evidence does not: Phase 1 remains NO-GO and no image/provider
+capability is `available` until the clean smoke, both independently dispatched
+full-corpus runs, final clean profiles, and explicit GO-decision update pass.
+The adapter requires an explicit matching region and endpoint, accepts only
+`qwen3.7-plus` and the default pinned `qwen3.7-plus-2026-05-26`, disables OpenAI
+SDK retries, and builds Base64 data URLs rather than sending local paths. There
+is still no local OCR backend, key pool, automatic retry/model fallback, or
+image resume; PDF, audio, and video remain unavailable. Local user screenshots
+are uncommitted supplemental material and never replace the committed corpus in
+pass/fail evidence.
 
 Read `../../docs/ocrllm_library_go_no_go.md` before active-library work. It is
 the authoritative source for file responsibilities, GO gates, and the
@@ -87,12 +89,16 @@ migrate/rewrite/reject boundary.
 
 Use the root test suite for this package:
 
-```bash
-pytest
+```powershell
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --with 'pytest>=8,<10' --with 'openai>=2.30,<3' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m pytest -q -p no:cacheprovider
 ```
 
 The import contract must stay true:
 
-```bash
-python -c "import ocrllm; print(ocrllm.__version__)"
+```powershell
+& 'D:\Anaconda\envs\OCRLLM\python.exe' -c `
+  "import sys; sys.path.insert(0, 'src'); import ocrllm; print(ocrllm.__version__)"
 ```

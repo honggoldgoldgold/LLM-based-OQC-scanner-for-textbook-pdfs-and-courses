@@ -557,8 +557,9 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   limit.
 - Runner checkpoint `fb23d1e` is committed at full commit
   `fb23d1e40d4594ed1da8e244945ae7ccb9568efd`. Its offline fake/evidence tests
-  pass; the complete pinned suite now passes `546` tests, the four generated
-  images remain byte-identical, and `compileall` passes. Direct no-network
+  pass; at that checkpoint the complete pinned suite passed `546` tests, the
+  four generated images remained byte-identical, and `compileall` passed.
+  Direct no-network
   preflight verified the strict manifest and artifacts, exact repository import
   origins, the closed public signature
   `(region, base_url, evidence_path, confirm_paid_calls, repository_root)`, and a
@@ -583,6 +584,13 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `os.replace`. The writer does not explicitly `fsync` the containing directory,
   so it does not promise persistence across sudden power loss beyond normal
   filesystem link/replace guarantees.
+- Current boundary-completion verification adds exact one-below, at, and
+  one-above cases for the per-source byte, decoded-pixel, group-count,
+  aggregate-source-byte, and aggregate-pixel caps. The rejecting
+  per-source/pixel/count/aggregate integration cases all prove zero provider
+  calls; aggregate-source rejection additionally precedes temporary-directory
+  access. The complete pinned suite now passes `554` tests, generated fixture
+  bytes remain identical, and `compileall` passes without a provider/API call.
 - Pushed packaging hotfix `3414f47` fixed a filename-ignore defect without
   weakening secret protection. The legitimate module/function formerly named
   `resolve_dashscope_api_key.py` / `resolve_dashscope_api_key` matched the
@@ -603,6 +611,17 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   call was made. Later edits that only record this result in
   `MIGRATION_STATUS.md` and `docs/ocrllm_library_go_no_go.md` do not alter the
   wheel inputs.
+- Current optional-profile proof at full commit
+  `51d3f27d308cdeb6e5e7c93ab23f6dcb8434d801` rebuilt that exact wheel from a
+  clean Git archive. A fresh `ocrllm[image]` environment installed Pillow
+  12.3.0 with a `15,904,036`-byte delta, preserved lazy import, and completed a
+  generated-PNG recognition call through the injected-provider path. A separate
+  fresh `ocrllm[image,dashscope]` environment installed Pillow 12.3.0, OpenAI
+  2.45.0, and HTTPX 0.28.1 with a `40,676,876`-byte delta, preserved lazy base
+  import, and constructed and closed the real zero-retry client without an HTTP
+  request. Both remain below their 25 MiB and 64 MiB ceilings. The decision-time
+  profile rerun remains required after the live gate, and after any packaged
+  source, README, metadata, or dependency change.
 - The user-supplied screenshots currently present under `docs/` are local,
   supplemental, and non-redistributable. They may help manual development, but
   they remain untracked and cannot enter pass/fail evidence. They are not part

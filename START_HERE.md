@@ -46,7 +46,10 @@ live-scoring gate. Its byte-frozen manifest is `35,400` bytes with SHA-256
 `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`;
 the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
 with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `546` tests; the generator byte-identity check and `compileall` pass.
+now passes `554` tests; the generator byte-identity check and `compileall` pass.
+Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
+group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
+integration paths proving zero provider calls.
 Committed runner checkpoint `fb23d1e` adds the guarded live evidence path. Its
 offline fake/evidence tests and direct preflight passed without a provider/API
 call.
