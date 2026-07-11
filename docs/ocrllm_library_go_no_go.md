@@ -2240,6 +2240,14 @@ provider calls, now with a 180-second timeout. Phase 1 remains NO-GO until that
 gate and clean packaging profiles pass. See
 `phase1_v10_sign_scout_workflow_debug_2026-07-11.md`.
 
+V10 live evidence completed both runs and all 39 calls; Run B passed. Run A
+handwriting still missed one plus with zero restoration, and Run A formula was
+scorer-rejected for safe `\text{}` LaTeX. The passing ordered request also
+revealed an unsafe false restoration of a Markdown `---` separator. Preserve
+the 98,351-byte evidence SHA-256
+`8c86c7117efa6ad7e999bad3180e861981a27598788cfaaeb526472ae65b9c54`.
+Phase 1 remains NO-GO. See `phase1_live_quality_result_v10_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

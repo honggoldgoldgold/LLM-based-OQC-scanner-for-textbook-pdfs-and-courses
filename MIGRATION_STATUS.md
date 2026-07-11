@@ -973,6 +973,18 @@ The isolated suite passes 628 tests. Commit/push, repeat clean preflight, then
 run the fixed 13-recognition/39-call Beijing gate with 180-second per-call
 timeouts. See `docs/phase1_v10_sign_scout_workflow_debug_2026-07-11.md`.
 
+The complete v10 gate is preserved at
+`evidence/phase1/phase1-quality-v10-2026-07-11-cn-beijing.json`, 98,351 bytes,
+SHA-256
+`8c86c7117efa6ad7e999bad3180e861981a27598788cfaaeb526472ae65b9c54`.
+All 13 recognitions and 39 calls returned; both runs completed and Run B passed.
+Run A handwriting still missed one plus with zero restoration. Run A formula
+was provider-complete but the scorer rejected safe `\text{}` presentation.
+Post-run inspection also found the passing ordered request restored a Markdown
+`---` separator, not source content. V11 must exclude thematic breaks, use a
+2-of-3 scout quorum, and narrowly normalize safe single-symbol `\text{}` forms.
+See `docs/phase1_live_quality_result_v10_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

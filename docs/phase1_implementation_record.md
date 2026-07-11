@@ -365,3 +365,13 @@ the perfect formula draft; all three final outputs pass and the formula bytes
 are unchanged. The 37,853-byte manifest SHA-256 is
 `15a7018084cd1d53c82acbf260bb19095ccb29664cc357beaaaefd9044b8f971`.
 The isolated suite passes 628 tests. Full v10 live evidence remains required.
+
+V10 live evidence completed all 13 recognitions and 39 calls. Run B passed all
+six dispatches. Run A handwriting still missed one plus because two scouts
+produced no usable quorum; Run A formula was provider-complete but rejected by
+the scorer for safe `\text{}` LaTeX. Post-run inspection found one ordered
+restoration was merely a Markdown `---` separator. Preserve the 98,351-byte
+evidence SHA-256
+`8c86c7117efa6ad7e999bad3180e861981a27598788cfaaeb526472ae65b9c54`.
+V11 needs thematic-break exclusion, a 2-of-3 scout quorum, and a narrow safe
+`\text{single-symbol}` normalization.
