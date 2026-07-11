@@ -140,6 +140,11 @@ labeled formulas. The unified profile, provider count, truth, and quorum remain
 unchanged. All 706 offline tests pass; live evidence is pending. See
 `docs/phase1_v16_arrow_exclusion_and_formula_dialect_2026-07-11.md`.
 
+The complete v16 gate returned all 52 calls. One full run passed; the other
+failed only one missing handwriting plus despite three usable scouts. Arrow
+exclusion and formula dialect v7 both pass live. Phase 1 remains NO-GO; see
+`docs/phase1_live_quality_result_v16_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

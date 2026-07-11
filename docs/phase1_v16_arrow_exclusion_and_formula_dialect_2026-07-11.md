@@ -2,7 +2,8 @@
 
 Date: 2026-07-11.
 
-Status: offline gates pass; complete live gate pending.
+Status: offline gates pass; the complete live gate finished with one of two
+full runs passing.
 
 ## Decision
 
@@ -63,5 +64,16 @@ dialect v7. Existing one-letter `\text{X}` normalization remains active.
 - Generated fixtures are byte-identical; compileall, Ruff, diff, and conflict
   checks pass.
 
-No v16 provider call has been made. Phase 1 remains NO-GO pending a fresh
-complete gate with two passing full runs and clean package profiles.
+## Complete Live Result
+
+The frozen v16 run completed all 13 recognitions and 52 calls in about 66
+minutes 17 seconds. Run B passed all six dispatches. Run A failed only the
+original handwriting omission at 29/30 recall and 5/6 critical signs; all three
+scouts yielded supported evidence but no second-plus quorum, so zero signs were
+restored. Both v15 policy failures are gone: no arrow is inserted and both
+formula runs pass dialect v7. Preserve the 103,882-byte evidence SHA-256
+`4395c84ed0efa8d3567bdf5f14a35a8dad8d3412a52fdb5a9e8359ca355ea139`.
+See `phase1_live_quality_result_v16_2026-07-11.md`.
+
+Phase 1 remains NO-GO pending a safe generic small-sign availability
+improvement, a fresh complete passing gate, and clean package profiles.

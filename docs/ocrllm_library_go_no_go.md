@@ -2343,6 +2343,14 @@ is 37,864 bytes with SHA-256
 all 706 isolated tests pass. Phase 1 remains NO-GO pending complete live
 evidence. See `phase1_v16_arrow_exclusion_and_formula_dialect_2026-07-11.md`.
 
+The complete v16 run returned all 52 calls. Run B passed; Run A failed only one
+missing handwriting plus after three usable scout responses produced no
+second-plus quorum. No arrow was inserted and both formula runs passed dialect
+v7. Preserve the 103,882-byte evidence SHA-256
+`4395c84ed0efa8d3567bdf5f14a35a8dad8d3412a52fdb5a9e8359ca355ea139`.
+Phase 1 remains NO-GO. See
+`phase1_live_quality_result_v16_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

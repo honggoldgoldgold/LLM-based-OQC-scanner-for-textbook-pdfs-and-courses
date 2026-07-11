@@ -436,6 +436,15 @@ The structural suite passes 37 tests, the wider workflow suite passes 153, and
 the exact isolated repository suite passes 685. Complete live evidence remains
 pending.
 
+The v16 live gate returned all 52 calls after about 66 minutes 17 seconds. Run B
+passed all six dispatches. Run A failed only the original handwriting plus
+omission; all scouts were usable but no second-plus quorum formed. Arrow
+exclusion and formula dialect v7 eliminate both v15 failures. Preserve the
+103,882-byte evidence SHA-256
+`4395c84ed0efa8d3567bdf5f14a35a8dad8d3412a52fdb5a9e8359ca355ea139`.
+Next compare a generic primary-conditioned omission ledger against a larger
+pool; do not lower quorum or add handwriting routing.
+
 The v14 live gate returned all 52 calls. Run B passed all six dispatches; Run A
 failed only handwriting at 29/30 recall and 5/6 critical signs because two
 scouts abstained and no quorum restoration occurred. Both tables now pass, and
@@ -472,5 +481,4 @@ only one-letter `\mathrm{X}` inside exact labeled formulas and preserves every
 v6 restriction. The preserved v15 formula passes end-to-end scoring; arrow-only
 scout evidence abstains. The 37,864-byte manifest SHA-256 is
 `12b5234850d885926ea01161c31643ae2050728bd377c86e44784377d00abde9`;
-99 focused and 706 exact isolated tests pass. Complete live v16 evidence is
-pending.
+99 focused and 706 exact isolated tests pass.

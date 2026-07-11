@@ -1108,6 +1108,16 @@ manifest SHA-256 is
 99 focused and all 706 isolated tests pass. See
 `docs/phase1_v16_arrow_exclusion_and_formula_dialect_2026-07-11.md`.
 
+The v16 gate completed all 13 recognitions and 52 calls from pushed commit
+`73da992` in about 66 minutes 17 seconds. Run B passed completely; Run A failed
+only handwriting at 29/30 recall and 5/6 critical signs. All three scout
+responses were usable but did not form a second-plus quorum, so zero signs were
+restored. Arrow exclusion and formula dialect v7 both pass live. Preserve the
+103,882-byte evidence SHA-256
+`4395c84ed0efa8d3567bdf5f14a35a8dad8d3412a52fdb5a9e8359ca355ea139`.
+Do not split handwriting or lower quorum. Compare a generic primary-conditioned
+omission ledger with a larger fixed scout pool before raising the call plan.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
