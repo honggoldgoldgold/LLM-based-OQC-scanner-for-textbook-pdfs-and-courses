@@ -115,6 +115,12 @@ already represented, and GFM table rows are protected from insertion. All 685
 offline tests pass; complete live evidence is pending. See
 `docs/phase1_v14_structural_sign_guard_2026-07-11.md`.
 
+The complete v14 gate returned all 52 calls. One full run passed; the other
+failed only because two scout abstentions left no quorum for one missing
+handwriting plus. Both tables and every other structural regression now pass.
+Phase 1 remains NO-GO; see
+`docs/phase1_live_quality_result_v14_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

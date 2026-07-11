@@ -2306,6 +2306,14 @@ bytes with SHA-256
 all 685 isolated tests pass. Phase 1 remains NO-GO pending complete live
 evidence. See `phase1_v14_structural_sign_guard_2026-07-11.md`.
 
+The complete v14 run returned all 52 calls. Run B passed; Run A failed only
+handwriting after two scout abstentions left no quorum to restore one missing
+plus. Both tables and all other dispatches pass, confirming the v13 structural
+fixes. Preserve the 103,074-byte evidence SHA-256
+`48c4fb2f78d0bff36aae6e022074d173e85fbf8cdfa792a81bc04bef01fe067a`.
+Phase 1 remains NO-GO. See
+`phase1_live_quality_result_v14_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

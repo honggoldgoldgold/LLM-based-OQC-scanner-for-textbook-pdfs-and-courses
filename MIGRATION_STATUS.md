@@ -1065,6 +1065,16 @@ are blocked. The code never inspects fixture class or handwriting status. The
 37 direct structural tests, 153 wider tests, and all 685 isolated repository
 tests pass. See `docs/phase1_v14_structural_sign_guard_2026-07-11.md`.
 
+The v14 gate completed all 13 recognitions and 52 calls from pushed commit
+`ff25461`; Run B passed completely and Run A failed only handwriting. The Run A
+primary missed one plus, two scouts abstained, and one valid scout could not
+form quorum. Both tables, both projected slides, both formulas, and both ordered
+dispatches pass; every v13 structural regression is gone. Preserve the
+103,074-byte evidence SHA-256
+`48c4fb2f78d0bff36aae6e022074d173e85fbf8cdfa792a81bc04bef01fe067a`.
+Do not reduce quorum to one or split handwriting routing. Measure a larger fixed
+independent scout pool under the same strict parser and structural guards.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

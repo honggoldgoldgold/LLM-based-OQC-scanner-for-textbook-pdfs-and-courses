@@ -2,7 +2,8 @@
 
 Date: 2026-07-11.
 
-Status: offline gates pass; complete live gate pending.
+Status: offline gates pass; complete live gate finished with one of two full
+runs passing.
 
 ## Decision
 
@@ -68,5 +69,16 @@ fixture IDs, scorer output, or image class.
 - Generated fixtures are byte-identical; compileall, Ruff, diff, and conflict
   checks pass.
 
-No v14 provider call has been made yet. Phase 1 remains NO-GO pending a fresh
-complete live gate with two passing full runs and clean package profiles.
+## Complete Live Result
+
+The frozen v14 run completed all 13 recognitions and 52 calls with no terminal
+failure. Run B passed completely. Run A failed only handwriting because the
+primary missed one plus, two scouts abstained, and one valid scout could not
+form quorum. V14 eliminated every v13 structural regression: both tables pass,
+no signed anchor gained a conflicting plus, and no LaTeX relation was
+duplicated. Preserve the 103,074-byte evidence SHA-256
+`48c4fb2f78d0bff36aae6e022074d173e85fbf8cdfa792a81bc04bef01fe067a`.
+See `phase1_live_quality_result_v14_2026-07-11.md`.
+
+Phase 1 remains NO-GO pending a safe auxiliary-availability improvement, a
+fresh complete gate with two passing runs, and clean package profiles.

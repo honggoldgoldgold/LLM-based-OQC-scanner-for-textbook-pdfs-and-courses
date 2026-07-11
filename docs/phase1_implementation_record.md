@@ -435,3 +435,12 @@ table row. The 37,853-byte manifest SHA-256 is
 The structural suite passes 37 tests, the wider workflow suite passes 153, and
 the exact isolated repository suite passes 685. Complete live evidence remains
 pending.
+
+The v14 live gate returned all 52 calls. Run B passed all six dispatches; Run A
+failed only handwriting at 29/30 recall and 5/6 critical signs because two
+scouts abstained and no quorum restoration occurred. Both tables now pass, and
+the Unicode/LaTeX and anchor-conflict regressions do not recur. Preserve the
+103,074-byte evidence SHA-256
+`48c4fb2f78d0bff36aae6e022074d173e85fbf8cdfa792a81bc04bef01fe067a`.
+The next experiment is bounded scout availability, not handwriting routing or
+single-scout acceptance.
