@@ -1636,6 +1636,15 @@ compilation passes. Fresh repeated v4 live evidence is still required, so Phase
 1 remains NO-GO. The Qwen3.5-OCR signed-URL result remains rejected from the
 public contract.
 
+V4 attempt 1 then started from clean commit `a4fc418` and made one smoke call.
+DashScope returned retryable HTTP 500 `internal_server_error`; the runner
+aborted as `PROVIDER_UNAVAILABLE` with zero full runs. Preserve the 27,245-byte
+evidence at
+`evidence/phase1/phase1-quality-v4-2026-07-11-cn-beijing.json` (SHA-256
+`49e5a3981d13137c5a8ca543b96290bf3b30595ed5cd6d19ca58362c19134015`).
+It is transport evidence only. A new attempt must use a new complete plan and
+new path.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:

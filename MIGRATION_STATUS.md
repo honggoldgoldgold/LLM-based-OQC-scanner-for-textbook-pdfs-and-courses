@@ -824,6 +824,17 @@ and `compileall` passes. Read
 `docs/phase1_unified_board_handwriting_debug_2026-07-11.md` for the evidence.
 Phase 1 remains NO-GO only until two fresh complete v4 live runs pass.
 
+V4 live attempt 1 is preserved at
+`evidence/phase1/phase1-quality-v4-2026-07-11-cn-beijing.json`, 27,245 bytes,
+SHA-256
+`49e5a3981d13137c5a8ca543b96290bf3b30595ed5cd6d19ca58362c19134015`.
+It made one smoke invocation, received retryable DashScope HTTP 500
+`internal_server_error`, and aborted with `PROVIDER_UNAVAILABLE` before any full
+run. This is transport-failure evidence, not a recognition-quality result. Do
+not overwrite or resume it; a later attempt must use a new complete plan and
+new evidence path. See
+`docs/phase1_live_quality_result_v4_attempt1_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

@@ -238,3 +238,13 @@ Unicode/LaTeX diagram connectors as layout. The 37,492-byte manifest SHA-256 is
 The isolated offline suite passes 583 tests, fixture generation is
 byte-identical, and `compileall` passes. Fresh repeated live v4 evidence is
 still required; Phase 1 remains NO-GO.
+
+V4 live attempt 1 started from clean full commit
+`a4fc4181e2aa37207224df4de5a2e9c30863d2a8`. Its no-network preflight bound
+103 relevant files, 20 artifacts, and the fixed 13-call plan. The first smoke
+call returned DashScope HTTP 500 `internal_server_error`; the runner recorded
+retryable `PROVIDER_UNAVAILABLE` and aborted with one invocation and zero full
+runs. The 27,245-byte atomic evidence SHA-256 is
+`49e5a3981d13137c5a8ca543b96290bf3b30595ed5cd6d19ca58362c19134015`.
+It is preserved and must not be overwritten or resumed. A new complete attempt
+requires a new clean commit and evidence path.
