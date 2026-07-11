@@ -2257,6 +2257,14 @@ recognitions and 52 calls. Its 37,853-byte manifest SHA-256 is
 647 isolated tests pass. Phase 1 remains NO-GO pending live evidence. See
 `phase1_v11_three_scout_and_formula_dialect_2026-07-11.md`.
 
+V11 completed all 52 calls, but both runs failed only handwriting. Run A had
+30/30 recall and invented diagram captions; Run B also missed one plus. Three
+full-transcript scouts restored zero signs in both. Formula v6 and every
+non-handwriting dispatch passed twice. Preserve the 104,026-byte evidence
+SHA-256
+`44b74fdb0ba57662a6c49193c6c203b147b88a723bed8698b983fb9f1a59465f`.
+Phase 1 remains NO-GO. See `phase1_live_quality_result_v11_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

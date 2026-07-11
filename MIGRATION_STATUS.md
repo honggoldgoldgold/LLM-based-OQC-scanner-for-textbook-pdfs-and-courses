@@ -998,6 +998,17 @@ The 37,853-byte manifest SHA-256 is
 647 isolated tests pass. See
 `docs/phase1_v11_three_scout_and_formula_dialect_2026-07-11.md`.
 
+V11 live evidence completed all 13 recognitions and 52 calls with no transport
+failure. Both runs failed only handwriting. Run A had complete recall but
+invented diagram captions reduced precision to 38/58; Run B both missed one plus
+and invented diagram-description sections. No sign was restored in either run.
+Every non-handwriting dispatch passed, including formula dialect v6. Preserve
+the 104,026-byte evidence SHA-256
+`44b74fdb0ba57662a6c49193c6c203b147b88a723bed8698b983fb9f1a59465f`.
+Do not add more full-transcript scouts. Test literal-caption exclusion and a
+strict sign-only scout ledger next. See
+`docs/phase1_live_quality_result_v11_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

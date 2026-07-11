@@ -384,3 +384,12 @@ remain rejected. The preserved v10 formula now passes perfectly. The v11
 manifest is 37,853 bytes with SHA-256
 `3b5c5392b1e10ed40261ac08dc5fbf692f0b451c6c13c4c71a44b710f28ec86b`;
 647 isolated tests pass. The live plan is 13 recognitions and 52 calls.
+
+V11 live evidence returned all 52 calls. Formula v6 and every other
+non-handwriting dispatch passed twice, but both handwriting runs failed. One
+had 30/30 recall but appended invented diagram captions; the other also missed
+one plus. Three full-transcript scouts restored zero signs in both. Preserve the
+104,026-byte evidence SHA-256
+`44b74fdb0ba57662a6c49193c6c203b147b88a723bed8698b983fb9f1a59465f`.
+Next test a literal-caption exclusion and strict sign-only scout ledger before
+another complete gate.
