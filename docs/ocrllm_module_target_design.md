@@ -622,7 +622,7 @@ src/ocrllm/
     validate_provider_markdown.py    Nonempty/non-control text validation.
     dashscope/
       provider_settings.py           Immutable region/endpoint/request settings.
-      resolve_dashscope_api_key.py   Exact credential lookup and validation.
+      resolve_dashscope_credential.py Exact credential lookup and validation.
       resolve_dashscope_model.py     Exact model allowlist and pinned default.
       load_openai.py                 Lazy OpenAI dependency/version guard.
       build_dashscope_image_request.py Exact-byte preflight and JSON request.

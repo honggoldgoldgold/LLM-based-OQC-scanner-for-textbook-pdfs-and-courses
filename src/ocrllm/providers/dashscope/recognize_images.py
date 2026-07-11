@@ -15,7 +15,7 @@ from .load_openai import load_openai
 from .map_dashscope_error import map_dashscope_error
 from .parse_dashscope_image_response import parse_dashscope_image_response
 from .parse_dashscope_raw_response import parse_dashscope_raw_response
-from .resolve_dashscope_api_key import resolve_dashscope_api_key
+from .resolve_dashscope_credential import resolve_dashscope_credential
 from .resolve_dashscope_model import resolve_dashscope_model
 
 
@@ -39,7 +39,7 @@ def recognize_images(
         ) from None
 
     model = resolve_dashscope_model(config.model)
-    api_key = resolve_dashscope_api_key(config)
+    api_key = resolve_dashscope_credential(config)
     request = build_dashscope_image_request(
         image_paths,
         prompt=prompt,

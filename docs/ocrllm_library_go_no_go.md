@@ -656,7 +656,7 @@ src/ocrllm/providers/dashscope/provider_settings.py
     Validate immutable routing and evidence-affecting settings without loading
     a credential, dependency, or network client.
 
-src/ocrllm/providers/dashscope/resolve_dashscope_api_key.py
+src/ocrllm/providers/dashscope/resolve_dashscope_credential.py
     Resolve Config.api_key, then DASHSCOPE_API_KEY, and reject Coding Plan keys.
 
 src/ocrllm/providers/dashscope/resolve_dashscope_model.py

@@ -26,8 +26,8 @@ from ocrllm.providers.dashscope.parse_dashscope_image_response import (
 from ocrllm.providers.dashscope.parse_dashscope_raw_response import (
     parse_dashscope_raw_response,
 )
-from ocrllm.providers.dashscope.resolve_dashscope_api_key import (
-    resolve_dashscope_api_key,
+from ocrllm.providers.dashscope.resolve_dashscope_credential import (
+    resolve_dashscope_credential,
 )
 from ocrllm.raise_if_cancelled import raise_if_cancelled
 
@@ -86,14 +86,14 @@ def test_explicit_dashscope_key_precedes_environment(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", "environment-key")
     config = Config(provider=InjectedProvider(), api_key="explicit-key")
 
-    assert resolve_dashscope_api_key(config) == "explicit-key"
+    assert resolve_dashscope_credential(config) == "explicit-key"
 
 
 def test_dashscope_key_falls_back_to_environment(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", "environment-key")
 
     assert (
-        resolve_dashscope_api_key(Config(provider=InjectedProvider()))
+        resolve_dashscope_credential(Config(provider=InjectedProvider()))
         == "environment-key"
     )
 
@@ -105,7 +105,7 @@ def test_missing_or_malformed_dashscope_key_is_typed(monkeypatch, value):
         monkeypatch.setenv("DASHSCOPE_API_KEY", value)
 
     with pytest.raises(ConfigError) as captured:
-        resolve_dashscope_api_key(Config(provider=InjectedProvider()))
+        resolve_dashscope_credential(Config(provider=InjectedProvider()))
 
     assert captured.value.code == "CONFIG_MISSING"
 
@@ -115,7 +115,7 @@ def test_coding_plan_key_is_rejected_without_echo(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", sentinel)
 
     with pytest.raises(ConfigError) as captured:
-        resolve_dashscope_api_key(Config(provider=InjectedProvider()))
+        resolve_dashscope_credential(Config(provider=InjectedProvider()))
 
     assert captured.value.code == "CONFIG_INVALID"
     assert sentinel not in str(captured.value)
