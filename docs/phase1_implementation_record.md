@@ -426,3 +426,12 @@ were split by five inserted sign lines. Preserve the 98,101-byte evidence
 SHA-256
 `b10b88eeeba94f637165ddf32b95eb3ff3e3e02d4ccdd254ad9fbfe39bec67f1`.
 These are merger-policy defects, not handwriting capability failures.
+
+V14 fixes only those merger defects. Anchor-attached signs now block a
+conflicting insertion, source-equivalent Unicode/ASCII/LaTeX relation forms are
+counted before restoration, and no insertion may touch a protected outer-pipe
+table row. The 37,853-byte manifest SHA-256 is
+`dae74f4da207d01e311f5756a204e557ca6e6982073024d2e48b672315febb07`.
+The structural suite passes 37 tests, the wider workflow suite passes 153, and
+the exact isolated repository suite passes 685. Complete live evidence remains
+pending.

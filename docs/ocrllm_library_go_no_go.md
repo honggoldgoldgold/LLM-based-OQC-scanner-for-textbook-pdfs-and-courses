@@ -2298,6 +2298,14 @@ Preserve the 98,101-byte evidence SHA-256
 Phase 1 remains NO-GO. See
 `phase1_live_quality_result_v13_2026-07-11.md`.
 
+V14 includes anchor lines in conflict detection, counts equivalent
+Unicode/ASCII/LaTeX relation signs, and protects GFM pipe rows from insertion.
+It does not branch by handwriting or fixture class. The v14 manifest is 37,853
+bytes with SHA-256
+`dae74f4da207d01e311f5756a204e557ca6e6982073024d2e48b672315febb07`;
+all 685 isolated tests pass. Phase 1 remains NO-GO pending complete live
+evidence. See `phase1_v14_structural_sign_guard_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

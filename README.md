@@ -109,6 +109,12 @@ insertion inside tables. Handwriting itself reached complete recall and
 critical accuracy in both runs. Phase 1 remains NO-GO; see
 `docs/phase1_live_quality_result_v13_2026-07-11.md`.
 
+V14 fixes those merger rules without changing providers or routing: anchor-line
+signs block conflicts, equivalent Unicode/ASCII/LaTeX relations count as
+already represented, and GFM table rows are protected from insertion. All 685
+offline tests pass; complete live evidence is pending. See
+`docs/phase1_v14_structural_sign_guard_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

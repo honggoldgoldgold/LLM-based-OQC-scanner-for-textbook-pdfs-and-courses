@@ -5,6 +5,10 @@ from __future__ import annotations
 from collections import Counter
 from dataclasses import dataclass
 
+from .count_standalone_sign_representations import (
+    count_standalone_sign_representations,
+)
+from .is_gfm_pipe_table_row import is_gfm_pipe_table_row
 from .parse_standalone_sign_ledger import (
     SUPPORTED_STANDALONE_SIGNS,
     StandaloneSignEvent,
@@ -56,7 +60,10 @@ def restore_quorum_standalone_signs(
     insertions: list[tuple[int, str]] = []
     quorum_counts = Counter(event[0] for event in quorum_events)
     remaining = {
-        sign: max(0, count - _count_isolated_tokens(lines, sign))
+        sign: max(
+            0,
+            count - count_standalone_sign_representations(base_markdown, sign),
+        )
         for sign, count in quorum_counts.items()
     }
     search_from = 0
@@ -178,30 +185,32 @@ def _find_safe_insertion_index(
         following_index = _find_anchor(lines, following, previous_index + 1)
         if following_index is None:
             return None
-        if _contains_any_supported_sign(lines, previous_index + 1, following_index):
+        if _insertion_touches_gfm_table(lines, following_index):
+            return None
+        if _contains_any_supported_sign(lines, previous_index, following_index + 1):
             return None
         return following_index
     if following:
         following_index = _find_anchor(lines, following, search_from)
         if following_index is None:
             return None
+        if _insertion_touches_gfm_table(lines, following_index):
+            return None
         window_start = max(search_from, following_index - 4)
-        if _contains_any_supported_sign(lines, window_start, following_index):
+        if _contains_any_supported_sign(lines, window_start, following_index + 1):
             return None
         return following_index
     if previous:
         previous_index = _find_anchor(lines, previous, search_from)
         if previous_index is None:
             return None
+        if _insertion_touches_gfm_table(lines, previous_index + 1):
+            return None
         window_end = min(len(lines), previous_index + 5)
-        if _contains_any_supported_sign(lines, previous_index + 1, window_end):
+        if _contains_any_supported_sign(lines, previous_index, window_end):
             return None
         return previous_index + 1
     return None
-
-
-def _count_isolated_tokens(lines: list[str], sign: str) -> int:
-    return sum(token == sign for line in lines for token in line.split())
 
 
 def _contains_any_supported_sign(lines: list[str], start: int, stop: int) -> bool:
@@ -209,6 +218,13 @@ def _contains_any_supported_sign(lines: list[str], start: int, stop: int) -> boo
         token in SUPPORTED_STANDALONE_SIGNS
         for line in lines[start:stop]
         for token in line.split()
+    )
+
+
+def _insertion_touches_gfm_table(lines: list[str], index: int) -> bool:
+    return any(
+        0 <= candidate < len(lines) and is_gfm_pipe_table_row(lines[candidate])
+        for candidate in (index - 1, index)
     )
 
 

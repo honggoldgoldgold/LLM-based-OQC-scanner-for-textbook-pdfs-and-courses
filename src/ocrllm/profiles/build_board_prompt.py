@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 
-BOARD_PROMPT_VERSION = "board.v13"
+BOARD_PROMPT_VERSION = "board.v14"
 
 
 def build_board_prompt(

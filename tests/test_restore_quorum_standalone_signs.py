@@ -140,12 +140,51 @@ def test_exact_none_is_valid_empty_evidence_not_an_abstention():
 
 
 def test_existing_different_sign_blocks_conflicting_restoration_at_same_anchors():
-    base = "Selection\n-\nScreening\n"
+    base = "- Selection\n- Screening\n"
     false_plus = "+ | Selection | Screening"
 
     result = restore_quorum_standalone_signs(
         base,
         (false_plus, false_plus, "NONE"),
+        minimum_agreement=2,
+    )
+
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=0,
+    )
+
+
+def test_latex_equivalent_relation_blocks_duplicate_unicode_restoration():
+    base = "TARGET RECALL: $\\ge 95\\%$\nOUTPUT\nLATENCY P95: 180 ms\n"
+    duplicate = "≥ | OUTPUT | LATENCY P95"
+
+    result = restore_quorum_standalone_signs(
+        base,
+        (duplicate, duplicate, "NONE"),
+        minimum_agreement=2,
+    )
+
+    assert result == RestoredStandaloneSigns(
+        markdown=base,
+        restored_count=0,
+        abstained_scout_count=0,
+    )
+
+
+def test_sign_restoration_cannot_split_gfm_pipe_table_rows():
+    base = (
+        "| Run | Drift |\n"
+        "| --- | --- |\n"
+        "| A-01 | +0.18 |\n"
+        "| A-02 | -0.07 |\n"
+    )
+    row_sign = "+ | A-01 | A-02"
+
+    result = restore_quorum_standalone_signs(
+        base,
+        (row_sign, row_sign, row_sign),
         minimum_agreement=2,
     )
 

@@ -1056,6 +1056,15 @@ Preserve the 98,101-byte evidence SHA-256
 V14 must include anchor lines in sign-conflict checks, recognize equivalent
 sign spellings, and protect table blocks. Do not split handwriting routing.
 
+V14 implements those three local rules. Conflict windows now include both
+anchor lines; Unicode, ASCII, and supported LaTeX greater/less-equal forms count
+as the same represented sign; and insertions touching outer-pipe GFM table rows
+are blocked. The code never inspects fixture class or handwriting status. The
+37,853-byte manifest SHA-256 is
+`dae74f4da207d01e311f5756a204e557ca6e6982073024d2e48b672315febb07`;
+37 direct structural tests, 153 wider tests, and all 685 isolated repository
+tests pass. See `docs/phase1_v14_structural_sign_guard_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
