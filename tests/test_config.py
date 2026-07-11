@@ -196,14 +196,29 @@ def test_output_directory_preserves_memory_only_default_and_converts_paths(tmp_p
 
 
 def test_recognition_preferences_are_exact_frozen_and_bounded():
-    assert Config().preferences == RecognitionPreferences(review_passes=0)
+    assert Config().preferences == RecognitionPreferences(
+        draft_candidates=1,
+        review_passes=0,
+    )
     assert Config(
         preferences=RecognitionPreferences(review_passes=1)
     ).preferences.review_passes == 1
+    consensus = Config(
+        preferences=RecognitionPreferences(draft_candidates=2, review_passes=1)
+    ).preferences
+    assert consensus.draft_candidates == 2
+    assert consensus.review_passes == 1
 
     for bad_value in (True, -1, 2, "1"):
         with pytest.raises(ConfigError, match="review_passes"):
             RecognitionPreferences(review_passes=bad_value)  # type: ignore[arg-type]
+
+    for bad_value in (True, 0, 3, "2"):
+        with pytest.raises(ConfigError, match="draft_candidates"):
+            RecognitionPreferences(draft_candidates=bad_value)  # type: ignore[arg-type]
+
+    with pytest.raises(ConfigError, match="requires review_passes=1"):
+        RecognitionPreferences(draft_candidates=2)
 
     class PreferencesSubclass(RecognitionPreferences):
         pass
@@ -217,4 +232,12 @@ def test_config_revalidates_mutated_nested_preferences():
     object.__setattr__(preferences, "review_passes", 2)
 
     with pytest.raises(ConfigError, match="review_passes"):
+        Config(preferences=preferences)
+
+
+def test_config_revalidates_mutated_draft_candidate_count():
+    preferences = RecognitionPreferences()
+    object.__setattr__(preferences, "draft_candidates", 2)
+
+    with pytest.raises(ConfigError, match="requires review_passes=1"):
         Config(preferences=preferences)

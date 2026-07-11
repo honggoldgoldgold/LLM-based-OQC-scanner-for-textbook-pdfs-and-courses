@@ -921,6 +921,25 @@ accept uppercase as truth. Make v7 review conservative about changing exact
 draft identifiers/case, then test handwriting repair and formula preservation.
 See `docs/phase1_live_quality_result_v6_2026-07-11.md`.
 
+That v7 wording experiment is rejected. Two handwriting trials still omitted
+the center `+`, and two formula trials still changed `s_4` to `S_4`; all four
+reviewed results failed after eight successful provider calls. The accepted
+v8 design uses the same unified prompt and profile to produce two independent
+drafts, then performs one pixel-grounded consensus review. The targeted
+consensus result passed handwriting at 30/30 required recall and 10/10 slots,
+and passed the formula board at 12/12 signatures and 133/133 atoms. One formula
+consensus attempt timed out without publishing output; one bounded final-only
+recovery reused the two complete drafts and passed.
+
+`RecognitionPreferences(draft_candidates=2, review_passes=1)` explicitly opts
+into the three-call workflow; defaults remain one candidate and no review. No
+handwriting/formula branching exists. V8 evidence precommits 13 recognition
+invocations and 39 provider calls. The 37,712-byte manifest SHA-256 is
+`7200d16ea44b365301ce491bd3353433520d6c8ba2cc686debe6562173623e35`;
+the isolated suite passes 608 tests. Complete offline preflight, commit/push,
+then run a new clean v8 evidence path. See
+`docs/phase1_v8_consensus_workflow_debug_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

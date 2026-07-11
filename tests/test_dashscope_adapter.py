@@ -131,11 +131,12 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v6"
+    assert result.metadata["prompt_version"] == "board.v8"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
     assert result.metadata["provider_call_count"] == 1
+    assert result.metadata["draft_candidates"] == 1
     assert result.metadata["review_passes"] == 0
     assert api_key_sentinel not in repr(result)
     assert api_key_sentinel not in repr(result.metadata)
@@ -206,6 +207,7 @@ def test_builtin_review_pass_makes_two_no_retry_requests_and_returns_review(
 
     assert result.markdown == "# Reviewed board\n"
     assert result.metadata["provider_call_count"] == 2
+    assert result.metadata["draft_candidates"] == 1
     assert result.metadata["review_passes"] == 1
     assert len(fake_openai.constructor_calls) == 2
     assert len(client.calls) == 2
@@ -213,6 +215,44 @@ def test_builtin_review_pass_makes_two_no_retry_requests_and_returns_review(
     review_prompt = client.calls[1]["messages"][0]["content"][-1]["text"]
     assert "BEGIN FALLIBLE DRAFT DATA" not in first_prompt
     assert "> # Reviewed board" in review_prompt
+    assert all(call["temperature"] == 0 for call in client.calls)
+
+
+def test_builtin_consensus_review_makes_three_no_retry_requests(
+    tmp_path,
+    monkeypatch,
+):
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = FakeClient(response=_response(content="# Candidate board\n"))
+    fake_openai = _install_fake_openai(monkeypatch, client)
+
+    result = recognize(
+        source,
+        config=Config(
+            provider="dashscope",
+            dashscope=_settings(),
+            api_key="test-key",
+            preferences=RecognitionPreferences(
+                draft_candidates=2,
+                review_passes=1,
+            ),
+        ),
+    )
+
+    assert result.markdown == "# Candidate board\n"
+    assert result.metadata["provider_call_count"] == 3
+    assert result.metadata["draft_candidates"] == 2
+    assert result.metadata["review_passes"] == 1
+    assert len(fake_openai.constructor_calls) == 3
+    assert len(client.calls) == 3
+    first_prompt = client.calls[0]["messages"][0]["content"][-1]["text"]
+    second_prompt = client.calls[1]["messages"][0]["content"][-1]["text"]
+    consensus_prompt = client.calls[2]["messages"][0]["content"][-1]["text"]
+    assert first_prompt == second_prompt
+    assert "BEGIN FALLIBLE DRAFT" not in first_prompt
+    assert "BEGIN FALLIBLE DRAFT ONE" in consensus_prompt
+    assert "BEGIN FALLIBLE DRAFT TWO" in consensus_prompt
+    assert consensus_prompt.count("> # Candidate board") == 2
     assert all(call["temperature"] == 0 for call in client.calls)
 
 

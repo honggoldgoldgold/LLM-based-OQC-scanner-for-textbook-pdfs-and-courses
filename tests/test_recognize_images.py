@@ -96,6 +96,7 @@ def test_ordered_image_group_reaches_provider_once_in_caller_order(tmp_path):
     assert result.profile == "board"
     assert result.metadata["image_count"] == 3
     assert result.metadata["provider_call_count"] == 1
+    assert result.metadata["draft_candidates"] == 1
     assert result.metadata["review_passes"] == 0
     assert all(not path.exists() for path in called_paths)
 
@@ -124,6 +125,7 @@ def test_review_pass_corrects_draft_and_writes_only_final_markdown(tmp_path):
 
     assert result.markdown == "# Final\nComplete + mark"
     assert result.metadata["provider_call_count"] == 2
+    assert result.metadata["draft_candidates"] == 1
     assert result.metadata["review_passes"] == 1
     assert len(provider.calls) == 2
     assert provider.calls[0][2] is config
@@ -134,6 +136,82 @@ def test_review_pass_corrects_draft_and_writes_only_final_markdown(tmp_path):
     assert result.output_path is not None
     assert result.output_path.read_text(encoding="utf-8") == result.markdown
     assert tuple(result.output_path.parent.glob("*.md")) == (result.output_path,)
+
+
+def test_consensus_review_uses_two_independent_drafts_and_writes_only_final(tmp_path):
+    source = write_test_image(tmp_path / "board.png")
+
+    class SequentialProvider(RecordingProvider):
+        def __init__(self):
+            super().__init__()
+            self.responses = (
+                "# Draft one\nVisible +",
+                "# Draft two\nVisible +",
+                "# Consensus\nVisible +",
+            )
+
+        def recognize_images(self, image_paths, *, prompt, config):
+            paths = tuple(image_paths)
+            self.calls.append((paths, prompt, config))
+            return self.responses[len(self.calls) - 1]
+
+    provider = SequentialProvider()
+    config = Config(
+        provider=provider,
+        preferences=RecognitionPreferences(draft_candidates=2, review_passes=1),
+        output_dir=tmp_path / "output",
+    )
+
+    result = recognize(source, config=config)
+
+    assert result.markdown == "# Consensus\nVisible +"
+    assert result.metadata["provider_call_count"] == 3
+    assert result.metadata["draft_candidates"] == 2
+    assert result.metadata["review_passes"] == 1
+    assert len(provider.calls) == 3
+    assert provider.calls[0][1] == provider.calls[1][1]
+    assert "BEGIN FALLIBLE DRAFT" not in provider.calls[0][1]
+    assert "BEGIN FALLIBLE DRAFT" not in provider.calls[1][1]
+    assert "> # Draft one" in provider.calls[2][1]
+    assert "> # Draft two" in provider.calls[2][1]
+    assert result.output_path is not None
+    assert result.output_path.read_text(encoding="utf-8") == result.markdown
+    assert tuple(result.output_path.parent.glob("*.md")) == (result.output_path,)
+
+
+def test_second_consensus_draft_failure_writes_no_partial_output(tmp_path):
+    source = write_test_image(tmp_path / "board.png")
+
+    class FailingSecondDraftProvider(RecordingProvider):
+        def recognize_images(self, image_paths, *, prompt, config):
+            paths = tuple(image_paths)
+            self.calls.append((paths, prompt, config))
+            if len(self.calls) == 1:
+                return "# First draft that must not escape\n"
+            raise TimeoutError("second draft timed out with private provider detail")
+
+    provider = FailingSecondDraftProvider()
+    output_dir = tmp_path / "output"
+
+    with pytest.raises(ProviderError) as captured:
+        recognize(
+            source,
+            config=Config(
+                provider=provider,
+                preferences=RecognitionPreferences(
+                    draft_candidates=2,
+                    review_passes=1,
+                ),
+                output_dir=output_dir,
+            ),
+        )
+
+    assert captured.value.code == "PROVIDER_TIMEOUT"
+    assert captured.value.details["workflow_pass"] == "draft_2"
+    assert captured.value.details["provider_calls_attempted"] == 2
+    assert len(provider.calls) == 2
+    assert output_dir.is_dir()
+    assert tuple(output_dir.iterdir()) == ()
 
 
 def test_review_failure_rejects_draft_and_writes_no_output(tmp_path):

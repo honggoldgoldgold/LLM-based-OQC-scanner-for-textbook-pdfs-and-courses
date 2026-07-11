@@ -390,6 +390,7 @@ class DashScopeSettings:
 
 @dataclass(frozen=True, slots=True)
 class RecognitionPreferences:
+    draft_candidates: int = 1
     review_passes: int = 0
 
 

@@ -96,7 +96,10 @@ def _normalize_preferences(value: object) -> RecognitionPreferences:
             "Config.preferences must be an exact RecognitionPreferences instance",
             code="CONFIG_INVALID",
         ) from None
-    return RecognitionPreferences(review_passes=value.review_passes)
+    return RecognitionPreferences(
+        draft_candidates=value.draft_candidates,
+        review_passes=value.review_passes,
+    )
 
 
 def _validate_optional_nonempty_text(

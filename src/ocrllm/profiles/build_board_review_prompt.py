@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+
 def build_board_review_prompt(base_prompt: str, draft_markdown: str) -> str:
     """Return a full-image correction request with every draft line quoted."""
 

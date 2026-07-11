@@ -72,7 +72,7 @@ from tests.quality.write_quality_evidence_atomically import (
 DEFAULT_REPOSITORY_ROOT = Path(__file__).parents[2]
 PHASE1_TIMEOUT_SECONDS = 120.0
 _TEMPERATURE = 0
-_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v6"
+_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v8"
 _MANIFEST_RELATIVE_PATH = "tests/fixtures/phase1/manifest.json"
 _BOUND_OUTPUT_ROOTS = (
     "src/ocrllm",
@@ -506,6 +506,7 @@ def _initial_evidence(
             "provider": manifest.evidence_contract.provider,
             "model": manifest.evidence_contract.model,
             "prompt_version": manifest.evidence_contract.prompt_version,
+            "draft_candidates": manifest.evidence_contract.draft_candidates,
             "review_passes": manifest.evidence_contract.review_passes,
             "provider_calls_per_recognition": PROVIDER_CALLS_PER_RECOGNITION,
             "provider_region": region,
@@ -770,7 +771,10 @@ def _build_config(
     return Config(
         provider=contract.provider,
         model=contract.model,
-        preferences=RecognitionPreferences(review_passes=contract.review_passes),
+        preferences=RecognitionPreferences(
+            draft_candidates=contract.draft_candidates,
+            review_passes=contract.review_passes,
+        ),
         dashscope=DashScopeSettings(
             region=settings.region,
             base_url=settings.base_url,

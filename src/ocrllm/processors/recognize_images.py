@@ -8,6 +8,7 @@ from pathlib import Path
 from ..config import Config
 from ..errors import OCRLLMError
 from ..processor_output import ProcessorOutput
+from ..profiles.build_board_consensus_prompt import build_board_consensus_prompt
 from ..profiles.build_board_prompt import BOARD_PROMPT_VERSION, build_board_prompt
 from ..profiles.build_board_review_prompt import build_board_review_prompt
 from ..providers.call_vision_provider import call_vision_provider
@@ -26,37 +27,60 @@ def recognize_images(
         config = snapshot_config(config)
     resolved_provider = resolve_vision_provider(config)
     base_prompt = build_board_prompt(config.input_languages, config.output_language)
-    try:
-        markdown = call_vision_provider(
-            resolved_provider,
-            image_paths,
-            prompt=base_prompt,
-            config=config,
+    drafts: list[str] = []
+    for candidate_index in range(config.preferences.draft_candidates):
+        try:
+            drafts.append(call_vision_provider(
+                resolved_provider,
+                image_paths,
+                prompt=base_prompt,
+                config=config,
+            ))
+        except OCRLLMError as error:
+            error._add_safe_detail(
+                "workflow_pass",
+                "draft" if candidate_index == 0 else "draft_2",
+            )
+            error._add_safe_detail("provider_calls_attempted", candidate_index + 1)
+            raise
+
+    markdown = drafts[0]
+    if config.preferences.review_passes:
+        consensus = config.preferences.draft_candidates == 2
+        review_prompt = (
+            build_board_consensus_prompt(base_prompt, (drafts[0], drafts[1]))
+            if consensus
+            else build_board_review_prompt(base_prompt, drafts[0])
         )
-    except OCRLLMError as error:
-        error._add_safe_detail("workflow_pass", "draft")
-        error._add_safe_detail("provider_calls_attempted", 1)
-        raise
-    for _ in range(config.preferences.review_passes):
         try:
             markdown = call_vision_provider(
                 resolved_provider,
                 image_paths,
-                prompt=build_board_review_prompt(base_prompt, markdown),
+                prompt=review_prompt,
                 config=config,
             )
         except OCRLLMError as error:
-            error._add_safe_detail("workflow_pass", "review")
-            error._add_safe_detail("provider_calls_attempted", 2)
+            error._add_safe_detail(
+                "workflow_pass",
+                "consensus_review" if consensus else "review",
+            )
+            error._add_safe_detail(
+                "provider_calls_attempted",
+                config.preferences.draft_candidates + 1,
+            )
             raise
 
+    provider_call_count = (
+        config.preferences.draft_candidates + config.preferences.review_passes
+    )
     metadata: dict[str, str | int | bool | None] = {
         "image_count": len(image_paths),
         "model": resolved_provider.model,
         "prompt_version": BOARD_PROMPT_VERSION,
         "provider": resolved_provider.name,
         "profile": profile,
-        "provider_call_count": 1 + config.preferences.review_passes,
+        "provider_call_count": provider_call_count,
+        "draft_candidates": config.preferences.draft_candidates,
         "review_passes": config.preferences.review_passes,
     }
     if resolved_provider.name == "dashscope" and config.dashscope is not None:

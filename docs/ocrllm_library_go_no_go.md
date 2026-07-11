@@ -2195,6 +2195,24 @@ decision, and a new evidence path. After both later full runs pass, rerun the
 clean profiles and explicitly update this decision; runner success alone does
 not change Phase 1 from NO-GO to GO.
 
+The v7 conservative single-draft review experiment is rejected. Both
+handwriting finals still missed the required center `+`, and both formula
+finals still changed source `s_4` to `S_4`. V8 keeps one unified board profile
+and uses two independent drafts plus one pixel-grounded consensus review.
+Targeted consensus finals passed handwriting at 30/30 recall and 10/10 slots
+and formula at 12/12 signatures and 133/133 atoms. One timed-out consensus
+published no output; a bounded final-only recovery reused both drafts and
+passed.
+
+V8 defaults to one call and exposes the robust path only through exact
+`RecognitionPreferences(draft_candidates=2, review_passes=1)`. Its frozen gate
+is 13 recognitions and 39 confirmed provider calls. The manifest is 37,712
+bytes with SHA-256
+`7200d16ea44b365301ce491bd3353433520d6c8ba2cc686debe6562173623e35`;
+the isolated suite passes 608 tests. Full v8 live evidence and clean packaging
+profiles remain required, so Phase 1 is still NO-GO. The complete decision and
+call ledger are in `phase1_v8_consensus_workflow_debug_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

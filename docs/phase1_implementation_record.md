@@ -319,3 +319,22 @@ uppercase `S_4`; formula signature was 11/12, atom precision 132/133, and all
 `bc256bfbdc73f7d5f80806eb95767d4e68f17cb512f76c9e6daaba5278504707`.
 V7 must preserve exact draft identifiers/case unless pixels clearly contradict
 them while retaining omission/hallucination repair.
+
+V7 conservative single-draft review was tested and rejected: two handwriting
+finals still missed the center `+`, while two formula finals still mutated
+`s_4` to `S_4`. V8 instead produces two independent drafts under the identical
+unified board prompt and asks one final call to preserve exact agreement and
+resolve disagreements against source pixels. The targeted handwriting and
+formula consensus finals both pass their complete hard gates. There is no
+fixture-class branch.
+
+The public preference now supports an explicit
+`RecognitionPreferences(draft_candidates=2, review_passes=1)` robustness mode.
+Default `(1, 0)` remains a single provider call. V8 success metadata records
+the two preference values and exact call count; failure metadata distinguishes
+draft 2 from consensus review. Only the final consensus can be returned or
+atomically published. The v8 manifest is 37,712 bytes, SHA-256
+`7200d16ea44b365301ce491bd3353433520d6c8ba2cc686debe6562173623e35`.
+The full isolated suite passes 608 tests. See
+`phase1_v8_consensus_workflow_debug_2026-07-11.md`; complete 39-call evidence is
+still required.
