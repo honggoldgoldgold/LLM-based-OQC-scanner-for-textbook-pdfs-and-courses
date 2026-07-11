@@ -444,3 +444,15 @@ the Unicode/LaTeX and anchor-conflict regressions do not recur. Preserve the
 `48c4fb2f78d0bff36aae6e022074d173e85fbf8cdfa792a81bc04bef01fe067a`.
 The next experiment is bounded scout availability, not handwriting routing or
 single-scout acceptance.
+
+V15 rejects both a larger Qwen-VL pool and one-scout quorum. Twenty-three
+targeted Beijing calls show thinking-enabled Qwen3.7 captures both genuine
+pluses eight of eight times across the original and final allowlisted prompts;
+non-thinking captures the delicate plus only once in five. The final workflow
+uses the pinned Qwen3.7 model for one primary and three independent thinking
+scouts. Line-level allowlist extraction discards unsupported punctuation before
+deduplicating exact per-scout records and applying the unchanged two-of-three
+quorum and v14 guards. The 37,864-byte manifest
+SHA-256 is
+`9c5fe09635142c457c464d52f2c4bba8e78964f61e3c06cb4b786d8bf6bf3c11`;
+159 focused and 696 exact isolated tests pass. Live v15 evidence is pending.

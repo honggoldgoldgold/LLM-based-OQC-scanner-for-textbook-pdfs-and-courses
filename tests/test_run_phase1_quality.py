@@ -120,7 +120,7 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v14",
+                "prompt_version": "board.v15",
                 "provider_call_count": (
                     config.preferences.draft_candidates
                     + config.preferences.review_passes
@@ -132,7 +132,7 @@ class FakeRecognizer:
                     config.dashscope.standalone_sign_scout_model
                 ),
                 "standalone_sign_scout_count": 3,
-                "standalone_sign_scout_enable_thinking": False,
+                "standalone_sign_scout_enable_thinking": True,
                 "standalone_signs_restored": 0,
                 "standalone_sign_scout_abstention_count": 0,
                 "provider": "dashscope",
@@ -187,7 +187,10 @@ def test_fake_runner_executes_exact_plan_with_fresh_configs_and_safe_evidence(
         assert config.timeout_seconds == 180.0
         assert config.preferences.draft_candidates == 1
         assert config.preferences.review_passes == 0
-        assert config.dashscope.standalone_sign_scout_model == "qwen-vl-max"
+        assert (
+            config.dashscope.standalone_sign_scout_model
+            == "qwen3.7-plus-2026-05-26"
+        )
         assert entry.fixture_ids == fixture_ids
 
     assert evidence["state"] == "complete"

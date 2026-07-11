@@ -2314,6 +2314,17 @@ fixes. Preserve the 103,074-byte evidence SHA-256
 Phase 1 remains NO-GO. See
 `phase1_live_quality_result_v14_2026-07-11.md`.
 
+V15 keeps one unified board workflow and the 52-call plan, but replaces the
+Phase 1 Qwen-VL scout baseline with three independent thinking-enabled pinned
+Qwen3.7 sign scouts. Targeted evidence finds both genuine handwriting pluses in
+eight of eight thinking calls; non-thinking succeeds only once in five. Only
+exact allowlisted rows survive defensive extraction, then two-of-three quorum
+and every v14 guard still apply. The v15 manifest is 37,864 bytes with SHA-256
+`9c5fe09635142c457c464d52f2c4bba8e78964f61e3c06cb4b786d8bf6bf3c11`;
+all 696 isolated tests pass. Phase 1 remains NO-GO pending complete live
+evidence. See
+`phase1_v15_thinking_scout_and_allowlist_extraction_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

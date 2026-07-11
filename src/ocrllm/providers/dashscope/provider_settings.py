@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from ...errors import ConfigError
+from .resolve_dashscope_model import DEFAULT_DASHSCOPE_MODEL
 
 
 _OPENAI_COMPATIBLE_PATH = "/compatible-mode/v1"
@@ -49,10 +50,14 @@ class DashScopeSettings:
             self.vl_high_resolution_images,
             field_name="vl_high_resolution_images",
         )
-        if self.standalone_sign_scout_model not in {None, "qwen-vl-max"}:
+        if self.standalone_sign_scout_model not in {
+            None,
+            "qwen-vl-max",
+            DEFAULT_DASHSCOPE_MODEL,
+        }:
             raise ConfigError(
                 "DashScopeSettings.standalone_sign_scout_model must be None or "
-                "'qwen-vl-max'."
+                "one fixed supported scout model."
             ) from None
 
 

@@ -1075,6 +1075,18 @@ dispatches pass; every v13 structural regression is gone. Preserve the
 Do not reduce quorum to one or split handwriting routing. Measure a larger fixed
 independent scout pool under the same strict parser and structural guards.
 
+Post-v14 probes reject merely scaling Qwen-VL Max: seven handwriting calls
+produce inconsistent and sometimes broad false-plus ledgers. Thinking-enabled
+Qwen3.7 finds both genuine pluses in eight of eight calls across two prompt
+versions; non-thinking finds the delicate plus only once in five calls. V15
+therefore uses three independent thinking-enabled pinned Qwen3.7 scouts with
+the same two-of-three quorum and all v14 guards. A defensive line extractor
+retains only exact allowlisted records and discards unsupported punctuation.
+The 37,864-byte manifest SHA-256 is
+`9c5fe09635142c457c464d52f2c4bba8e78964f61e3c06cb4b786d8bf6bf3c11`;
+159 focused and all 696 isolated tests pass. See
+`docs/phase1_v15_thinking_scout_and_allowlist_extraction_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

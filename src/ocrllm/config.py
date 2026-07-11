@@ -54,7 +54,6 @@ class Config:
         dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
         preferences = _normalize_preferences(self.preferences)
         _validate_dashscope_scout_workflow(
-            model=self.model,
             dashscope=dashscope,
             preferences=preferences,
         )
@@ -173,7 +172,6 @@ def _normalize_dashscope_pair(
 
 def _validate_dashscope_scout_workflow(
     *,
-    model: str | None,
     dashscope: DashScopeSettings | None,
     preferences: RecognitionPreferences,
 ) -> None:
@@ -183,11 +181,6 @@ def _validate_dashscope_scout_workflow(
         raise ConfigError(
             "DashScope standalone-sign scouting requires default "
             "RecognitionPreferences",
-            code="CONFIG_INVALID",
-        ) from None
-    if model == dashscope.standalone_sign_scout_model:
-        raise ConfigError(
-            "The primary and standalone-sign scout models must differ",
             code="CONFIG_INVALID",
         ) from None
 

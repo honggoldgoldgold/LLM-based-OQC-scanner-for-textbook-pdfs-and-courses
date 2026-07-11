@@ -15,6 +15,9 @@ from ..profiles.build_board_review_prompt import build_board_review_prompt
 from ..profiles.build_board_sign_scout_prompt import build_board_sign_scout_prompt
 from ..profiles.build_board_symbol_audit_prompt import build_board_symbol_audit_prompt
 from ..providers.call_vision_provider import call_vision_provider
+from ..providers.dashscope.resolve_sign_scout_enable_thinking import (
+    resolve_sign_scout_enable_thinking,
+)
 from ..providers.resolve_vision_provider import resolve_vision_provider
 from ..snapshot_config import snapshot_config
 from .restore_quorum_standalone_signs import restore_quorum_standalone_signs
@@ -91,12 +94,13 @@ def recognize_images(
     abstained_scout_count = 0
     if scout_model is not None:
         assert config.dashscope is not None
+        scout_enable_thinking = resolve_sign_scout_enable_thinking(scout_model)
         scout_config = replace(
             config,
             model=scout_model,
             dashscope=replace(
                 config.dashscope,
-                enable_thinking=False,
+                enable_thinking=scout_enable_thinking,
                 standalone_sign_scout_model=None,
             ),
         )
@@ -167,7 +171,7 @@ def recognize_images(
                     config.dashscope.vl_high_resolution_images
                 ),
                 "standalone_sign_scout_enable_thinking": (
-                    False if scout_model is not None else None
+                    scout_enable_thinking if scout_model is not None else None
                 ),
             }
         )

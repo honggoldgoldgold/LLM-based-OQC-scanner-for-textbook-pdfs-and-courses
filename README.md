@@ -121,6 +121,13 @@ handwriting plus. Both tables and every other structural regression now pass.
 Phase 1 remains NO-GO; see
 `docs/phase1_live_quality_result_v14_2026-07-11.md`.
 
+V15 keeps the same unified profile and 52-call shape but uses three independent
+thinking-enabled pinned Qwen3.7 sign scouts. Targeted probes recover both
+handwriting pluses in eight of eight thinking calls; a defensive extractor
+retains only exact allowlisted rows before two-of-three quorum and all v14
+guards. All 696 offline tests pass; live evidence is pending. See
+`docs/phase1_v15_thinking_scout_and_allowlist_extraction_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

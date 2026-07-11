@@ -17,5 +17,7 @@ def build_board_sign_scout_prompt() -> str:
         "rounded panels, box outlines, underlines, table or grid lines, decorative strokes, "
         "hatch, fill, shading, or texture as signs. Never report punctuation or a hyphen inside "
         "a word, identifier, date, or number. Do not output headings, fences, captions, or "
-        "explanations."
+        "explanations. SIGN must be exactly one of +, -, =, <=, >=, ≤, ≥, →, ←, ↑, ↓, "
+        "↔, ⇒, ⇐, ⇔. Do not report any other punctuation such as colon, slash, apostrophe, "
+        "period, or comma."
     )

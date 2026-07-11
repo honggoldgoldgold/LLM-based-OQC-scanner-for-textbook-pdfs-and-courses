@@ -8,11 +8,13 @@ from dataclasses import dataclass
 from .count_standalone_sign_representations import (
     count_standalone_sign_representations,
 )
+from .extract_supported_standalone_sign_events import (
+    extract_supported_standalone_sign_events,
+)
 from .is_gfm_pipe_table_row import is_gfm_pipe_table_row
 from .parse_standalone_sign_ledger import (
     SUPPORTED_STANDALONE_SIGNS,
     StandaloneSignEvent,
-    parse_standalone_sign_ledger,
 )
 
 _MAX_SCOUT_SIGN_EVENTS = 256
@@ -102,7 +104,7 @@ def _quorum_sign_events(
     abstained_scout_count = 0
     for scout_index, markdown in enumerate(scout_markdowns):
         try:
-            parsed_events = parse_standalone_sign_ledger(markdown)
+            parsed_events = extract_supported_standalone_sign_events(markdown)
         except ValueError:
             abstained_scout_count += 1
             continue

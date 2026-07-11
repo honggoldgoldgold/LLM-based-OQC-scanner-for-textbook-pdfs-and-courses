@@ -131,7 +131,7 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v14"
+    assert result.metadata["prompt_version"] == "board.v15"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
@@ -400,7 +400,7 @@ def test_builtin_sign_scout_workflow_records_malformed_scout_abstentions(
             content = (
                 "# Exact primary\n"
                 if kwargs["model"] != "qwen-vl-max"
-                else "| BEFORE | AFTER\n- | panel | border"
+                else "/ | panel | border"
             )
             response = _response(content=content, model=kwargs["model"])
             return SimpleNamespace(headers={}, parse=lambda: response)
@@ -429,6 +429,71 @@ def test_builtin_sign_scout_workflow_records_malformed_scout_abstentions(
     assert result.metadata["provider_call_count"] == 4
     assert result.metadata["standalone_signs_restored"] == 0
     assert result.metadata["standalone_sign_scout_abstention_count"] == 3
+
+
+def test_same_qwen37_model_uses_thinking_scouts_and_extracts_supported_rows(
+    tmp_path,
+    monkeypatch,
+):
+    class SameModelClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.responses = (
+                "foreign gene\nI:V\nTransformation\n+\nValidation\n",
+                (
+                    "+ | foreign gene | I:V\n"
+                    "+ | Transformation | Validation\n"
+                    "/ | R-DNA | Replasmid"
+                ),
+                (
+                    "+ | foreign gene | I:V\n"
+                    "+ | Transformation | Validation\n"
+                    ": | Nuclease | Cut"
+                ),
+                "NONE",
+            )
+
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            response = _response(
+                content=self.responses[len(self.calls) - 1],
+                model=kwargs["model"],
+            )
+            return SimpleNamespace(headers={}, parse=lambda: response)
+
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = SameModelClient()
+    _install_fake_openai(monkeypatch, client)
+    ordinary = _settings()
+    settings = DashScopeSettings(
+        region=ordinary.region,
+        base_url=ordinary.base_url,
+        enable_thinking=True,
+        standalone_sign_scout_model="qwen3.7-plus-2026-05-26",
+    )
+
+    result = recognize(
+        source,
+        config=Config(
+            provider="dashscope",
+            dashscope=settings,
+            api_key="test-key",
+        ),
+    )
+
+    assert result.markdown == (
+        "foreign gene\n+\nI:V\nTransformation\n+\nValidation\n"
+    )
+    assert [call["model"] for call in client.calls] == [
+        "qwen3.7-plus-2026-05-26",
+        "qwen3.7-plus-2026-05-26",
+        "qwen3.7-plus-2026-05-26",
+        "qwen3.7-plus-2026-05-26",
+    ]
+    assert all(call["extra_body"]["enable_thinking"] is True for call in client.calls)
+    assert result.metadata["standalone_signs_restored"] == 1
+    assert result.metadata["standalone_sign_scout_abstention_count"] == 0
+    assert result.metadata["standalone_sign_scout_enable_thinking"] is True
 
 
 def test_mutated_review_preferences_fail_before_builtin_provider_work(

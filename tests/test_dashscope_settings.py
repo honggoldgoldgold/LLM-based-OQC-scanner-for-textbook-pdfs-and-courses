@@ -91,12 +91,22 @@ def test_config_accepts_exact_sign_scout_only_with_default_workflow():
             dashscope=settings,
             preferences=RecognitionPreferences(review_passes=1),
         )
-    with pytest.raises(ConfigError, match="primary and standalone-sign scout"):
-        Config(
-            provider="dashscope",
-            model="qwen-vl-max",
-            dashscope=settings,
-        )
+
+
+def test_config_accepts_same_pinned_qwen37_primary_and_sign_scout():
+    model = "qwen3.7-plus-2026-05-26"
+    settings = DashScopeSettings(
+        region="cn-beijing",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        enable_thinking=True,
+        standalone_sign_scout_model=model,
+    )
+
+    config = Config(provider="dashscope", model=model, dashscope=settings)
+
+    assert config.model == model
+    assert config.dashscope is not None
+    assert config.dashscope.standalone_sign_scout_model == model
 
 
 def test_dashscope_settings_are_frozen_slotted_and_require_explicit_routing():
