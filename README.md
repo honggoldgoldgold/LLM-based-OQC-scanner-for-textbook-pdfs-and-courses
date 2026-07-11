@@ -60,11 +60,17 @@ to passed. The frozen zero-retry plan is exactly one clean-slide smoke, six
 dispatches in run A, and six independently dispatched entries in run B.
 
 This is committed offline corpus/scorer/runner infrastructure, not live
-recognition-quality evidence. Phase 1 remains NO-GO solely pending the caller's
-exact region and `base_url`, the 13 live calls and resulting two passing full
-runs, and the final clean-profile/GO-decision update. The local user screenshots
-under `docs/` remain untracked, supplemental, and non-redistributable; they are
-not part of pass/fail evidence.
+recognition-quality evidence. The user confirmed `cn-beijing` and the stored
+Beijing endpoint on 2026-07-11. Phase 1 remains NO-GO solely pending the 13 live
+calls and resulting two passing full runs, plus the final
+clean-profile/GO-decision update. The local user screenshots under `docs/`
+remain untracked, supplemental, and non-redistributable; they are not part of
+pass/fail evidence.
+
+Provider cost/reliability assumptions are recorded in
+`docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
+parallel-review, and atomic-writer history is in
+`docs/phase1_implementation_record.md`.
 
 Pushed packaging hotfix `3414f47` renamed `resolve_dashscope_api_key.py` /
 `resolve_dashscope_api_key` to `resolve_dashscope_credential.py` /

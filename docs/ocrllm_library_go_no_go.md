@@ -159,10 +159,11 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   temporary-directory access. Together with the already exact provider-request
   limits, the pinned suite now passes `554` tests, fixture generation remains
   byte-identical, and `compileall` passes without a provider/API call.
-- Phase 1 is still NO-GO solely because the caller has not confirmed the exact
-  region and intended use of the explicit key-matching `base_url` recovered
-  from local UI configuration, the fixed 13-call live plan has not run, its two
-  complete six-dispatch runs therefore have no passing evidence, and the final
+- On 2026-07-11 the user confirmed that Aliyun API workflows always use
+  canonical region `cn-beijing` and approved the explicit key-matching
+  `base_url` recovered from local UI configuration. Phase 1 remains NO-GO solely
+  because the fixed 13-call live plan has not run, its two complete six-dispatch
+  runs therefore have no passing evidence, and the final
   clean-profile/GO-decision update is pending.
 - Pushed packaging hotfix `3414f47` corrected a filename-ignore defect without
   weakening secret-ignore patterns. The legitimate
@@ -201,9 +202,12 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   `dashscope.aliyuncs.com`, exact path `/compatible-mode/v1`, and no query. The
   registry stores no region/location, and no DashScope-related region variable
   was found in the checked Process/User/Machine scopes. This is explicit stored
-  endpoint evidence for the current key, not proof that the endpoint remains
-  intended and not region evidence; do not derive the credential region from
-  the hostname before the caller confirms both values.
+  endpoint evidence for the current key. The user's 2026-07-11 confirmation now
+  authorizes `cn-beijing` and that endpoint for the fixed Phase 1 run.
+- Account-specific cost and reliability inputs are recorded in
+  `provider_cost_and_reliability_policy.md`; they do not activate Google, Codex,
+  FileTrans, pools, or switching during Phase 1. The complete implementation,
+  agent-review, and atomic-writer ledger is `phase1_implementation_record.md`.
 - The historical Phase 1 adapter-only implementation checkpoint is commit
   `a6a8b18`. Its final offline gate passed `283` tests, `compileall`, and
   `git diff --check`. The wheel was `50,970` bytes with SHA-256
@@ -1317,11 +1321,11 @@ fake/evidence tests pass without a provider/API call.
 
 That offline evidence does not make image recognition `available`. Phase 1
 still has no live clean-slide smoke or two independently dispatched full-corpus
-runs. It remains NO-GO solely pending caller confirmation of the exact region
-and intended use of the recovered key-matching `base_url`, the runner's 13 live
-calls and two passing full runs, and the final clean-profile/GO-decision update.
-PDFium remains only a backend feasibility spike; PDF, audio, and video
-recognition remain unavailable under their later gates.
+runs. The region/endpoint gate is now satisfied by the user's 2026-07-11 Beijing
+confirmation. Phase 1 remains NO-GO solely pending the runner's 13 live calls,
+two passing full runs, and the final clean-profile/GO-decision update. PDFium
+remains only a backend feasibility spike; PDF, audio, and video recognition
+remain unavailable under their later gates.
 
 The user-supplied screenshots currently present under `docs/` are local,
 supplemental, non-redistributable, and remain untracked. Keep them uncommitted.
@@ -1567,11 +1571,11 @@ checkpoint `fb23d1e`, and the exact boundary completion: the corpus, generators,
 artifact authentication, scorers, deliberate-corruption tests, guarded evidence
 runner, provider boundary, lazy import, and clean profile work are integrated.
 The pinned full suite reports `554 passed`; generator bytes and `compileall`
-pass, with no provider/API call. Phase 1 remains **NO-GO solely** because the
-caller has not confirmed the exact region and intended use of the recovered
-key-matching `base_url`, none of the 13 required paid no-retry calls has been
-recorded, the two full six-dispatch runs therefore have no passing live
-evidence, and the final clean-profile/GO-decision update remains.
+pass, with no provider/API call. The user-confirmed Beijing region/endpoint gate
+is satisfied. Phase 1 remains **NO-GO solely** because none of the 13 required
+paid no-retry calls has been recorded, the two full six-dispatch runs therefore
+have no passing live evidence, and the final clean-profile/GO-decision update
+remains.
 
 ### Phase 2: JSON contract and Electron worker
 
@@ -2043,11 +2047,10 @@ PDF phase verification must additionally print:
 - clean installed profile delta,
 - copied license/notice file locations.
 
-The guarded runner is committed at `fb23d1e`, but do not execute its paid live
-CLI until the caller confirms the credential's exact approved region and the
-recovered key-matching `base_url`; the shared endpoint used by offline tests is
-only a test value. Use a new evidence path and the exact confirmation value 13.
-The live plan is fixed
+The guarded runner is committed at `fb23d1e`. The user confirmed canonical
+region `cn-beijing` and the recovered key-matching Beijing endpoint on
+2026-07-11. Use those exact settings, a new evidence path, and confirmation
+value 13. The live plan is fixed
 at 13 paid calls with no retry: one clean-slide smoke, all six dispatches in run
 A, then all six independently dispatched entries in run B. A provider failure
 or truncation aborts without another call; never rerun only the failed fixture.

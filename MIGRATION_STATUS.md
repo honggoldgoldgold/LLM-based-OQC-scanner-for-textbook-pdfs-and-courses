@@ -24,6 +24,10 @@ docs/library_migration_decision.md    Foundational library-making rationale.
 legacy_app/README_LEGACY.md           Legacy app boundary.
 legacy_app/AGENTS.md                  Legacy app editing rules.
 docs/ocrllm_module_target_design.md   Target-state module design map.
+docs/provider_cost_and_reliability_policy.md
+                                      Account-specific provider policy.
+docs/phase1_implementation_record.md  Phase 1 commits, agent work, atomic writer,
+                                      verification, and resume point.
 docs/legacy_bilibili_social_long_debug_record.md
                                       Legacy Bilibili course robustness record.
 docs/legacy_youtube_playlist_social_long_workflow.md
@@ -152,13 +156,13 @@ The built-in DashScope adapter and offline boundary tests now exist. Offline
 checkpoint `e328253` additionally commits the licensed five-class image corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
 live-scoring gate. The pinned suite and byte-identity checks pass. This is
-offline gate infrastructure, not live recognition evidence: Phase 1 remains
-NO-GO solely until the caller confirms the exact region and intended use of the
-explicit key-matching `base_url` recovered from local UI configuration, the
-committed `fb23d1e` runner executes its 13-call live plan without retry, both
-six-dispatch corpus runs pass, and the final clean-profile/GO-decision update is
-recorded. Google, Codex, local-OCR, PDF, audio, and video adapters do not exist
-in the active library.
+offline gate infrastructure, not live recognition evidence. On 2026-07-11 the
+user confirmed that Aliyun API workflows always use `cn-beijing` and approved
+the explicit key-matching `base_url` recovered from local UI configuration.
+Phase 1 remains NO-GO solely until the committed `fb23d1e` runner executes its
+13-call live plan without retry, both six-dispatch corpus runs pass, and the
+final clean-profile/GO-decision update is recorded. Google, Codex, local-OCR,
+PDF, audio, and video adapters do not exist in the active library.
 
 Current package metadata still has no base runtime requirements. It declares
 exactly `dev`, `image`, and `dashscope`; `image` installs `Pillow>=10.4,<13`, and
@@ -630,9 +634,18 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `dashscope.aliyuncs.com`, exact path `/compatible-mode/v1`, and no query. That
   registry key stores no region/location value, and no DashScope-related region
   variable was found in the checked Process/User/Machine scopes. This recovers
-  the key's configured endpoint but does not authorize inferring the
-  credential's region from the hostname; caller region confirmation remains
-  required before paid calls.
+  the key's configured endpoint. On 2026-07-11 the user explicitly confirmed
+  that Aliyun API workflows always use Beijing, authorizing canonical region
+  `cn-beijing` with that stored endpoint for the fixed Phase 1 live gate.
+- Account-specific billing/reliability guidance is recorded separately in
+  `docs/provider_cost_and_reliability_policy.md`. Qwen image calls are billed
+  independently; FileTrans ASR is covered by the user's token package for later
+  large audio tests; Google is free but less stable; and Codex Mini 5.4 is
+  inexpensive and stable but not free. None of those later workflows becomes
+  active during Phase 1.
+- `docs/phase1_implementation_record.md` records every pushed checkpoint, the
+  parallel agent/audit contributions, the atomic evidence-writer guarantees and
+  power-loss caveat, current verification, and the exact live resume point.
 - The user-supplied screenshots currently present under `docs/` are local,
   supplemental, and non-redistributable. They may help manual development, but
   they remain untracked and cannot enter pass/fail evidence. They are not part
@@ -723,11 +736,9 @@ Finish only this bounded slice. The adapter, corpus, generators, scorers, and
 manifest-authenticated scoring gate and evidence runner are committed; do not
 rebuild them as a second client, corpus, or runner:
 
-1. Confirm the caller credential's exact region and that its recovered full
-   `base_url` remains intended. A secret-safe comparison ties the current key to
-   the endpoint stored under `HKCU:\Software\OCRLLM\QCR\ui`, but that registry
-   stores no region. Do not derive the region from the key, hostname, example
-   documentation, or a nearby region.
+1. Use the user-confirmed canonical region `cn-beijing` and the key-matching
+   Beijing endpoint stored under `HKCU:\Software\OCRLLM\QCR\ui`. Do not change
+   either value during the run.
 2. From the exact clean runner checkpoint, run the guarded 13-call live plan
    once with `--confirm-paid-calls 13`: one clean-slide smoke, full run A with
    all six dispatches, and independently dispatched full run B with all six
@@ -760,9 +771,9 @@ Office, social, GPU, and offline-model work are not the next task.
 - Do not begin or claim HarmonyOS/ArkTS compatibility.
 - Do not claim support from code existence, mocks, installed dependencies, or
   historical logs alone.
-- Do not make a paid provider call before the caller confirms the exact region
-  and the recovered `base_url`, the intended Git/import/manifest/artifact
-  preflight is clean, and the new evidence path does not already exist.
+- Do not make a paid provider call outside the confirmed fixed 13-call plan, or
+  before the intended Git/import/manifest/artifact preflight is clean and the
+  new evidence path is proven absent.
 - Do not pass fake callables or clocks into the public live runner or relabel
   simulated evidence as live. The public signature intentionally exposes no
   dependency-injection parameters.
