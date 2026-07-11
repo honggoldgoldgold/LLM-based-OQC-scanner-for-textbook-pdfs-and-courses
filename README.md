@@ -89,8 +89,10 @@ passes; fresh complete v11 evidence is pending, so Phase 1 remains NO-GO. See
 
 V12 replaces full-transcript scouts with strict sign-only ledgers and forbids
 model-created diagram captions in the primary. Two targeted primaries and all
-three independent ledgers pass their acceptance checks; 661 offline tests pass.
-Fresh complete v12 evidence is still pending, so Phase 1 remains NO-GO. See
+three independent handwriting ledgers pass their acceptance checks; 661
+offline tests pass. The complete gate aborted at the first no-sign smoke image
+because the protocol did not define a valid empty ledger. This is a shared
+workflow defect, not a handwriting split. Phase 1 remains NO-GO. See
 `docs/phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
 
 Provider cost/reliability assumptions are recorded in

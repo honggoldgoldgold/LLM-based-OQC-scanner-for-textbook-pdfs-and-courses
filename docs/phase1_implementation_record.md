@@ -401,4 +401,10 @@ now rejects any ledger line outside exact `SIGN | BEFORE | AFTER`, plus invalid
 signs, thematic breaks, extra prose, fences, and unsafe neighbors. The scout
 prompt hash/size enters evidence. The v12 manifest is 37,853 bytes with SHA-256
 `e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6`;
-661 isolated tests pass. Complete 52-call evidence is pending.
+661 isolated tests pass. The complete v12 gate attempted the first smoke
+recognition and four provider calls, then aborted before scoring because the
+strict sign protocol had no valid empty-ledger response. No full run began and
+no selective retry was made. Preserve the 29,606-byte evidence SHA-256
+`ea16775eec1aea7af79681e1f90b76ca075864e9b8e9b1b00dc1c90d125282ea`.
+The next version must represent a legitimate zero-event ledger explicitly;
+this is not a reason to split handwriting from the board workflow.

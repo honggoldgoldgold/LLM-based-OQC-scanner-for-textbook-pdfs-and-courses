@@ -1023,6 +1023,16 @@ The 37,853-byte manifest SHA-256 is
 661 isolated tests pass. The complete gate remains 13 recognitions and 52 calls.
 See `docs/phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
 
+The frozen v12 live gate from pushed commit `05adc64` aborted at its first
+bilingual printed-slide smoke recognition. Four provider calls were attempted,
+but the strict sign merger rejected the scout responses before scoring because
+the protocol had no valid whole-ledger empty result. No full run began and no
+selective retry was made. Preserve the 29,606-byte atomic evidence SHA-256
+`ea16775eec1aea7af79681e1f90b76ca075864e9b8e9b1b00dc1c90d125282ea`.
+This is a shared board-workflow protocol defect; do not split handwriting into
+a separate path. Define an exact empty sign ledger and retain fail-closed
+handling for all other malformed scout output.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

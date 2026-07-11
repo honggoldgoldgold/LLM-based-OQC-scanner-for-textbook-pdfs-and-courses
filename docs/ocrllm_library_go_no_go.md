@@ -2271,7 +2271,12 @@ sign ledger with both plus signs. The production parser fails closed on any
 non-ledger prose or unsafe record; scout prose cannot enter Markdown. The v12
 manifest is 37,853 bytes with SHA-256
 `e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6`;
-661 isolated tests pass. The full 52-call gate remains pending. See
+661 isolated tests pass. The full gate then aborted at the first bilingual
+printed-slide smoke recognition: four provider calls were attempted, but the
+strict protocol had no valid empty-ledger response. No full run began and no
+selective retry was made. Preserve the 29,606-byte atomic evidence SHA-256
+`ea16775eec1aea7af79681e1f90b76ca075864e9b8e9b1b00dc1c90d125282ea`.
+Phase 1 remains NO-GO. See
 `phase1_v12_literal_primary_and_sign_ledger_2026-07-11.md`.
 
 ## Change Rejection Checklist

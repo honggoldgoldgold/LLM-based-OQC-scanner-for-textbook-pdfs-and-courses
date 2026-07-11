@@ -2,7 +2,9 @@
 
 Date: 2026-07-11.
 
-Status: targeted live probes and offline gates pass; complete live gate pending.
+Status: targeted live probes and offline gates pass; complete live gate aborted
+at the first smoke recognition because the strict ledger protocol had no valid
+whole-response representation for an empty result.
 
 ## Decision
 
@@ -77,6 +79,28 @@ diagnostic material, not committed gate evidence.
 - Manifest: 37,853 bytes, SHA-256
   `e2813e006d4de8db3b4b2fe3ef99a1e658935d98290e2a1735d75d4e80a164f6`.
 - Exact isolated suite: 661 passed.
+
+## Complete Gate Result
+
+The frozen v12 gate was dispatched once from pushed commit `05adc64`. The
+atomic runner attempted the bilingual printed-slide smoke recognition and all
+four planned provider calls, then aborted before scoring with
+`PROVIDER_RESPONSE_INVALID` during `standalone_sign_merge`. It did not begin
+either full run and was not selectively retried.
+
+Preserve
+`evidence/phase1/phase1-quality-v12-2026-07-11-cn-beijing.json`: 29,606 bytes,
+SHA-256
+`ea16775eec1aea7af79681e1f90b76ca075864e9b8e9b1b00dc1c90d125282ea`.
+Its summary records 1 of 13 planned recognitions, 0 completed full runs, and a
+failed Phase 1 gate.
+
+The smoke image has no standalone sign to restore. V12 required a nonempty
+ledger but did not define an exact whole-ledger empty response, so a scout
+cannot report a legitimate zero-event observation without violating the
+parser. This is a protocol defect, not a handwriting-versus-board capability
+boundary. The next version must define and test an explicit empty ledger while
+continuing to reject arbitrary prose and malformed records.
 
 Phase 1 remains NO-GO pending two complete passing live runs and clean package
 profiles.
