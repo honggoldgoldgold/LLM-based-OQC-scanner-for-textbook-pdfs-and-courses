@@ -224,7 +224,17 @@ thinking variants, both OCR model candidates, the incomplete handwriting
 annotation, and the Qwen3.5-OCR signed-URL security incident. No raw private
 response or temporary provider credential was committed.
 
-No tested path passes handwriting. Printed slides, formulas, tables, ordered
-dense notes, and all four private screenshots return complete results. The
-recommended architecture decision is to split printed/document recognition
-from handwriting rather than lower thresholds or build an unproven ensemble.
+The split recommendation above is superseded by
+`phase1_unified_board_handwriting_debug_2026-07-11.md`. High-resolution source
+inspection proved the annotation corrected `Enzymens`, omitted
+`R-DNA / Replasmid`, over-constrained ambiguous cursive case, and penalized real
+faint labels. Crop, legacy-prompt, and 4160-pixel controls did not improve the
+core reading; thinking mode captured the one genuinely missing second `+`.
+
+The unified `board.v4` contract pins thinking mode, adds optional source truth
+for precision without relaxing required recall, and accepts only line-leading
+Unicode/LaTeX diagram connectors as layout. The 37,492-byte manifest SHA-256 is
+`b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`.
+The isolated offline suite passes 583 tests, fixture generation is
+byte-identical, and `compileall` passes. Fresh repeated live v4 evidence is
+still required; Phase 1 remains NO-GO.

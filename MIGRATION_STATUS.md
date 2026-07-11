@@ -531,7 +531,7 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   typed error remains primary with only
   `provider_client_cleanup_failed=true` attached.
 - Successful result metadata records `provider`, `model`,
-  `prompt_version="board.v3"`, `profile`, `image_count`, `provider_region`,
+  `prompt_version="board.v4"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`. It never records the API
   key or request body.
 - The historical adapter-only implementation checkpoint is commit `a6a8b18`.
@@ -806,11 +806,23 @@ document-parsing response exposed a temporary signed OSS URL, so neither enters
 the allowlist. The handwriting manifest also omits a visible label and requires
 a complete source-derived reannotation before another handwriting gate.
 
-Architecture decision required: keep the monolithic `board` gate and remain
-blocked on handwriting, or split printed/document recognition from an explicit
-handwriting capability. The split is recommended because printed slides,
-formulas, tables, and dense private notes are viable while handwriting remains
-honestly NO-GO.
+The temporary split recommendation is withdrawn. The user required one unified
+`board` capability, and the subsequent source audit proved the apparent gap was
+mostly fixture error: the source says `Enzymens`, includes
+`R-DNA / Replasmid`, has case-ambiguous cursive labels, and contains real faint
+micro-labels omitted from precision truth. Crop, legacy-prompt, and high-
+resolution controls did not change the disputed readings. Thinking mode did
+capture the one genuinely missed second `+`.
+
+`board.v4` now keeps the unified capability, pins thinking mode for the live
+contract, separates required recall truth from optional source precision truth,
+and version-controls line-leading Unicode/LaTeX diagram connectors. The
+37,492-byte manifest SHA-256 is
+`b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`.
+The isolated full suite passes 583 tests, generated fixture bytes are identical,
+and `compileall` passes. Read
+`docs/phase1_unified_board_handwriting_debug_2026-07-11.md` for the evidence.
+Phase 1 remains NO-GO only until two fresh complete v4 live runs pass.
 
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.

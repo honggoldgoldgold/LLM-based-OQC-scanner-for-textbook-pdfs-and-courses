@@ -1,4 +1,4 @@
-"""Prove v3 isolates v2 presentation failures from handwriting quality."""
+"""Re-score preserved v2 output against the source-corrected board truth."""
 
 import json
 from pathlib import Path
@@ -15,19 +15,11 @@ EVIDENCE_PATH = (
 )
 
 
-def test_v2_outputs_pass_v3_presentation_but_keep_handwriting_failures():
+def test_v2_outputs_isolate_the_one_missing_handwritten_plus():
     evidence = json.loads(EVIDENCE_PATH.read_text(encoding="utf-8"))
     manifest = load_fixture_manifest()
     expected_passes = (True, True, False, True, True, True)
-    handwriting_failures = (
-        "text_recall_below_threshold",
-        "content_precision_below_threshold",
-        "text_critical_accuracy_below_one",
-        "text_unexpected_critical_units",
-        "language_text_recall_below_threshold:en-US",
-        "language_content_precision_below_threshold:en-US",
-        "critical_slot_accuracy_below_one",
-    )
+    handwriting_failures = ("text_critical_accuracy_below_one",)
 
     smoke = score_recognition_result(
         manifest,
@@ -46,3 +38,13 @@ def test_v2_outputs_pass_v3_presentation_but_keep_handwriting_failures():
         )
         assert tuple(report.passes for report in reports) == expected_passes
         assert reports[2].failures == handwriting_failures
+        assert (
+            reports[2].text_score.recall.numerator,
+            reports[2].text_score.recall.denominator,
+        ) == (29, 30)
+        assert (
+            reports[2].text_score.precision.numerator
+            == reports[2].text_score.precision.denominator
+        )
+        assert reports[2].critical_slot_score is not None
+        assert reports[2].critical_slot_score.passes

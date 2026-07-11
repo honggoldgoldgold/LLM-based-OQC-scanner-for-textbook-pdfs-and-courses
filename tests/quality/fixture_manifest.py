@@ -143,6 +143,7 @@ class FixtureRecord:
     source_kind: str
     source_artifact_ids: tuple[str, ...]
     content_units: tuple[ScoredContentUnit, ...]
+    optional_content_units: tuple[ScoredContentUnit, ...]
     critical_slots: tuple[CriticalTextSlot, ...]
     formulas: tuple[FormulaExpectation, ...]
     table: TableExpectation | None

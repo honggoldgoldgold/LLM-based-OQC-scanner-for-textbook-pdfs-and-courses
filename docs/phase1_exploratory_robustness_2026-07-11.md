@@ -8,7 +8,7 @@ private screenshot content and responses are not committed.
 
 ## Call Inventory
 
-Thirteen exploratory network requests were attempted: twelve returned provider
+Sixteen exploratory network requests were attempted: fifteen returned provider
 responses and one model request returned HTTP 403. All requests used the
 confirmed Beijing-compatible endpoint and zero client retries.
 
@@ -21,8 +21,9 @@ confirmed Beijing-compatible endpoint and zero client retries.
 | 2 | `qwen3.5-ocr` and `qwen-vl-ocr-latest`, chat API | Qwen3.5 returned; Qwen-VL-OCR was unavailable to the credential/endpoint with HTTP 403. |
 | 1 | Qwen3.5-OCR repeat separating provider and scorer errors | Read `Enzymes` but wrapped the whole result in unsupported LaTeX and changed/missed other content. |
 | 1 | Qwen3.5-OCR with a plain-text OCR-specific prompt | Read more micro-labels and `Enzymes`, but changed the ratio and other content; scorer rejected an unsupported visible symbol. |
-| 1 | Qwen3.7 with thinking enabled | Slower and more verbose; retained `Sticky`/`Enzymens` errors and added micro-labels. Rejected. |
+| 1 | Qwen3.7 with thinking enabled | Captured both visible plus signs, `R-DNA / Replasmid`, and faint labels. Initially rejected under defective truth; reclassified as the v4 workflow candidate. |
 | 1 | Qwen3.5-OCR Responses `document_parsing` | Returned a signed temporary OSS image link instead of text-only recognition. Rejected for result-contract and secret-surface risk. |
+| 3 | Whole-board crop, legacy prompt control, and 4160-pixel audit derivative | Crop, legacy prompt, and resolution did not change the disputed readings; these are not the fix. |
 
 ## Private Screenshot Diagnostics
 
@@ -43,18 +44,17 @@ transcription.
 
 ## Handwriting Ground-Truth Audit
 
-Visual inspection found that the committed handwriting manifest omits the
-clearly visible `R-DNA / Replasmid` label. The current prompt requires all
-visible text, but the precision scorer penalizes this correct output as
-unexpected, including its punctuation as unexpected critical units. A future
-manifest version must add a complete source-derived annotation before another
-comparable handwriting gate.
+High-resolution source inspection showed that the committed annotation was
+defective. It omitted `R-DNA / Replasmid`, incorrectly changed the source's
+literal `Enzymens` to `Enzymes`, enforced exact case on genuinely ambiguous
+cursive initials, and treated real faint diagram labels as inventions. The
+model's repeated `Enzymens` reading was correct.
 
-That omission does not explain all failures. Qwen3.7 repeatedly changed visible
-lowercase `sticky` to `Sticky`, changed `Enzymes` to `Enzymens`, and capitalized
-other handwritten labels. Qwen3.5-OCR fixed `Enzymes` but introduced different
-ratio, symbol, layout, and extra-content errors. No tested single-model path met
-the frozen handwriting gate.
+The source-corrected v4 annotation and optional-content precision semantics are
+implemented and independently tested. Under that truth, preserved non-thinking
+outputs fail only because they miss the second visible `+`; the thinking-mode
+output captures it and passes offline. See
+`phase1_unified_board_handwriting_debug_2026-07-11.md`.
 
 ## Security Incident Avoided
 
@@ -77,15 +77,10 @@ visual-model catalog recommends Qwen3.7 as the general flagship model:
 Local evidence does not justify adding either OCR model to the active allowlist:
 one is inaccessible and Qwen3.5-OCR did not pass the handwriting contract.
 
-## Architecture Decision Required
+## Architecture Decision Resolved
 
-The current `board` profile bundles two materially different capabilities:
-dense printed/formula/table recognition, which is viable, and photographed
-handwriting, which no tested baseline passes. Do not hide this by lowering
-thresholds or an unproven two-model ensemble.
-
-Recommended path: split a printed/document image capability from an explicit
-handwriting capability. Finish the printed/formula/table gate and keep
-handwriting NO-GO until a provider and complete annotation pass independently.
-The alternative is to keep the monolithic `board` gate, which blocks later
-library phases despite strong printed-document evidence.
+Keep one unified `board` capability. The temporary split recommendation is
+withdrawn because it was based on defective annotation, not a demonstrated
+capability boundary. Do not add handwriting-specific routing, thresholds,
+prompts, or provider selection. Phase 1 still remains NO-GO until two complete
+fresh v4 live runs pass.

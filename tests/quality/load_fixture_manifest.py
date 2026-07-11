@@ -14,7 +14,10 @@ from tests.quality.build_scoring_views import build_scoring_views
 from tests.quality.calculate_language_token_metrics import (
     LANGUAGE_TOKEN_KIND_BY_TAG,
 )
-from tests.quality.calculate_token_metrics import TokenMetricCounts, calculate_token_metrics
+from tests.quality.calculate_token_metrics import TokenMetricCounts
+from tests.quality.calculate_token_metrics_with_optional_content import (
+    calculate_token_metrics_with_optional_content,
+)
 from tests.quality.fixture_manifest import (
     ArtifactRecord,
     CriticalTextSlot,
@@ -48,8 +51,8 @@ from tests.quality.generators.phase1_fixture_content import (
     VISIBLE_FORMULAS,
 )
 from tests.quality.normalize_content_units import NORMALIZATION_VERSION
-from tests.quality.normalize_recognized_markdown_v3 import (
-    normalize_recognized_markdown_v3,
+from tests.quality.normalize_recognized_markdown_v4 import (
+    normalize_recognized_markdown_v4,
 )
 from tests.quality.parse_formula_signature import parse_formula_signature
 from tests.quality.score_critical_slots import score_critical_slots
@@ -61,6 +64,7 @@ from tests.quality.score_table_cells import (
     score_table_cells,
 )
 from tests.quality.tokenize_content_units import (
+    ContentToken,
     TOKENIZER_VERSION,
     tokenize_content_units,
 )
@@ -70,7 +74,7 @@ DEFAULT_PHASE1_MANIFEST_PATH = (
     Path(__file__).parents[1] / "fixtures" / "phase1" / "manifest.json"
 )
 FROZEN_PHASE1_MANIFEST_SHA256 = (
-    "43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966"
+    "b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0"
 )
 
 _SCHEMA_VERSION = "ocrllm.phase1-fixture-manifest.v1"
@@ -110,15 +114,15 @@ _PINNED_EVIDENCE_CONTRACT = {
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v3",
-    "enable_thinking": False,
+    "prompt_version": "board.v4",
+    "enable_thinking": True,
     "vl_high_resolution_images": True,
     "output_language": None,
 }
 _PINNED_SCORING_CONTRACT = {
     "normalization_version": NORMALIZATION_VERSION,
     "tokenizer_version": TOKENIZER_VERSION,
-    "formula_dialect": "labeled-latex-restricted.v3",
+    "formula_dialect": "labeled-latex-restricted.v4",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": NEUTRAL_TABLE_LINE_BREAKS,
     "language_token_kinds": dict(LANGUAGE_TOKEN_KIND_BY_TAG),
@@ -334,7 +338,7 @@ def _parse_scoring_contract(value: object) -> ScoringContract:
             elif profile == "table":
                 probe += "\n| A | B |\n| --- | --- |\n| 1 | 2 |"
             build_scoring_views(
-                normalize_recognized_markdown_v3(probe),
+                normalize_recognized_markdown_v4(probe),
                 neutral_markdown=rules,
             )
     except (TypeError, ValueError) as exc:
@@ -553,6 +557,7 @@ def _parse_fixtures(value: object) -> tuple[FixtureRecord, ...]:
                 "source_kind",
                 "source_artifact_ids",
                 "content_units",
+                "optional_content_units",
                 "critical_slots",
                 "formulas",
                 "table",
@@ -571,6 +576,10 @@ def _parse_fixtures(value: object) -> tuple[FixtureRecord, ...]:
         )
         content_units = _parse_content_units(
             document["content_units"], f"{context}.content_units"
+        )
+        optional_content_units = _parse_content_units(
+            document["optional_content_units"],
+            f"{context}.optional_content_units",
         )
         critical_slots = _parse_critical_slots(
             document["critical_slots"], f"{context}.critical_slots"
@@ -591,6 +600,7 @@ def _parse_fixtures(value: object) -> tuple[FixtureRecord, ...]:
         _validate_fixture_channels(
             fixture_class,
             content_units=content_units,
+            optional_content_units=optional_content_units,
             critical_slots=critical_slots,
             formulas=formulas,
             table=table,
@@ -604,6 +614,7 @@ def _parse_fixtures(value: object) -> tuple[FixtureRecord, ...]:
                 source_kind=source_kind,
                 source_artifact_ids=source_artifact_ids,
                 content_units=content_units,
+                optional_content_units=optional_content_units,
                 critical_slots=critical_slots,
                 formulas=formulas,
                 table=table,
@@ -964,6 +975,7 @@ def _validate_five_class_contract(manifest: Phase1FixtureManifest) -> None:
     degraded = by_class["degraded_printed_slide"]
     if (
         clean.content_units != degraded.content_units
+        or clean.optional_content_units != degraded.optional_content_units
         or clean.critical_slots != degraded.critical_slots
     ):
         _invalid("the degraded slide must retain the clean slide ground truth")
@@ -971,6 +983,12 @@ def _validate_five_class_contract(manifest: Phase1FixtureManifest) -> None:
 
 def _validate_generator_truth(manifest: Phase1FixtureManifest) -> None:
     by_class = {fixture.fixture_class: fixture for fixture in manifest.fixtures}
+    if any(
+        fixture.optional_content_units
+        for fixture in manifest.fixtures
+        if fixture.fixture_class != "handwriting"
+    ):
+        _invalid("deterministic generator fixtures must not declare optional content")
     slide_truth = (SLIDE_TITLE, SLIDE_SUBTITLE, SLIDE_ORDER_ANCHOR) + tuple(
         line for card in SLIDE_CARDS for line in card
     )
@@ -1021,34 +1039,43 @@ def _validate_fixture_channels(
     fixture_class: str,
     *,
     content_units: tuple[ScoredContentUnit, ...],
+    optional_content_units: tuple[ScoredContentUnit, ...],
     critical_slots: tuple[CriticalTextSlot, ...],
     formulas: tuple[FormulaExpectation, ...],
     table: TableExpectation | None,
 ) -> None:
-    tokenized_units: list[tuple[ContentToken, ...]] = []
-    for unit in content_units:
-        try:
-            tokens = tokenize_content_units(unit.text)
-        except (TypeError, ValueError) as exc:
-            raise ManifestValidationError(
-                f"content unit {unit.id!r} is outside the frozen token dialect"
-            ) from exc
-        if not tokens:
-            _invalid(f"content unit {unit.id!r} has no scored token")
-        tokenized_units.append(tokens)
+    required_ids = {unit.id for unit in content_units}
+    optional_ids = {unit.id for unit in optional_content_units}
+    if required_ids & optional_ids:
+        _invalid("required and optional content-unit ids must be disjoint")
+    tokenized_units = _tokenize_scored_content_units(content_units)
+    optional_tokenized_units = _tokenize_scored_content_units(
+        optional_content_units,
+    )
     flattened_tokens = tuple(token for tokens in tokenized_units for token in tokens)
+    optional_flattened_tokens = tuple(
+        token for tokens in optional_tokenized_units for token in tokens
+    )
     scored_token_count = len(flattened_tokens)
+
+    if fixture_class != "handwriting" and optional_content_units:
+        _invalid(f"{fixture_class} must not declare optional content units")
 
     if fixture_class in {"printed_slide", "degraded_printed_slide"}:
         if scored_token_count < 50 or len(critical_slots) < 8:
             _invalid(f"{fixture_class} requires at least 50 units and 8 critical slots")
     elif fixture_class == "handwriting":
         if (
-            scored_token_count != 25
+            scored_token_count < 30
             or any(len(tokens) != 1 for tokens in tokenized_units)
+            or len(optional_flattened_tokens) < 10
+            or any(len(tokens) != 1 for tokens in optional_tokenized_units)
             or len(critical_slots) < 5
         ):
-            _invalid("handwriting requires at least 25 units and 5 critical slots")
+            _invalid(
+                "handwriting requires at least 30 required atomic units, "
+                "10 optional atomic units, and 5 critical slots"
+            )
     elif fixture_class == "formula_board":
         if len(formulas) < 10:
             _invalid("formula_board requires at least 10 labeled formulas")
@@ -1071,6 +1098,23 @@ def _validate_fixture_channels(
         _invalid(f"{fixture_class} must not declare table-channel expectations")
     if fixture_class == "table" and table is None:
         _invalid("table fixture must declare table-channel expectations")
+
+
+def _tokenize_scored_content_units(
+    content_units: tuple[ScoredContentUnit, ...],
+) -> tuple[tuple[ContentToken, ...], ...]:
+    tokenized_units: list[tuple[ContentToken, ...]] = []
+    for unit in content_units:
+        try:
+            tokens = tokenize_content_units(unit.text)
+        except (TypeError, ValueError) as exc:
+            raise ManifestValidationError(
+                f"content unit {unit.id!r} is outside the frozen token dialect"
+            ) from exc
+        if not tokens:
+            _invalid(f"content unit {unit.id!r} has no scored token")
+        tokenized_units.append(tokens)
+    return tuple(tokenized_units)
 
 
 
@@ -1120,9 +1164,13 @@ def _validate_scorer_compatibility(manifest: Phase1FixtureManifest) -> None:
         fixtures_by_id = {fixture.id: fixture for fixture in manifest.fixtures}
         for expected in expectations.fixtures:
             fixture = fixtures_by_id[expected.fixture_id]
-            recognized_text = " ".join(unit.text for unit in fixture.content_units)
-            text_score = calculate_token_metrics(
+            recognized_text = " ".join(
+                unit.text
+                for unit in fixture.content_units + fixture.optional_content_units
+            )
+            text_score = calculate_token_metrics_with_optional_content(
                 expected.text,
+                expected.precision_text,
                 tokenize_content_units(recognized_text),
             )
             if not _token_metrics_are_perfect(text_score):
@@ -1159,7 +1207,10 @@ def _validate_scorer_compatibility(manifest: Phase1FixtureManifest) -> None:
             ordered_text = "\n".join(
                 " ".join(
                     unit.text
-                    for unit in fixtures_by_id[fixture_id].content_units
+                    for unit in (
+                        fixtures_by_id[fixture_id].content_units
+                        + fixtures_by_id[fixture_id].optional_content_units
+                    )
                 )
                 for fixture_id in expected.fixture_ids
             )

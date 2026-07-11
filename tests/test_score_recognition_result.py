@@ -86,8 +86,8 @@ def test_omitted_handwriting_critical_value_fails_while_ratios_still_pass():
 
     report = score_recognition_result(manifest, dispatch, recognized)
 
-    assert report.text_score.recall.numerator == 24
-    assert report.text_score.recall.denominator == 25
+    assert report.text_score.recall.numerator == 29
+    assert report.text_score.recall.denominator == 30
     assert report.text_score.critical_accuracy.numerator == (
         report.text_score.critical_accuracy.denominator
     )
@@ -97,10 +97,59 @@ def test_omitted_handwriting_critical_value_fails_while_ratios_still_pass():
         for item in report.language_text_scores
     )
     assert report.critical_slot_score is not None
-    assert report.critical_slot_score.accuracy.numerator == 8
-    assert report.critical_slot_score.accuracy.denominator == 9
+    assert report.critical_slot_score.accuracy.numerator == 9
+    assert report.critical_slot_score.accuracy.denominator == 10
     assert report.failures == ("critical_slot_accuracy_below_one",)
     assert not report.passes
+
+
+def test_thinking_handwriting_output_passes_the_unified_board_contract():
+    manifest = load_fixture_manifest()
+    dispatch = manifest.live_dispatch_order[2]
+    recognized = r"""MCS
+Plasmid Vector
+Sticky End
+Blunt End
+**Enzymens**
+* $\rightarrow$ Nuclease: Cut
+* $\rightarrow$ Ligase: join
+foreign gene
+ATCG
+TAG
+TA
+AC
+TGCA
+RG
+Amp RG
+OR
+$\downarrow$ +
+I:V 3:1 Ratio
+R-DNA / Replasmid
+Transformation.
++
+Validation
+* Selection
+* Screening"""
+
+    report = score_recognition_result(manifest, dispatch, recognized)
+
+    assert (
+        report.text_score.recall.numerator,
+        report.text_score.recall.denominator,
+    ) == (30, 30)
+    assert (
+        report.text_score.precision.numerator * 100
+        >= report.text_score.precision.denominator * 85
+    )
+    assert (
+        report.text_score.critical_accuracy.numerator
+        == report.text_score.critical_accuracy.denominator
+    )
+    assert report.text_score.unexpected_critical_indexes == ()
+    assert report.critical_slot_score is not None
+    assert report.critical_slot_score.passes
+    assert report.failures == ()
+    assert report.passes
 
 
 def test_ordered_request_missing_formula_and_extra_f99_fail_end_to_end():

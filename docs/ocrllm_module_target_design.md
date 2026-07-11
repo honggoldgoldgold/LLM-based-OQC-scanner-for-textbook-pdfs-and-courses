@@ -1164,7 +1164,7 @@ Rules:
 - Preserve a primary typed request error when client cleanup also fails, adding
   only `provider_client_cleanup_failed=true`; a cleanup-only failure is an
   invalid provider response.
-- Successful image metadata records provider/model, `board.v3`, profile, image
+- Successful image metadata records provider/model, `board.v4`, profile, image
   count, region, and the thinking/high-resolution flags, never credentials or
   request/source content.
 

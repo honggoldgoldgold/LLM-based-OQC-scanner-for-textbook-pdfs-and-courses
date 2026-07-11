@@ -12,12 +12,16 @@ from tests.quality.build_scorer_expectations import (
 from tests.quality.build_scoring_views import build_scoring_views
 from tests.quality.calculate_language_token_metrics import (
     LanguageTokenMetrics,
-    calculate_language_token_metrics,
+)
+from tests.quality.calculate_language_token_metrics_with_optional_content import (
+    calculate_language_token_metrics_with_optional_content,
 )
 from tests.quality.calculate_token_metrics import (
     ExpectedContentUnit,
     TokenMetricCounts,
-    calculate_token_metrics,
+)
+from tests.quality.calculate_token_metrics_with_optional_content import (
+    calculate_token_metrics_with_optional_content,
 )
 from tests.quality.fixture_manifest import (
     FixtureRecord,
@@ -31,6 +35,9 @@ from tests.quality.normalize_recognized_markdown_v2 import (
 )
 from tests.quality.normalize_recognized_markdown_v3 import (
     normalize_recognized_markdown_v3,
+)
+from tests.quality.normalize_recognized_markdown_v4 import (
+    normalize_recognized_markdown_v4,
 )
 from tests.quality.score_critical_slots import (
     CriticalSlotScore,
@@ -115,6 +122,7 @@ class _ResolvedScoringTarget:
     languages: tuple[str, ...]
     neutral_markdown: tuple[str, ...]
     text: tuple[ExpectedContentUnit, ...]
+    precision_text: tuple[ExpectedContentUnit, ...]
     critical_slots: tuple[ExpectedCriticalSlot, ...]
     formulas: tuple[ExpectedFormula, ...]
     table: ExpectedMarkdownTable | None
@@ -133,7 +141,9 @@ def score_recognition_result(
         raise ValueError("recognized_markdown must be nonempty plain text")
 
     target = _resolve_scoring_target(manifest, dispatch)
-    if manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v3":
+    if manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v4":
+        scoring_markdown = normalize_recognized_markdown_v4(recognized_markdown)
+    elif manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v3":
         scoring_markdown = normalize_recognized_markdown_v3(recognized_markdown)
     elif manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v2":
         scoring_markdown = normalize_recognized_markdown_v2(recognized_markdown)
@@ -144,9 +154,14 @@ def score_recognition_result(
         neutral_markdown=target.neutral_markdown,
     )
     recognized_text_tokens = tokenize_content_units(views.text)
-    text_score = calculate_token_metrics(target.text, recognized_text_tokens)
-    language_text_scores = calculate_language_token_metrics(
+    text_score = calculate_token_metrics_with_optional_content(
         target.text,
+        target.precision_text,
+        recognized_text_tokens,
+    )
+    language_text_scores = calculate_language_token_metrics_with_optional_content(
+        target.text,
+        target.precision_text,
         recognized_text_tokens,
         target.languages,
     )
@@ -268,6 +283,7 @@ def _resolve_scoring_target(
             languages=fixture.languages,
             neutral_markdown=_rules_for_profile(neutral_rules, profile),
             text=expected.text,
+            precision_text=expected.precision_text,
             critical_slots=expected.critical_slots,
             formulas=expected.formulas,
             table=expected.table,
@@ -308,6 +324,7 @@ def _resolve_scoring_target(
         languages=languages,
         neutral_markdown=_rules_for_profile(neutral_rules, "ordered_request"),
         text=expected.text,
+        precision_text=expected.precision_text,
         critical_slots=expected.critical_slots,
         formulas=expected.formulas,
         table=expected.table,

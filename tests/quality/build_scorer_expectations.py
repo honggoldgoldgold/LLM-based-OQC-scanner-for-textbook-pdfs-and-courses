@@ -25,6 +25,7 @@ class FixtureScorerExpectations:
 
     fixture_id: str
     text: tuple[ExpectedContentUnit, ...]
+    precision_text: tuple[ExpectedContentUnit, ...]
     critical_slots: tuple[ExpectedCriticalSlot, ...]
     formulas: tuple[ExpectedFormula, ...]
     table: ExpectedMarkdownTable | None
@@ -37,6 +38,7 @@ class OrderedRequestScorerExpectations:
     request_id: str
     fixture_ids: tuple[str, ...]
     text: tuple[ExpectedContentUnit, ...]
+    precision_text: tuple[ExpectedContentUnit, ...]
     critical_slots: tuple[ExpectedCriticalSlot, ...]
     formulas: tuple[ExpectedFormula, ...]
     table: ExpectedMarkdownTable | None
@@ -78,6 +80,10 @@ def _build_fixture_expectations(fixture: FixtureRecord) -> FixtureScorerExpectat
     return FixtureScorerExpectations(
         fixture_id=fixture.id,
         text=_build_text_expectations(fixture.id, fixture.content_units),
+        precision_text=_build_text_expectations(
+            f"{fixture.id}-precision",
+            fixture.content_units + fixture.optional_content_units,
+        ),
         critical_slots=tuple(
             ExpectedCriticalSlot(
                 id=slot.id,
@@ -183,6 +189,14 @@ def _build_ordered_request_expectations(
                 unit
                 for expectation in source_expectations
                 for unit in expectation.text
+            ),
+        ),
+        precision_text=_aggregate_expected_text(
+            f"{request.id}-precision",
+            tuple(
+                unit
+                for expectation in source_expectations
+                for unit in expectation.precision_text
             ),
         ),
         critical_slots=tuple(

@@ -45,12 +45,12 @@ Phase 0 GO is a contract result, not a real recognition-capability claim. The
 active library has an offline-tested built-in DashScope adapter. Offline
 checkpoint `e328253` also committed the licensed five-class Phase 1 corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v3` manifest is `35,400` bytes
+live-scoring gate. The current versioned `board.v4` manifest is `37,492` bytes
 with SHA-256
-`43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`;
+`b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`;
 the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
 with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `574` tests; the generator byte-identity check and `compileall` pass.
+now passes `583` tests; the generator byte-identity check and `compileall` pass.
 Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
 group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
 integration paths proving zero provider calls.
@@ -71,11 +71,12 @@ scorer; a new billed run requires a new explicit decision. Local user
 screenshots under `docs/` remain untracked, non-redistributable supplemental
 material and are not gate evidence.
 
-The v2 gate is also preserved and failed on undeclared U+2A7E relation
-typography and line-leading U+2192 diagram connectors. The offline `board.v3`
-correction canonicalizes only those forms in addition to v2. Applied
-diagnostically to the preserved output, every non-handwriting dispatch passes
-while both handwriting dispatches retain their original seven quality failures.
+The v2 gate is also preserved. The source-corrected unified `board.v4` contract
+shows that six of its seven handwriting failure codes came from defective
+annotation; only the genuinely missed second `+` remains. Thinking mode captures
+that operator and passes the same scorer offline. Fresh repeated v4 live
+evidence is still required, so Phase 1 remains NO-GO. Read
+`docs/phase1_unified_board_handwriting_debug_2026-07-11.md`.
 
 Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
 the existing secret filename-ignore rules no longer exclude that source module;

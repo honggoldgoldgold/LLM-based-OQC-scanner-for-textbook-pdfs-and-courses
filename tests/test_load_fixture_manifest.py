@@ -39,7 +39,7 @@ def test_loads_frozen_five_class_manifest() -> None:
     assert manifest.max_corpus_bytes == 25 * 1024 * 1024
     assert manifest.scoring_contract.normalization_version == "content-units.v1"
     assert manifest.scoring_contract.tokenizer_version == "content-units.v1"
-    assert manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v3"
+    assert manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v4"
     assert manifest.scoring_contract.table_dialect == "gfm-pipe-table-restricted.v1"
     assert manifest.scoring_contract.table_header_line_breaks == (
         "<br>",
@@ -63,8 +63,8 @@ def test_loads_frozen_five_class_manifest() -> None:
     assert manifest.raw_sha256 == hashlib.sha256(raw).hexdigest()
     assert manifest.raw_sha256 == FROZEN_PHASE1_MANIFEST_SHA256
     assert manifest.evidence_contract.model == "qwen3.7-plus-2026-05-26"
-    assert manifest.evidence_contract.prompt_version == "board.v3"
-    assert manifest.evidence_contract.enable_thinking is False
+    assert manifest.evidence_contract.prompt_version == "board.v4"
+    assert manifest.evidence_contract.enable_thinking is True
     assert manifest.evidence_contract.vl_high_resolution_images is True
     assert [fixture.fixture_class for fixture in manifest.fixtures] == [
         "printed_slide",
@@ -90,8 +90,9 @@ def test_manifest_contains_every_frozen_quality_count() -> None:
     assert by_class["degraded_printed_slide"].content_units == by_class[
         "printed_slide"
     ].content_units
-    assert len(by_class["handwriting"].content_units) == 25
-    assert len(by_class["handwriting"].critical_slots) == 9
+    assert len(by_class["handwriting"].content_units) == 30
+    assert len(by_class["handwriting"].optional_content_units) == 16
+    assert len(by_class["handwriting"].critical_slots) == 10
     assert len(by_class["formula_board"].formulas) == 12
     table = by_class["table"].table
     assert table is not None
@@ -107,13 +108,13 @@ def test_manifest_contains_every_frozen_quality_count() -> None:
     ) == 20
 
 
-def test_handwriting_uses_exactly_25_audited_atomic_occurrences() -> None:
+def test_handwriting_separates_required_and_optional_source_occurrences() -> None:
     manifest = load_fixture_manifest()
     handwriting = next(
         fixture for fixture in manifest.fixtures if fixture.fixture_class == "handwriting"
     )
-    # Each entry is one frozen scored occurrence. Repeated End and + values are
-    # separate occurrences rather than ambiguous extra text from the photograph.
+    # Required content controls recall; faint source labels are precision truth
+    # but do not become false omissions when the provider cannot resolve them.
     tokens = tuple(
         token
         for unit in handwriting.content_units
@@ -131,7 +132,7 @@ def test_handwriting_uses_exactly_25_audited_atomic_occurrences() -> None:
         "End",
         "foreign",
         "gene",
-        "Enzymes",
+        "Enzymens",
         "Nuclease",
         "Cut",
         "Ligase",
@@ -147,8 +148,36 @@ def test_handwriting_uses_exactly_25_audited_atomic_occurrences() -> None:
         "Ratio",
         "+",
         "+",
+        "R",
+        "-",
+        "DNA",
+        "/",
+        "Replasmid",
     )
-    assert len(tokens) == 25
+    assert len(tokens) == 30
+    optional_tokens = tuple(
+        token.value
+        for unit in handwriting.optional_content_units
+        for token in tokenize_content_units(unit.text)
+    )
+    assert optional_tokens == (
+        "AG",
+        "R",
+        "amp",
+        "RG",
+        "ATCG",
+        "TAGC",
+        "ACGT",
+        "TGCA",
+        "TA",
+        "TA",
+        "5",
+        "5",
+        "5",
+        "3",
+        "3",
+        "3",
+    )
 
 
 def test_manifest_preserves_symbols_and_formula_dialect_truth() -> None:
@@ -219,7 +248,7 @@ def test_default_load_rejects_semantically_allowed_critical_slot_removal(
     fixtures = document["fixtures"]
     assert isinstance(fixtures, list) and isinstance(fixtures[2], dict)
     critical_slots = fixtures[2]["critical_slots"]
-    assert isinstance(critical_slots, list) and len(critical_slots) == 9
+    assert isinstance(critical_slots, list) and len(critical_slots) == 10
     critical_slots.pop()
     path = tmp_path / "weakened-manifest.json"
     path.write_text(
@@ -239,7 +268,7 @@ def test_default_load_rejects_semantically_allowed_critical_slot_removal(
         for fixture in semantic_result.fixtures
         if fixture.fixture_class == "handwriting"
     )
-    assert len(weakened_handwriting.critical_slots) == 8
+    assert len(weakened_handwriting.critical_slots) == 9
 
 
 def test_test_only_unfrozen_switch_requires_an_exact_boolean() -> None:
@@ -396,7 +425,7 @@ def test_rejects_noncritical_numeric_table_cell(tmp_path: Path) -> None:
     ("fixture_index", "field", "remaining", "message"),
     [
         (0, "content_units", 1, "at least 50 units"),
-        (2, "content_units", 24, "at least 25 units"),
+        (2, "content_units", 29, "at least 30 required atomic units"),
         (3, "formulas", 9, "at least 10 labeled formulas"),
     ],
 )
@@ -416,6 +445,37 @@ def test_rejects_below_minimum_fixture_counts(
 
     with pytest.raises(ManifestValidationError, match=message):
         _load_modified_manifest(tmp_path, document)
+
+
+def test_rejects_invalid_optional_source_truth(tmp_path: Path) -> None:
+    non_handwriting = _manifest_document()
+    fixtures = non_handwriting["fixtures"]
+    assert isinstance(fixtures, list) and isinstance(fixtures[0], dict)
+    fixtures[0]["optional_content_units"] = [
+        {"id": "unexpected-optional", "text": "extra", "case_sensitive": True}
+    ]
+    with pytest.raises(ManifestValidationError, match="must not declare optional"):
+        _load_modified_manifest(tmp_path, non_handwriting)
+
+    too_few = _manifest_document()
+    fixtures = too_few["fixtures"]
+    assert isinstance(fixtures, list) and isinstance(fixtures[2], dict)
+    optional = fixtures[2]["optional_content_units"]
+    assert isinstance(optional, list)
+    del optional[9:]
+    with pytest.raises(ManifestValidationError, match="10 optional atomic units"):
+        _load_modified_manifest(tmp_path, too_few)
+
+    duplicate_id = _manifest_document()
+    fixtures = duplicate_id["fixtures"]
+    assert isinstance(fixtures, list) and isinstance(fixtures[2], dict)
+    content = fixtures[2]["content_units"]
+    optional = fixtures[2]["optional_content_units"]
+    assert isinstance(content, list) and isinstance(content[0], dict)
+    assert isinstance(optional, list) and isinstance(optional[0], dict)
+    optional[0]["id"] = content[0]["id"]
+    with pytest.raises(ManifestValidationError, match="ids must be disjoint"):
+        _load_modified_manifest(tmp_path, duplicate_id)
 
 
 def test_rejects_wrong_fixture_count_and_ordered_source_coordinates(tmp_path: Path) -> None:

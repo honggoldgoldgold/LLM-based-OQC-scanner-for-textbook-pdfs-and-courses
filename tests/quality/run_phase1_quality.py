@@ -69,7 +69,7 @@ from tests.quality.write_quality_evidence_atomically import (
 DEFAULT_REPOSITORY_ROOT = Path(__file__).parents[2]
 PHASE1_TIMEOUT_SECONDS = 120.0
 _TEMPERATURE = 0
-_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v3"
+_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v4"
 _MANIFEST_RELATIVE_PATH = "tests/fixtures/phase1/manifest.json"
 _BOUND_OUTPUT_ROOTS = (
     "src/ocrllm",

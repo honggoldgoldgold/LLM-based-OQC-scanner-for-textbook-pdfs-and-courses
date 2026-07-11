@@ -210,10 +210,10 @@ def test_integrated_report_serialization_keeps_exact_rational_counts() -> None:
         score_recognition_result(manifest, dispatch, markdown)
     )
 
-    assert serialized["text"]["recall"] == {"numerator": 25, "denominator": 25}
+    assert serialized["text"]["recall"] == {"numerator": 30, "denominator": 30}
     assert serialized["critical_slots"]["accuracy"] == {
-        "numerator": 9,
-        "denominator": 9,
+        "numerator": 10,
+        "denominator": 10,
     }
     assert serialized["languages"][0]["language"] == "en-US"
     assert serialized["formulas"] is None

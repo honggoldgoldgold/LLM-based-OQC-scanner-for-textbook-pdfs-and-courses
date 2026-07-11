@@ -42,12 +42,12 @@ Base64 data URLs rather than local paths.
 
 Offline checkpoint `e328253` committed the licensed five-class corpus,
 deterministic generators, exact scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v3` manifest is `35,400` bytes
+live-scoring gate. The current versioned `board.v4` manifest is `37,492` bytes
 with SHA-256
-`43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`.
+`b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`.
 Its 20 artifacts include 5 images and total `17,914,515` bytes, leaving
 `8,299,885` bytes under the 25 MiB corpus limit. The pinned full suite passed
-`574` tests; regenerated fixtures were byte-identical and `compileall` passed.
+`583` tests; regenerated fixtures were byte-identical and `compileall` passed.
 The boundary suite now hits exact one-below, at, and one-above values for every
 per-source byte, decoded-pixel, group-count, aggregate-source-byte, and
 aggregate-pixel cap; every rejecting integration case proves zero provider
@@ -65,12 +65,11 @@ Both full runs completed, but neither passed; Phase 1 remains NO-GO. There were
 no provider request failures. The live record separates a real handwriting
 quality miss from a deterministic mismatch between reasonable Qwen
 Markdown/LaTeX presentation variants and the frozen v1 scorer grammar. The
-evidence remains unchanged. The later v2 gate also completed all 13 calls and
-failed on undeclared relation typography and line-leading diagram arrows. The
-offline `board.v3` correction is implemented and tested: it normalizes only
-those content-preserving forms and leaves both handwriting content failures
-intact. See
-`docs/phase1_live_quality_result_2026-07-11.md`. The local user screenshots
+evidence remains unchanged. The source-corrected unified `board.v4` contract
+shows that six handwriting failures were annotation defects and leaves only a
+genuinely missed second `+` in the preserved non-thinking output. Thinking mode
+passes the same scorer offline; two fresh live v4 runs are still required. See
+`docs/phase1_unified_board_handwriting_debug_2026-07-11.md`. The local user screenshots
 under `docs/` remain untracked, supplemental, and non-redistributable; they are
 not part of pass/fail evidence.
 

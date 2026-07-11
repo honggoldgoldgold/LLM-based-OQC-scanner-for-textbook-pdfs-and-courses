@@ -7,15 +7,15 @@
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v3",
-    "enable_thinking": false,
+    "prompt_version": "board.v4",
+    "enable_thinking": true,
     "vl_high_resolution_images": true,
     "output_language": null
   },
   "scoring_contract": {
     "normalization_version": "content-units.v1",
     "tokenizer_version": "content-units.v1",
-    "formula_dialect": "labeled-latex-restricted.v3",
+    "formula_dialect": "labeled-latex-restricted.v4",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": ["<br>", "<br/>", "<br />"],
     "language_token_kinds": {
@@ -400,6 +400,7 @@
         {"id": "audit-independent", "text": "两次完整运行必须独立", "case_sensitive": true},
         {"id": "audit-checksum", "text": "CHECKSUM: CN-7319", "case_sensitive": true}
       ],
+      "optional_content_units": [],
       "critical_slots": [
         {"id": "order-first", "accepted": ["ORDER-FIRST: AURORA-314"], "case_sensitive": true},
         {"id": "course-id", "accepted": ["COURSE-ID: QCR-204"], "case_sensitive": true},
@@ -485,6 +486,7 @@
         {"id": "audit-independent", "text": "两次完整运行必须独立", "case_sensitive": true},
         {"id": "audit-checksum", "text": "CHECKSUM: CN-7319", "case_sensitive": true}
       ],
+      "optional_content_units": [],
       "critical_slots": [
         {"id": "order-first", "accepted": ["ORDER-FIRST: AURORA-314"], "case_sensitive": true},
         {"id": "course-id", "accepted": ["COURSE-ID: QCR-204"], "case_sensitive": true},
@@ -511,41 +513,65 @@
       ],
       "content_units": [
         {"id": "handwriting-mcs", "text": "MCS", "case_sensitive": true},
-        {"id": "handwriting-plasmid", "text": "Plasmid", "case_sensitive": true},
-        {"id": "handwriting-vector", "text": "Vector", "case_sensitive": true},
-        {"id": "handwriting-sticky", "text": "sticky", "case_sensitive": true},
-        {"id": "handwriting-sticky-end", "text": "End", "case_sensitive": true},
-        {"id": "handwriting-blunt", "text": "Blunt", "case_sensitive": true},
-        {"id": "handwriting-blunt-end", "text": "End", "case_sensitive": true},
-        {"id": "handwriting-foreign", "text": "foreign", "case_sensitive": true},
-        {"id": "handwriting-gene", "text": "gene", "case_sensitive": true},
-        {"id": "handwriting-enzymes", "text": "Enzymes", "case_sensitive": true},
-        {"id": "handwriting-nuclease", "text": "Nuclease", "case_sensitive": true},
-        {"id": "handwriting-cut", "text": "Cut", "case_sensitive": true},
-        {"id": "handwriting-ligase", "text": "Ligase", "case_sensitive": true},
-        {"id": "handwriting-join", "text": "join", "case_sensitive": true},
-        {"id": "handwriting-transformation", "text": "Transformation", "case_sensitive": true},
-        {"id": "handwriting-validation", "text": "Validation", "case_sensitive": true},
-        {"id": "handwriting-selection", "text": "selection", "case_sensitive": true},
-        {"id": "handwriting-screening", "text": "screening", "case_sensitive": true},
+        {"id": "handwriting-plasmid", "text": "Plasmid", "case_sensitive": false},
+        {"id": "handwriting-vector", "text": "Vector", "case_sensitive": false},
+        {"id": "handwriting-sticky", "text": "sticky", "case_sensitive": false},
+        {"id": "handwriting-sticky-end", "text": "End", "case_sensitive": false},
+        {"id": "handwriting-blunt", "text": "Blunt", "case_sensitive": false},
+        {"id": "handwriting-blunt-end", "text": "End", "case_sensitive": false},
+        {"id": "handwriting-foreign", "text": "foreign", "case_sensitive": false},
+        {"id": "handwriting-gene", "text": "gene", "case_sensitive": false},
+        {"id": "handwriting-enzymens", "text": "Enzymens", "case_sensitive": false},
+        {"id": "handwriting-nuclease", "text": "Nuclease", "case_sensitive": false},
+        {"id": "handwriting-cut", "text": "Cut", "case_sensitive": false},
+        {"id": "handwriting-ligase", "text": "Ligase", "case_sensitive": false},
+        {"id": "handwriting-join", "text": "join", "case_sensitive": false},
+        {"id": "handwriting-transformation", "text": "Transformation", "case_sensitive": false},
+        {"id": "handwriting-validation", "text": "Validation", "case_sensitive": false},
+        {"id": "handwriting-selection", "text": "selection", "case_sensitive": false},
+        {"id": "handwriting-screening", "text": "screening", "case_sensitive": false},
         {"id": "handwriting-ratio-i", "text": "I", "case_sensitive": true},
         {"id": "handwriting-ratio-v", "text": "V", "case_sensitive": true},
         {"id": "handwriting-ratio-three", "text": "3", "case_sensitive": true},
         {"id": "handwriting-ratio-one", "text": "1", "case_sensitive": true},
         {"id": "handwriting-ratio-label", "text": "Ratio", "case_sensitive": true},
         {"id": "handwriting-plus-first", "text": "+", "case_sensitive": true},
-        {"id": "handwriting-plus-second", "text": "+", "case_sensitive": true}
+        {"id": "handwriting-plus-second", "text": "+", "case_sensitive": true},
+        {"id": "handwriting-rdna-r", "text": "R", "case_sensitive": true},
+        {"id": "handwriting-rdna-hyphen", "text": "-", "case_sensitive": true},
+        {"id": "handwriting-rdna-dna", "text": "DNA", "case_sensitive": true},
+        {"id": "handwriting-rdna-slash", "text": "/", "case_sensitive": true},
+        {"id": "handwriting-replasmid", "text": "Replasmid", "case_sensitive": false}
+      ],
+      "optional_content_units": [
+        {"id": "handwriting-optional-ag", "text": "AG", "case_sensitive": true},
+        {"id": "handwriting-optional-r", "text": "R", "case_sensitive": true},
+        {"id": "handwriting-optional-amp", "text": "amp", "case_sensitive": false},
+        {"id": "handwriting-optional-rg", "text": "RG", "case_sensitive": true},
+        {"id": "handwriting-optional-atcg", "text": "ATCG", "case_sensitive": true},
+        {"id": "handwriting-optional-tagc", "text": "TAGC", "case_sensitive": true},
+        {"id": "handwriting-optional-acgt", "text": "ACGT", "case_sensitive": true},
+        {"id": "handwriting-optional-tgca", "text": "TGCA", "case_sensitive": true},
+        {"id": "handwriting-optional-ta-first", "text": "TA", "case_sensitive": true},
+        {"id": "handwriting-optional-ta-second", "text": "TA", "case_sensitive": true},
+        {"id": "handwriting-optional-five-first", "text": "5", "case_sensitive": true},
+        {"id": "handwriting-optional-five-second", "text": "5", "case_sensitive": true},
+        {"id": "handwriting-optional-five-third", "text": "5", "case_sensitive": true},
+        {"id": "handwriting-optional-three-first", "text": "3", "case_sensitive": true},
+        {"id": "handwriting-optional-three-second", "text": "3", "case_sensitive": true},
+        {"id": "handwriting-optional-three-third", "text": "3", "case_sensitive": true}
       ],
       "critical_slots": [
         {"id": "handwriting-mcs-slot", "accepted": ["MCS"], "case_sensitive": true},
-        {"id": "handwriting-plasmid-vector", "accepted": ["Plasmid Vector"], "case_sensitive": true},
-        {"id": "handwriting-sticky-end-slot", "accepted": ["sticky End"], "case_sensitive": true},
-        {"id": "handwriting-blunt-end-slot", "accepted": ["Blunt End"], "case_sensitive": true},
-        {"id": "handwriting-foreign-gene", "accepted": ["foreign gene"], "case_sensitive": true},
-        {"id": "handwriting-enzymes-slot", "accepted": ["Enzymes"], "case_sensitive": true},
-        {"id": "handwriting-nuclease-cut", "accepted": ["Nuclease Cut"], "case_sensitive": true},
-        {"id": "handwriting-ligase-join", "accepted": ["Ligase join"], "case_sensitive": true},
-        {"id": "handwriting-ratio-slot", "accepted": ["I:V 3:1 Ratio"], "case_sensitive": true}
+        {"id": "handwriting-plasmid-vector", "accepted": ["Plasmid Vector"], "case_sensitive": false},
+        {"id": "handwriting-sticky-end-slot", "accepted": ["sticky End"], "case_sensitive": false},
+        {"id": "handwriting-blunt-end-slot", "accepted": ["Blunt End"], "case_sensitive": false},
+        {"id": "handwriting-foreign-gene", "accepted": ["foreign gene"], "case_sensitive": false},
+        {"id": "handwriting-enzymens-slot", "accepted": ["Enzymens"], "case_sensitive": false},
+        {"id": "handwriting-nuclease-cut", "accepted": ["Nuclease Cut"], "case_sensitive": false},
+        {"id": "handwriting-ligase-join", "accepted": ["Ligase join"], "case_sensitive": false},
+        {"id": "handwriting-ratio-slot", "accepted": ["I:V 3:1 Ratio"], "case_sensitive": true},
+        {"id": "handwriting-rdna-replasmid", "accepted": ["R-DNA / Replasmid"], "case_sensitive": false}
       ],
       "formulas": [],
       "table": null
@@ -572,6 +598,7 @@
         {"id": "formula-title", "text": "FORMULA INTEGRITY BOARD / 公式完整性校验", "case_sensitive": true},
         {"id": "formula-order-anchor", "text": "ORDER-LAST: ZENITH-926", "case_sensitive": true}
       ],
+      "optional_content_units": [],
       "critical_slots": [
         {"id": "order-last", "accepted": ["ORDER-LAST: ZENITH-926"], "case_sensitive": true}
       ],
@@ -611,6 +638,7 @@
       "content_units": [
         {"id": "table-title", "text": "CALIBRATION RUNS / 校准数据", "case_sensitive": true}
       ],
+      "optional_content_units": [],
       "critical_slots": [],
       "formulas": [],
       "table": {

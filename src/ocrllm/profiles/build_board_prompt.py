@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 
-BOARD_PROMPT_VERSION = "board.v3"
+BOARD_PROMPT_VERSION = "board.v4"
 
 
 def build_board_prompt(
@@ -27,6 +27,9 @@ def build_board_prompt(
         "even when the source appears misspelled; do not normalize or autocorrect it. "
         "Reconstruct tables by row and column, and preserve chart titles, axes, legends, labels, "
         "and visible data. Do not solve, summarize, translate, explain, or invent missing content."
+        " Inspect the complete image before responding, including faint but visible diagram "
+        "labels, connectors, and operator marks; transcribe uncertain visible text as seen "
+        "instead of silently omitting it."
     )
     if input_languages:
         prompt += f" Expected input languages: {', '.join(input_languages)}."

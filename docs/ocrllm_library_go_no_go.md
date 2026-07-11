@@ -131,14 +131,16 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   or `object.__setattr__` cannot diverge the request from its metadata or smuggle
   an endpoint past the allowlist.
 - The original offline quality checkpoint is commit `e328253`. The current
-  versioned `board.v3` manifest is exactly `35,400` bytes with SHA-256
-  `43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`.
+  versioned `board.v4` manifest is exactly `37,492` bytes with SHA-256
+  `b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`.
   It authenticates 20 committed artifacts, including 5 images, totaling
   `17,914,515` bytes with `8,299,885` bytes of headroom below the 25 MiB corpus
   ceiling. The checkpoint contains the exact licensed corpus, deterministic
   generators, provenance, per-language/token, critical-slot, formula, table,
   and ordered-anchor scorers, and integrated manifest-authenticated
-  live-scoring gate.
+  live-scoring gate. V4 keeps one unified board capability, corrects the
+  source-derived handwriting truth, and separates required recall content from
+  optional faint source content used only to avoid false precision penalties.
 - The scorer entrypoint authenticates the caller's manifest against a freshly
   strict-loaded byte-frozen manifest before scoring. It fails closed for
   non-applicable channels instead of treating missing evidence as a pass. On the
@@ -1619,19 +1621,20 @@ handwriting dispatches retain their original seven quality failures. V3 has no
 live evidence yet and Phase 1 remains NO-GO.
 
 Exploratory evidence after v2 is recorded in
-`phase1_exploratory_robustness_2026-07-11.md`. No tested crop, thinking, or OCR
-model path passes handwriting. The four private dense formula/table screenshots
-all return complete results. The current handwriting annotation omits visible
-source text and must be replaced by a complete source-derived annotation before
-another comparable handwriting run. A Qwen3.5-OCR Responses result also
-contained a temporary signed OSS URL and is rejected from the public result
-contract.
+`phase1_exploratory_robustness_2026-07-11.md`; the source audit and correction
+are in `phase1_unified_board_handwriting_debug_2026-07-11.md`. The earlier split
+recommendation is withdrawn. The fixture had corrected the source's literal
+`Enzymens`, omitted `R-DNA / Replasmid`, over-constrained cursive case, and
+penalized genuine faint labels. Crop, legacy-prompt, and high-resolution
+controls did not change the disputed readings; thinking mode captured the one
+genuinely missing second `+`.
 
-Do not lower handwriting thresholds or add an unproven ensemble. The recommended
-product change is to split printed/document image recognition from an explicit
-handwriting capability, letting each carry its own provider, prompt, annotation,
-and GO status. This boundary change requires explicit user approval before
-implementation.
+Keep one `board` capability. `board.v4` pins thinking mode and source-corrected
+required/optional truth without lowering any threshold or adding an ensemble.
+Its isolated suite passes 583 tests, fixture bytes are identical, and
+compilation passes. Fresh repeated v4 live evidence is still required, so Phase
+1 remains NO-GO. The Qwen3.5-OCR signed-URL result remains rejected from the
+public contract.
 
 ### Phase 2: JSON contract and Electron worker
 
