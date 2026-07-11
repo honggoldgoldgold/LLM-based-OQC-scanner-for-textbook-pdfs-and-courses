@@ -2213,6 +2213,16 @@ the isolated suite passes 608 tests. Full v8 live evidence and clean packaging
 profiles remain required, so Phase 1 is still NO-GO. The complete decision and
 call ledger are in `phase1_v8_consensus_workflow_debug_2026-07-11.md`.
 
+V8 live attempt 1 did not satisfy that gate. Smoke and five Run A singles
+completed; formula passed 12/12 signatures and 133/133 atoms, while handwriting
+again missed one required standalone `+` at 29/30 recall and 5/6 critical-token
+accuracy. The ordered request timed out on draft 1 after 120.954 seconds, so
+Run A did not complete and Run B never started. Preserve the 59,675-byte
+evidence with SHA-256
+`fd34fb9f3ec7d37674ba7f779f3db743a36b76af81371a27090e8c1b7d75fe94`.
+Phase 1 remains NO-GO. See
+`phase1_live_quality_result_v8_attempt1_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

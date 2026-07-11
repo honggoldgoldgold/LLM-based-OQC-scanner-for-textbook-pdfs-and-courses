@@ -940,6 +940,18 @@ the isolated suite passes 608 tests. Complete offline preflight, commit/push,
 then run a new clean v8 evidence path. See
 `docs/phase1_v8_consensus_workflow_debug_2026-07-11.md`.
 
+V8 live attempt 1 is preserved at
+`evidence/phase1/phase1-quality-v8-2026-07-11-cn-beijing.json`, 59,675 bytes,
+SHA-256
+`fd34fb9f3ec7d37674ba7f779f3db743a36b76af81371a27090e8c1b7d75fe94`.
+Smoke and five Run A single fixtures completed. Formula passed perfectly, but
+handwriting again missed one genuine standalone `+` at 29/30 recall and 5/6
+critical-token accuracy. The ordered request then timed out on draft 1 after
+120.954 seconds; Run A did not complete and Run B never started. Preserve this
+attempt without retry. Consensus solved destructive formula mutation but not
+the stochastic small-mark omission. See
+`docs/phase1_live_quality_result_v8_attempt1_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

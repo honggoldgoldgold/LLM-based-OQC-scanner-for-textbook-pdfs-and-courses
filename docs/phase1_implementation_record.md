@@ -338,3 +338,14 @@ atomically published. The v8 manifest is 37,712 bytes, SHA-256
 The full isolated suite passes 608 tests. See
 `phase1_v8_consensus_workflow_debug_2026-07-11.md`; complete 39-call evidence is
 still required.
+
+V8 live attempt 1 ran from clean pushed commit `04a7c9f`. Smoke and five Run A
+single fixtures completed; formula consensus passed 12/12 signatures and
+133/133 atoms, but handwriting again omitted one standalone `+` at 29/30 recall
+and 5/6 critical-token accuracy. Run A's ordered request then timed out on its
+first draft after 120.954 seconds, so it was not scored and Run B never started.
+The 59,675-byte evidence SHA-256 is
+`fd34fb9f3ec7d37674ba7f779f3db743a36b76af81371a27090e8c1b7d75fe94`.
+Preserve it; do not retry the failed dispatch. The next generic workflow must
+adjudicate one-sided sign disagreements explicitly rather than rewriting whole
+drafts without a difference checklist.
