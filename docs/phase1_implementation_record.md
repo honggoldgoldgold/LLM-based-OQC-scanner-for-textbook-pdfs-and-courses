@@ -248,3 +248,15 @@ runs. The 27,245-byte atomic evidence SHA-256 is
 `49e5a3981d13137c5a8ca543b96290bf3b30595ed5cd6d19ca58362c19134015`.
 It is preserved and must not be overwritten or resumed. A new complete attempt
 requires a new clean commit and evidence path.
+
+V4 attempt 2 started from clean full commit
+`78892445f300128e8a9b252d9483c5608cbaf796`. Seven calls were invoked. Smoke and
+all five single fixtures returned; every non-handwriting single passed.
+Handwriting reached all 10 critical text slots but scored 29/30 recall, 33/40
+precision, and 5/6 critical tokens. It missed the center `+`, while two
+line-leading ASCII `->` connectors created four false unexpected critical
+tokens. The run-A ordered request timed out and aborted the plan before run B.
+The 57,929-byte evidence SHA-256 is
+`936edd25c72d3d58f0d70fed4621c603ced023eca572901a8cf773d62635cc6e`.
+Preserve it; fix only verified presentation equivalence and continue debugging
+the missing operator before another full gate.

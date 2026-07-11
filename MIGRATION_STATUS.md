@@ -835,6 +835,20 @@ not overwrite or resume it; a later attempt must use a new complete plan and
 new evidence path. See
 `docs/phase1_live_quality_result_v4_attempt1_2026-07-11.md`.
 
+V4 attempt 2 is preserved separately at
+`evidence/phase1/phase1-quality-v4-attempt2-2026-07-11-cn-beijing.json`, 57,929
+bytes, SHA-256
+`936edd25c72d3d58f0d70fed4621c603ced023eca572901a8cf773d62635cc6e`.
+It invoked seven calls. Smoke plus all five single fixtures returned; printed,
+projected, formula, and table passed. Handwriting had 29/30 required recall,
+33/40 precision, 5/6 critical-token accuracy, and 10/10 critical slots. It
+still missed the center `+`; two line-leading ASCII `->` connectors caused four
+false unexpected critical tokens. The run-A ordered request then timed out and
+the runner aborted before run B. Preserve this partial evidence. The next
+offline correction may accept only line-leading ASCII connectors with corruption
+tests, but must still solve the genuinely missing `+`. See
+`docs/phase1_live_quality_result_v4_attempt2_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

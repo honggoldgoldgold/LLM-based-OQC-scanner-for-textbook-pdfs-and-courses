@@ -1645,6 +1645,19 @@ evidence at
 It is transport evidence only. A new attempt must use a new complete plan and
 new path.
 
+V4 attempt 2 then invoked seven calls from clean commit `7889244`. Smoke and
+all five single fixtures returned, and every non-handwriting single passed.
+Handwriting scored 29/30 recall, 33/40 precision, 5/6 critical tokens, and 10/10
+critical slots: the center `+` was genuinely missing, while two line-leading
+ASCII `->` connectors produced four false critical insertions. The run-A
+ordered request timed out and aborted before run B. Preserve the 57,929-byte
+evidence at
+`evidence/phase1/phase1-quality-v4-attempt2-2026-07-11-cn-beijing.json`
+(SHA-256
+`936edd25c72d3d58f0d70fed4621c603ced023eca572901a8cf773d62635cc6e`).
+Accepting line-leading ASCII connectors requires a versioned corruption-tested
+normalizer change; the missing `+` remains a workflow blocker.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:
