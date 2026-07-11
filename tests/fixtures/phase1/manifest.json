@@ -7,11 +7,11 @@
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v10",
+    "prompt_version": "board.v11",
     "draft_candidates": 1,
     "review_passes": 0,
     "standalone_sign_scout_model": "qwen-vl-max",
-    "standalone_sign_scout_count": 2,
+    "standalone_sign_scout_count": 3,
     "standalone_sign_scout_enable_thinking": false,
     "enable_thinking": true,
     "vl_high_resolution_images": true,
@@ -20,7 +20,7 @@
   "scoring_contract": {
     "normalization_version": "content-units.v1",
     "tokenizer_version": "content-units.v1",
-    "formula_dialect": "labeled-latex-restricted.v5",
+    "formula_dialect": "labeled-latex-restricted.v6",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": ["<br>", "<br/>", "<br />"],
     "language_token_kinds": {

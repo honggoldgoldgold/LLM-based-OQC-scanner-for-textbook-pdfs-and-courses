@@ -100,7 +100,7 @@ def recognize_images(
         )
         resolved_scout = resolve_vision_provider(scout_config)
         scouts: list[str] = []
-        for scout_index in range(2):
+        for scout_index in range(3):
             try:
                 scouts.append(
                     call_vision_provider(
@@ -123,8 +123,8 @@ def recognize_images(
         try:
             restored = restore_quorum_standalone_signs(
                 markdown,
-                scouts[0],
-                scouts[1],
+                tuple(scouts),
+                minimum_agreement=2,
             )
         except ValueError:
             raise ProviderError(
@@ -133,13 +133,13 @@ def recognize_images(
                 details={
                     "model": scout_model,
                     "provider": resolved_scout.name,
-                    "provider_calls_attempted": provider_call_count + 2,
+                    "provider_calls_attempted": provider_call_count + 3,
                     "workflow_pass": "standalone_sign_merge",
                 },
             ) from None
         markdown = restored.markdown
         restored_sign_count = restored.restored_count
-        provider_call_count += 2
+        provider_call_count += 3
 
     metadata: dict[str, str | int | bool | None] = {
         "image_count": len(image_paths),
@@ -151,7 +151,7 @@ def recognize_images(
         "draft_candidates": config.preferences.draft_candidates,
         "review_passes": config.preferences.review_passes,
         "standalone_sign_scout_model": scout_model,
-        "standalone_sign_scout_count": 2 if scout_model is not None else 0,
+        "standalone_sign_scout_count": 3 if scout_model is not None else 0,
         "standalone_signs_restored": restored_sign_count,
     }
     if resolved_provider.name == "dashscope" and config.dashscope is not None:

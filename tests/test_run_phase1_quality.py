@@ -120,18 +120,18 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v10",
+                "prompt_version": "board.v11",
                 "provider_call_count": (
                     config.preferences.draft_candidates
                     + config.preferences.review_passes
-                    + 2
+                    + 3
                 ),
                 "draft_candidates": config.preferences.draft_candidates,
                 "review_passes": config.preferences.review_passes,
                 "standalone_sign_scout_model": (
                     config.dashscope.standalone_sign_scout_model
                 ),
-                "standalone_sign_scout_count": 2,
+                "standalone_sign_scout_count": 3,
                 "standalone_sign_scout_enable_thinking": False,
                 "standalone_signs_restored": 0,
                 "provider": "dashscope",
@@ -192,8 +192,8 @@ def test_fake_runner_executes_exact_plan_with_fresh_configs_and_safe_evidence(
     assert evidence["state"] == "complete"
     assert evidence["active_attempt"] is None
     assert evidence["summary"]["recognize_invocations"] == 13
-    assert evidence["summary"]["planned_provider_calls"] == 39
-    assert evidence["summary"]["reported_provider_calls"] == 39
+    assert evidence["summary"]["planned_provider_calls"] == 52
+    assert evidence["summary"]["reported_provider_calls"] == 52
     assert evidence["summary"]["completed_full_runs"] == 2
     assert evidence["summary"]["passed_full_runs"] == 2
     assert evidence["summary"]["simulated_plan_passed"] is True
@@ -476,7 +476,7 @@ def test_existing_evidence_and_wrong_confirmation_fail_before_recognition(
 
     with pytest.raises(Phase1QualityRunnerError, match="must not already exist"):
         _run(fake, existing)
-    with pytest.raises(Phase1QualityRunnerError, match="must equal 39"):
+    with pytest.raises(Phase1QualityRunnerError, match="must equal 52"):
         clock = DeterministicClock()
         _run_phase1_quality_simulated(
             region=REGION,

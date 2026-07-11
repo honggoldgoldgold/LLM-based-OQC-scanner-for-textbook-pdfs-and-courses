@@ -30,6 +30,10 @@ does not replace the phase gates in `ocrllm_library_go_no_go.md`.
   per recognition. Scout mode is explicit and defaults off. Qwen-VL scout prose
   is never returned; only a bounded two-scout standalone-sign quorum can alter
   primary Markdown locally.
+- V11 raises the scout count from two to three and uses a two-of-three quorum.
+  Its fixed comparable gate is therefore 13 recognitions and 52 calls. The
+  third scout improves missing-sign quorum probability without adding a slow
+  generative rewrite; it remains explicit and defaults off.
 - The Phase 1 model remains `qwen3.7-plus-2026-05-26` unless the authoritative
   decision is changed before collecting a new complete evidence set.
 

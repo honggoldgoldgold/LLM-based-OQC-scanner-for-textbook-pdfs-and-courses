@@ -2248,6 +2248,15 @@ the 98,351-byte evidence SHA-256
 `8c86c7117efa6ad7e999bad3180e861981a27598788cfaaeb526472ae65b9c54`.
 Phase 1 remains NO-GO. See `phase1_live_quality_result_v10_2026-07-11.md`.
 
+V11 excludes Markdown thematic breaks from sign evidence, changes scout voting
+to two-of-three, and introduces formula dialect v6 for only safe single-letter
+`\text{X}` groups in exact labeled math. The v10 rejected formula re-scores
+perfectly, and broader command forms remain rejected. The fixed v11 gate is 13
+recognitions and 52 calls. Its 37,853-byte manifest SHA-256 is
+`3b5c5392b1e10ed40261ac08dc5fbf692f0b451c6c13c4c71a44b710f28ec86b`;
+647 isolated tests pass. Phase 1 remains NO-GO pending live evidence. See
+`phase1_v11_three_scout_and_formula_dialect_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

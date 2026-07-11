@@ -51,8 +51,8 @@ from tests.quality.generators.phase1_fixture_content import (
     VISIBLE_FORMULAS,
 )
 from tests.quality.normalize_content_units import NORMALIZATION_VERSION
-from tests.quality.normalize_recognized_markdown_v5 import (
-    normalize_recognized_markdown_v5,
+from tests.quality.normalize_recognized_markdown_v6 import (
+    normalize_recognized_markdown_v6,
 )
 from tests.quality.parse_formula_signature import parse_formula_signature
 from tests.quality.score_critical_slots import score_critical_slots
@@ -74,7 +74,7 @@ DEFAULT_PHASE1_MANIFEST_PATH = (
     Path(__file__).parents[1] / "fixtures" / "phase1" / "manifest.json"
 )
 FROZEN_PHASE1_MANIFEST_SHA256 = (
-    "15a7018084cd1d53c82acbf260bb19095ccb29664cc357beaaaefd9044b8f971"
+    "3b5c5392b1e10ed40261ac08dc5fbf692f0b451c6c13c4c71a44b710f28ec86b"
 )
 
 _SCHEMA_VERSION = "ocrllm.phase1-fixture-manifest.v1"
@@ -114,11 +114,11 @@ _PINNED_EVIDENCE_CONTRACT = {
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v10",
+    "prompt_version": "board.v11",
     "draft_candidates": 1,
     "review_passes": 0,
     "standalone_sign_scout_model": "qwen-vl-max",
-    "standalone_sign_scout_count": 2,
+    "standalone_sign_scout_count": 3,
     "standalone_sign_scout_enable_thinking": False,
     "enable_thinking": True,
     "vl_high_resolution_images": True,
@@ -127,7 +127,7 @@ _PINNED_EVIDENCE_CONTRACT = {
 _PINNED_SCORING_CONTRACT = {
     "normalization_version": NORMALIZATION_VERSION,
     "tokenizer_version": TOKENIZER_VERSION,
-    "formula_dialect": "labeled-latex-restricted.v5",
+    "formula_dialect": "labeled-latex-restricted.v6",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": NEUTRAL_TABLE_LINE_BREAKS,
     "language_token_kinds": dict(LANGUAGE_TOKEN_KIND_BY_TAG),
@@ -343,7 +343,7 @@ def _parse_scoring_contract(value: object) -> ScoringContract:
             elif profile == "table":
                 probe += "\n| A | B |\n| --- | --- |\n| 1 | 2 |"
             build_scoring_views(
-                normalize_recognized_markdown_v5(probe),
+                normalize_recognized_markdown_v6(probe),
                 neutral_markdown=rules,
             )
     except (TypeError, ValueError) as exc:

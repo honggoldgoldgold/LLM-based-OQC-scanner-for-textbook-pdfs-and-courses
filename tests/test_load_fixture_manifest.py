@@ -39,7 +39,7 @@ def test_loads_frozen_five_class_manifest() -> None:
     assert manifest.max_corpus_bytes == 25 * 1024 * 1024
     assert manifest.scoring_contract.normalization_version == "content-units.v1"
     assert manifest.scoring_contract.tokenizer_version == "content-units.v1"
-    assert manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v5"
+    assert manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v6"
     assert manifest.scoring_contract.table_dialect == "gfm-pipe-table-restricted.v1"
     assert manifest.scoring_contract.table_header_line_breaks == (
         "<br>",
@@ -63,11 +63,11 @@ def test_loads_frozen_five_class_manifest() -> None:
     assert manifest.raw_sha256 == hashlib.sha256(raw).hexdigest()
     assert manifest.raw_sha256 == FROZEN_PHASE1_MANIFEST_SHA256
     assert manifest.evidence_contract.model == "qwen3.7-plus-2026-05-26"
-    assert manifest.evidence_contract.prompt_version == "board.v10"
+    assert manifest.evidence_contract.prompt_version == "board.v11"
     assert manifest.evidence_contract.draft_candidates == 1
     assert manifest.evidence_contract.review_passes == 0
     assert manifest.evidence_contract.standalone_sign_scout_model == "qwen-vl-max"
-    assert manifest.evidence_contract.standalone_sign_scout_count == 2
+    assert manifest.evidence_contract.standalone_sign_scout_count == 3
     assert manifest.evidence_contract.standalone_sign_scout_enable_thinking is False
     assert manifest.evidence_contract.enable_thinking is True
     assert manifest.evidence_contract.vl_high_resolution_images is True

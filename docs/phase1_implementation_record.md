@@ -375,3 +375,12 @@ evidence SHA-256
 `8c86c7117efa6ad7e999bad3180e861981a27598788cfaaeb526472ae65b9c54`.
 V11 needs thematic-break exclusion, a 2-of-3 scout quorum, and a narrow safe
 `\text{single-symbol}` normalization.
+
+V11 implements those exact changes. Three independent Qwen-VL Max scouts vote
+with a two-of-three anchored quorum; repeated `---`/`===` thematic lines are
+not sign events. Formula dialect v6 unwraps only one ASCII letter in
+`\text{X}` inside exact labeled math wrappers, while malformed or broader forms
+remain rejected. The preserved v10 formula now passes perfectly. The v11
+manifest is 37,853 bytes with SHA-256
+`3b5c5392b1e10ed40261ac08dc5fbf692f0b451c6c13c4c71a44b710f28ec86b`;
+647 isolated tests pass. The live plan is 13 recognitions and 52 calls.

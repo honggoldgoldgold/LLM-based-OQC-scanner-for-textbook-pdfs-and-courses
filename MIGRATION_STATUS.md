@@ -985,6 +985,19 @@ Post-run inspection also found the passing ordered request restored a Markdown
 2-of-3 scout quorum, and narrowly normalize safe single-symbol `\text{}` forms.
 See `docs/phase1_live_quality_result_v10_2026-07-11.md`.
 
+`board.v11` addresses the three verified v10 defects. It uses three Qwen-VL Max
+scouts with a two-of-three anchored sign quorum, excludes repeated Markdown
+hyphen/equal thematic breaks from sign evidence, and adds formula dialect v6.
+The dialect unwraps only exact single-ASCII-letter `\text{X}` groups inside
+valid labeled formulas; broader forms remain rejected. Preserved v10 Run A
+formula output re-scores perfectly at 12/12 signatures and 133/133 atoms.
+
+The v11 plan is 13 recognitions and 52 fixed calls with 180-second timeouts.
+The 37,853-byte manifest SHA-256 is
+`3b5c5392b1e10ed40261ac08dc5fbf692f0b451c6c13c4c71a44b710f28ec86b`;
+647 isolated tests pass. See
+`docs/phase1_v11_three_scout_and_formula_dialect_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

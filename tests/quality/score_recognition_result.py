@@ -42,6 +42,9 @@ from tests.quality.normalize_recognized_markdown_v4 import (
 from tests.quality.normalize_recognized_markdown_v5 import (
     normalize_recognized_markdown_v5,
 )
+from tests.quality.normalize_recognized_markdown_v6 import (
+    normalize_recognized_markdown_v6,
+)
 from tests.quality.score_critical_slots import (
     CriticalSlotScore,
     ExpectedCriticalSlot,
@@ -144,7 +147,9 @@ def score_recognition_result(
         raise ValueError("recognized_markdown must be nonempty plain text")
 
     target = _resolve_scoring_target(manifest, dispatch)
-    if manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v5":
+    if manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v6":
+        scoring_markdown = normalize_recognized_markdown_v6(recognized_markdown)
+    elif manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v5":
         scoring_markdown = normalize_recognized_markdown_v5(recognized_markdown)
     elif manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v4":
         scoring_markdown = normalize_recognized_markdown_v4(recognized_markdown)

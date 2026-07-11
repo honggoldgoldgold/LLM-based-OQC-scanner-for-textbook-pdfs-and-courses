@@ -1,4 +1,4 @@
-"""Restore only standalone signs agreed by two untrusted scout outputs."""
+"""Restore only standalone signs meeting quorum across untrusted scouts."""
 
 from __future__ import annotations
 
@@ -21,22 +21,29 @@ class RestoredStandaloneSigns:
 
 def restore_quorum_standalone_signs(
     base_markdown: str,
-    first_scout_markdown: str,
-    second_scout_markdown: str,
+    scout_markdowns: tuple[str, ...],
+    *,
+    minimum_agreement: int = 2,
 ) -> RestoredStandaloneSigns:
-    """Add only sign events shared by both scouts between matching anchors."""
+    """Add only sign events meeting quorum between matching anchors."""
 
-    for value, name in (
-        (base_markdown, "base_markdown"),
-        (first_scout_markdown, "first_scout_markdown"),
-        (second_scout_markdown, "second_scout_markdown"),
+    if type(base_markdown) is not str or not base_markdown.strip():
+        raise ValueError("base_markdown must be nonempty plain text")
+    if (
+        type(scout_markdowns) is not tuple
+        or not 2 <= len(scout_markdowns) <= 8
+        or any(type(value) is not str or not value.strip() for value in scout_markdowns)
     ):
-        if type(value) is not str or not value.strip():
-            raise ValueError(f"{name} must be nonempty plain text")
+        raise ValueError("scout_markdowns must contain 2 to 8 nonempty plain texts")
+    if (
+        type(minimum_agreement) is not int
+        or not 2 <= minimum_agreement <= len(scout_markdowns)
+    ):
+        raise ValueError("minimum_agreement must be between 2 and the scout count")
 
     quorum_events = _quorum_sign_events(
-        first_scout_markdown,
-        second_scout_markdown,
+        scout_markdowns,
+        minimum_agreement=minimum_agreement,
     )
     if len(quorum_events) > _MAX_SCOUT_SIGN_EVENTS:
         raise ValueError("scout sign-event quorum exceeds the safe bound")
@@ -78,7 +85,7 @@ def _sign_events(markdown: str) -> tuple[tuple[str, str, str], ...]:
     lines = tuple(line.strip() for line in markdown.splitlines())
     result = []
     for index, line in enumerate(lines):
-        if _STANDALONE_SIGN.fullmatch(line) is None:
+        if not _is_standalone_sign(line):
             continue
         previous = _nearest_anchor(lines, range(index - 1, -1, -1))
         following = _nearest_anchor(lines, range(index + 1, len(lines)))
@@ -92,40 +99,86 @@ def _nearest_anchor(lines: tuple[str, ...], indexes: range) -> str:
         (
             _normalize_anchor(lines[index])
             for index in indexes
-            if lines[index] and _STANDALONE_SIGN.fullmatch(lines[index]) is None
+            if lines[index] and not _is_standalone_sign(lines[index])
         ),
         "",
     )
 
 
 def _quorum_sign_events(
-    first_scout: str,
-    second_scout: str,
+    scout_markdowns: tuple[str, ...],
+    *,
+    minimum_agreement: int,
 ) -> tuple[tuple[str, str, str], ...]:
-    first_events = _sign_events(first_scout)
-    second_events = _sign_events(second_scout)
-    used: set[int] = set()
-    result = []
-    for sign, previous, following in first_events:
-        for index, (other_sign, other_previous, other_following) in enumerate(
-            second_events
-        ):
-            if index in used or sign != other_sign:
-                continue
-            previous_agrees = _anchors_match(previous, other_previous)
-            following_agrees = _anchors_match(following, other_following)
-            if not (previous_agrees or following_agrees):
-                continue
-            used.add(index)
-            result.append(
+    clusters: list[list[tuple[int, tuple[str, str, str]]]] = []
+    for scout_index, markdown in enumerate(scout_markdowns):
+        for event in _sign_events(markdown):
+            cluster = next(
                 (
-                    sign,
-                    previous if previous_agrees else "",
-                    following if following_agrees else "",
-                )
+                    candidate
+                    for candidate in clusters
+                    if all(index != scout_index for index, _ in candidate)
+                    and any(_events_match(event, value) for _, value in candidate)
+                ),
+                None,
             )
-            break
+            if cluster is None:
+                clusters.append([(scout_index, event)])
+            else:
+                cluster.append((scout_index, event))
+
+    result = []
+    for cluster in clusters:
+        if len(cluster) < minimum_agreement:
+            continue
+        events = tuple(event for _, event in cluster)
+        previous = _shared_anchor(events, anchor_index=1, minimum_agreement=minimum_agreement)
+        following = _shared_anchor(events, anchor_index=2, minimum_agreement=minimum_agreement)
+        if previous or following:
+            result.append((events[0][0], previous, following))
     return tuple(result)
+
+
+def _events_match(
+    first: tuple[str, str, str],
+    second: tuple[str, str, str],
+) -> bool:
+    return first[0] == second[0] and (
+        _anchors_match(first[1], second[1])
+        or _anchors_match(first[2], second[2])
+    )
+
+
+def _shared_anchor(
+    events: tuple[tuple[str, str, str], ...],
+    *,
+    anchor_index: int,
+    minimum_agreement: int,
+) -> str:
+    candidates = tuple(dict.fromkeys(event[anchor_index] for event in events))
+    scored = tuple(
+        (
+            sum(_anchors_match(candidate, event[anchor_index]) for event in events),
+            len(candidate),
+            candidate,
+        )
+        for candidate in candidates
+        if candidate
+    )
+    if not scored:
+        return ""
+    count, _, anchor = max(scored)
+    return anchor if count >= minimum_agreement else ""
+
+
+def _is_standalone_sign(line: str) -> bool:
+    if _STANDALONE_SIGN.fullmatch(line) is None:
+        return False
+    return not (
+        len(line) >= 3
+        and len(set(line)) == 1
+        and line[0] in {"-", "="}
+    )
 
 
 def _find_safe_insertion_index(

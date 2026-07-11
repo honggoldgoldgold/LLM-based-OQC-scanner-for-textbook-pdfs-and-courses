@@ -80,8 +80,12 @@ stochastically and still misses the plus. The current offline contract is
 `board.v10`: one Qwen3.7 text transcript plus two explicit Qwen-VL Max
 standalone-sign scouts and a deterministic, prose-isolating quorum merge. Two
 handwriting trials and the formula regression pass; the 628-test suite passes.
-Fresh complete v10 evidence is still pending, so Phase 1 remains NO-GO. See
-`docs/phase1_v10_sign_scout_workflow_debug_2026-07-11.md`.
+V10 completed both runs and one passed, then exposed insufficient two-scout
+quorum, a safe formula-dialect gap, and a Markdown-separator false restoration.
+V11 uses a two-of-three scout quorum, excludes thematic breaks, and narrowly
+normalizes safe single-letter `\text{X}` formula forms. Its 647-test suite
+passes; fresh complete v11 evidence is pending, so Phase 1 remains NO-GO. See
+`docs/phase1_v11_three_scout_and_formula_dialect_2026-07-11.md`.
 
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
