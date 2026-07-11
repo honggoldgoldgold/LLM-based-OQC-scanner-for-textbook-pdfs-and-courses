@@ -48,8 +48,8 @@ from tests.quality.generators.phase1_fixture_content import (
     VISIBLE_FORMULAS,
 )
 from tests.quality.normalize_content_units import NORMALIZATION_VERSION
-from tests.quality.normalize_recognized_markdown_v2 import (
-    normalize_recognized_markdown_v2,
+from tests.quality.normalize_recognized_markdown_v3 import (
+    normalize_recognized_markdown_v3,
 )
 from tests.quality.parse_formula_signature import parse_formula_signature
 from tests.quality.score_critical_slots import score_critical_slots
@@ -70,7 +70,7 @@ DEFAULT_PHASE1_MANIFEST_PATH = (
     Path(__file__).parents[1] / "fixtures" / "phase1" / "manifest.json"
 )
 FROZEN_PHASE1_MANIFEST_SHA256 = (
-    "b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336"
+    "43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966"
 )
 
 _SCHEMA_VERSION = "ocrllm.phase1-fixture-manifest.v1"
@@ -110,7 +110,7 @@ _PINNED_EVIDENCE_CONTRACT = {
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v2",
+    "prompt_version": "board.v3",
     "enable_thinking": False,
     "vl_high_resolution_images": True,
     "output_language": None,
@@ -118,7 +118,7 @@ _PINNED_EVIDENCE_CONTRACT = {
 _PINNED_SCORING_CONTRACT = {
     "normalization_version": NORMALIZATION_VERSION,
     "tokenizer_version": TOKENIZER_VERSION,
-    "formula_dialect": "labeled-latex-restricted.v2",
+    "formula_dialect": "labeled-latex-restricted.v3",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": NEUTRAL_TABLE_LINE_BREAKS,
     "language_token_kinds": dict(LANGUAGE_TOKEN_KIND_BY_TAG),
@@ -334,7 +334,7 @@ def _parse_scoring_contract(value: object) -> ScoringContract:
             elif profile == "table":
                 probe += "\n| A | B |\n| --- | --- |\n| 1 | 2 |"
             build_scoring_views(
-                normalize_recognized_markdown_v2(probe),
+                normalize_recognized_markdown_v3(probe),
                 neutral_markdown=rules,
             )
     except (TypeError, ValueError) as exc:

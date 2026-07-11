@@ -531,7 +531,7 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   typed error remains primary with only
   `provider_client_cleanup_failed=true` attached.
 - Successful result metadata records `provider`, `model`,
-  `prompt_version="board.v2"`, `profile`, `image_count`, `provider_region`,
+  `prompt_version="board.v3"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`. It never records the API
   key or request body.
 - The historical adapter-only implementation checkpoint is commit `a6a8b18`.
@@ -555,7 +555,7 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   the supplied manifest against a freshly strict-loaded byte-frozen manifest
   before scoring and fails closed when a scoring channel is not applicable.
 - The current versioned manifest is exactly `35,400` bytes with SHA-256
-  `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
+  `43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`.
   The committed corpus has 20 artifacts, including 5 images, totaling
   `17,914,515` bytes and leaving `8,299,885` bytes of headroom below the 25 MiB
   limit.
@@ -748,7 +748,7 @@ not delete, overwrite, selectively retry, or reinterpret its evidence:
 5. Keep the clean-tree offline/package gate current after source, packaged
    README, dependency, or package-metadata changes.
 
-The offline versioned correction is implemented. `board.v2` explicitly
+The historical v2 correction explicitly
 requires labeled standalone formulas, Unicode inline relations, and exact
 handwritten spelling/capitalization. Its separate fail-closed normalizer accepts
 only the observed content-preserving presentation forms and standalone
@@ -786,6 +786,15 @@ ordered requests exposed undeclared U+2A7E relation typography; handwriting
 exposed undeclared line-leading U+2192 diagram connectors. Phase 1 remains
 NO-GO. The next correction must be versioned and keep wrong content and inline
 arrows fail-closed.
+
+That correction is now implemented as `board.v3` /
+`labeled-latex-restricted.v3`. It maps only U+2A7E/U+2A7D relation typography
+and line-leading U+2192 diagram connectors. Inline arrows, wrong relations, and
+wrong values remain failures. The full suite passes `574` tests, fixture bytes
+are identical, and compilation passes. Diagnostic scoring makes all preserved
+v2 non-handwriting dispatches pass while handwriting retains the same seven
+quality failures. A clean v3 package proof and meaningful handwriting-quality
+improvement are still required before another full gate.
 
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.

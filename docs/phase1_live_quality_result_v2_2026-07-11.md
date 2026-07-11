@@ -49,3 +49,8 @@ correction must be separately versioned and may only canonicalize
 content-preserving typography (`⩾`/`⩽`) and line-leading diagram connectors. It
 must preserve inline arrows, wrong relations, wrong values, and all exact
 content thresholds as failures.
+
+The subsequent offline correction is versioned as `board.v3`. Its deliberate
+corruption tests preserve those fail-closed boundaries. Applied diagnostically,
+v3 passes every non-handwriting v2 dispatch while handwriting keeps the same
+seven content-quality failures. This does not alter the v2 result.

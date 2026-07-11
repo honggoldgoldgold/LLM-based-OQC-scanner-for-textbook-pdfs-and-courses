@@ -94,11 +94,11 @@ The live runner uses it before and after every paid call.
 
 ## Current Verified Offline State
 
-- Pinned suite: `568 passed` after the offline `board.v2` correction.
+- Pinned suite: `574 passed` after the offline `board.v3` correction.
 - Generated fixture check: byte-identical.
 - Compile check: passed.
 - Current versioned manifest: 35,400 bytes; SHA-256
-  `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
+  `43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`.
 - Corpus: 20 artifacts, including 5 images, totaling 17,914,515 bytes.
 - Clean wheel from `9dc4e7a`: 52,602 bytes; SHA-256
   `8ce3a51f2367bdfa3255f8ca23f1b95fd46176e728edec3ef4369da1c626f385`.
@@ -201,3 +201,17 @@ was rejected for line-leading U+2192 diagram arrows. The durable audit is
 The PowerShell stdin pipeline reported exit code 1 after the runner printed the
 evidence hash, although the JSON is complete with no terminal failure. The file
 was audited instead of rerunning any call.
+
+## Offline V3 Correction
+
+The v2 evidence remains immutable. `board.v3` and
+`labeled-latex-restricted.v3` add only two presentation equivalences: U+2A7E /
+U+2A7D relation typography maps to U+2265 / U+2264, and a U+2192 connector is
+structural only at the beginning of a line before whitespace. Inline arrows,
+wrong relations, and wrong values remain visible failures.
+
+The complete suite passes `574` tests; fixture generation is byte-identical and
+`compileall` passes. Diagnostic scoring of the v2 raw output makes the smoke and
+every non-handwriting dispatch pass. Both handwriting dispatches retain the
+same seven content-quality failures, so v3 does not convert the failed v2 gate
+into GO evidence.

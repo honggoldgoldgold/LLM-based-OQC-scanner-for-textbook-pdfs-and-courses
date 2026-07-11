@@ -42,12 +42,12 @@ Base64 data URLs rather than local paths.
 
 Offline checkpoint `e328253` committed the licensed five-class corpus,
 deterministic generators, exact scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v2` manifest is `35,400` bytes
+live-scoring gate. The current versioned `board.v3` manifest is `35,400` bytes
 with SHA-256
-`b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
+`43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`.
 Its 20 artifacts include 5 images and total `17,914,515` bytes, leaving
 `8,299,885` bytes under the 25 MiB corpus limit. The pinned full suite passed
-`568` tests; regenerated fixtures were byte-identical and `compileall` passed.
+`574` tests; regenerated fixtures were byte-identical and `compileall` passed.
 The boundary suite now hits exact one-below, at, and one-above values for every
 per-source byte, decoded-pixel, group-count, aggregate-source-byte, and
 aggregate-pixel cap; every rejecting integration case proves zero provider
@@ -65,9 +65,11 @@ Both full runs completed, but neither passed; Phase 1 remains NO-GO. There were
 no provider request failures. The live record separates a real handwriting
 quality miss from a deterministic mismatch between reasonable Qwen
 Markdown/LaTeX presentation variants and the frozen v1 scorer grammar. The
-evidence remains unchanged. The offline `board.v2` correction is implemented
-and tested: it declares the output grammar, normalizes only predeclared
-presentation equivalents, and leaves both handwriting failures intact. See
+evidence remains unchanged. The later v2 gate also completed all 13 calls and
+failed on undeclared relation typography and line-leading diagram arrows. The
+offline `board.v3` correction is implemented and tested: it normalizes only
+those content-preserving forms and leaves both handwriting content failures
+intact. See
 `docs/phase1_live_quality_result_2026-07-11.md`. The local user screenshots
 under `docs/` remain untracked, supplemental, and non-redistributable; they are
 not part of pass/fail evidence.

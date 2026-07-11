@@ -45,12 +45,12 @@ Phase 0 GO is a contract result, not a real recognition-capability claim. The
 active library has an offline-tested built-in DashScope adapter. Offline
 checkpoint `e328253` also committed the licensed five-class Phase 1 corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v2` manifest is `35,400` bytes
+live-scoring gate. The current versioned `board.v3` manifest is `35,400` bytes
 with SHA-256
-`b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`;
+`43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`;
 the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
 with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `568` tests; the generator byte-identity check and `compileall` pass.
+now passes `574` tests; the generator byte-identity check and `compileall` pass.
 Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
 group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
 integration paths proving zero provider calls.
@@ -71,11 +71,11 @@ scorer; a new billed run requires a new explicit decision. Local user
 screenshots under `docs/` remain untracked, non-redistributable supplemental
 material and are not gate evidence.
 
-The offline `board.v2` correction is implemented. It makes formula
-serialization explicit, preserves handwritten spelling/case, and canonicalizes
-only observed content-preserving Markdown/LaTeX variants. Applied diagnostically
-to the preserved outputs, every non-handwriting dispatch passes while both
-handwriting dispatches retain their original seven quality failures.
+The v2 gate is also preserved and failed on undeclared U+2A7E relation
+typography and line-leading U+2192 diagram connectors. The offline `board.v3`
+correction canonicalizes only those forms in addition to v2. Applied
+diagnostically to the preserved output, every non-handwriting dispatch passes
+while both handwriting dispatches retain their original seven quality failures.
 
 Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
 the existing secret filename-ignore rules no longer exclude that source module;

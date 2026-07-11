@@ -131,8 +131,8 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   or `object.__setattr__` cannot diverge the request from its metadata or smuggle
   an endpoint past the allowlist.
 - The original offline quality checkpoint is commit `e328253`. The current
-  versioned `board.v2` manifest is exactly `35,400` bytes with SHA-256
-  `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
+  versioned `board.v3` manifest is exactly `35,400` bytes with SHA-256
+  `43c548fdfda1d114b6851def2ce05284cc213bd3478e1e0eea9faa6242a27966`.
   It authenticates 20 committed artifacts, including 5 images, totaling
   `17,914,515` bytes with `8,299,885` bytes of headroom below the 25 MiB corpus
   ceiling. The checkpoint contains the exact licensed corpus, deterministic
@@ -942,7 +942,7 @@ Phase 1 provider policy is concrete:
   `PROVIDER_RESPONSE_INVALID`. Never publish truncated Markdown as complete or
   partial success.
 - Successful image metadata includes `provider`, `model`,
-  `prompt_version="board.v2"`, `profile`, `image_count`, `provider_region`,
+  `prompt_version="board.v3"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`; it never includes a key,
   endpoint credential, request body, or source content.
 - Always close a constructed client. If request processing and close both fail,
@@ -1571,14 +1571,14 @@ Status after offline checkpoint `e328253`, packaging hotfix `3414f47`, runner
 checkpoint `fb23d1e`, and the exact boundary completion: the corpus, generators,
 artifact authentication, scorers, deliberate-corruption tests, guarded evidence
 runner, provider boundary, lazy import, and clean profile work are integrated.
-The pinned full suite reports `568 passed`; generator bytes and `compileall`
+The pinned full suite reports `574 passed`; generator bytes and `compileall`
 pass, with no provider/API call. The user-confirmed Beijing region/endpoint gate
 is satisfied. The first 13-call live plan completed with both full runs failing;
 Phase 1 remains **NO-GO**. See
 `phase1_live_quality_result_2026-07-11.md` for the immutable evidence identity,
 per-dispatch result, and versioned-correction decision.
 
-The offline `board.v2` correction is implemented without changing the v1
+The historical `board.v2` correction was implemented without changing the v1
 evidence. It declares the labeled-formula grammar and exact handwriting
 spelling/case in the prompt. A separate fail-closed normalizer canonicalizes
 only inline relation math, missing-colon labeled formulas, strict paired formula
@@ -1608,6 +1608,15 @@ line-leading U+2192 diagram connectors. Preserve v2 unchanged. A separately
 versioned correction may normalize only those content-preserving typography and
 layout forms, with corruption tests that keep inline arrows, wrong relations,
 and wrong values failing. Phase 1 remains NO-GO.
+
+The separately versioned `board.v3` / `labeled-latex-restricted.v3`
+correction is implemented. It declares only U+2A7E/U+2A7D relation typography
+and line-leading U+2192 diagram connectors as presentation equivalents. Inline
+arrows, wrong relations, and wrong values remain failures. The full suite
+passes `574` tests; generated fixtures and compilation pass. Diagnostic scoring
+of the immutable v2 output passes every non-handwriting dispatch, while both
+handwriting dispatches retain their original seven quality failures. V3 has no
+live evidence yet and Phase 1 remains NO-GO.
 
 ### Phase 2: JSON contract and Electron worker
 
