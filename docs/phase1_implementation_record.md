@@ -417,4 +417,12 @@ list sign is blocked because the primary already contains a supported sign at
 those anchors. The manifest remains 37,853 bytes with SHA-256
 `890f67941bc2783bc81f91ab42b1290fb4ad1df4c722cb2f458e762dd9ad1522`.
 The focused suite passes 96 tests and the exact isolated repository suite passes
-667 tests. The complete v13 live gate remains pending.
+667 tests.
+
+The complete v13 gate then returned all 52 calls and both full runs, but neither
+run passed. Handwriting was complete twice and gained one false plus twice; one
+projected slide duplicated LaTeX `\ge` as Unicode `≥`; and both valid tables
+were split by five inserted sign lines. Preserve the 98,101-byte evidence
+SHA-256
+`b10b88eeeba94f637165ddf32b95eb3ff3e3e02d4ccdd254ad9fbfe39bec67f1`.
+These are merger-policy defects, not handwriting capability failures.

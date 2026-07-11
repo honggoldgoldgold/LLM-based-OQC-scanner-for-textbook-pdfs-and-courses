@@ -99,8 +99,15 @@ V13 keeps that unified profile and makes invalid auxiliary scout output a
 counted abstention. Exact `NONE` handles no-sign images, two valid scouts still
 form quorum, and an existing primary sign blocks a conflicting insertion at the
 same anchors. Targeted printed-slide and handwriting probes pass; complete v13
-offline verification passes 667 tests, while live evidence is pending. See
+offline verification passes 667 tests; the complete live result is recorded
+below. See
 `docs/phase1_v13_auxiliary_scout_abstention_2026-07-11.md`.
+
+The complete v13 live gate returned all 52 calls but exposed three local merger
+defects: anchor-line sign conflicts, Unicode/LaTeX sign equivalence, and unsafe
+insertion inside tables. Handwriting itself reached complete recall and
+critical accuracy in both runs. Phase 1 remains NO-GO; see
+`docs/phase1_live_quality_result_v13_2026-07-11.md`.
 
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,

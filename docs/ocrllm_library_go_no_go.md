@@ -2286,9 +2286,17 @@ supported sign at the same primary anchors blocks conflicting restoration.
 Three targeted printed-slide scouts returned `NONE`; three handwriting scouts
 recovered the missing plus. The v13 manifest is 37,853 bytes with SHA-256
 `890f67941bc2783bc81f91ab42b1290fb4ad1df4c722cb2f458e762dd9ad1522`.
-The exact isolated suite passes 667 tests. Phase 1 remains NO-GO pending
-complete live evidence. See
+The exact isolated suite passes 667 tests. See
 `phase1_v13_auxiliary_scout_abstention_2026-07-11.md`.
+
+The complete v13 live gate returned all 52 calls and both full runs, but neither
+passed. Handwriting achieved full recall and critical accuracy twice while one
+extra plus was inserted twice; a projected slide duplicated LaTeX `\ge` as
+Unicode `≥`; and both GFM tables were broken by five row-interleaved signs.
+Preserve the 98,101-byte evidence SHA-256
+`b10b88eeeba94f637165ddf32b95eb3ff3e3e02d4ccdd254ad9fbfe39bec67f1`.
+Phase 1 remains NO-GO. See
+`phase1_live_quality_result_v13_2026-07-11.md`.
 
 ## Change Rejection Checklist
 

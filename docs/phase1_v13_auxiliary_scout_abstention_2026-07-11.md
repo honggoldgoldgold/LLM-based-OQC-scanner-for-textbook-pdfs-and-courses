@@ -2,8 +2,8 @@
 
 Date: 2026-07-11.
 
-Status: targeted Beijing probes and the complete offline suite pass; complete
-live gate pending.
+Status: targeted Beijing probes and the complete offline suite pass; the
+complete live gate finished but failed deterministic merger quality checks.
 
 ## Boundary Decision
 
@@ -95,5 +95,15 @@ None of these calls is relabeled as gate evidence.
 - Focused offline suite: 96 passed.
 - Exact isolated repository suite: 667 passed.
 
-Phase 1 remains NO-GO pending one fresh complete live gate with two passing full
-runs and clean package profiles.
+## Complete Live Result
+
+The frozen v13 gate completed all 13 recognitions and 52 calls with no terminal
+failure. Neither full run passed. Handwriting reached complete recall and
+critical accuracy twice but gained one extra plus twice; the projected slide
+duplicated a LaTeX-equivalent `≥` once; and both tables were broken by five
+row-interleaved restorations. Preserve the 98,101-byte evidence SHA-256
+`b10b88eeeba94f637165ddf32b95eb3ff3e3e02d4ccdd254ad9fbfe39bec67f1`.
+See `phase1_live_quality_result_v13_2026-07-11.md`.
+
+Phase 1 remains NO-GO pending corrected deterministic merger rules, a fresh
+complete passing live gate, and clean package profiles.

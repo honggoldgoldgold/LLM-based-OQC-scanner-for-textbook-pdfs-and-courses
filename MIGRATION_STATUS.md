@@ -1046,6 +1046,16 @@ The focused suite passes 96 tests and the exact isolated repository suite passes
 667 tests.
 See `docs/phase1_v13_auxiliary_scout_abstention_2026-07-11.md`.
 
+The v13 live gate completed all 13 recognitions and 52 calls from pushed commit
+`74d155e`; both full runs failed without a terminal provider error. Handwriting
+had full recall and critical accuracy twice but received one extra plus twice.
+Run B projected content duplicated source `≥` already represented as LaTeX
+`\ge`. Both tables were broken by five sign lines inserted between GFM rows.
+Preserve the 98,101-byte evidence SHA-256
+`b10b88eeeba94f637165ddf32b95eb3ff3e3e02d4ccdd254ad9fbfe39bec67f1`.
+V14 must include anchor lines in sign-conflict checks, recognize equivalent
+sign spellings, and protect table blocks. Do not split handwriting routing.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
