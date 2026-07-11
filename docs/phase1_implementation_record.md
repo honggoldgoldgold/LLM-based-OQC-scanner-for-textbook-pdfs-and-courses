@@ -34,6 +34,7 @@ the image adapter.
 | `7df3514` | Beijing provider policy and the pre-live implementation ledger recorded. |
 | `cf4be8b` | Failed Beijing live evidence and the immutable NO-GO audit recorded. |
 | `9dc4e7a` | Versioned `board.v2` prompt and fail-closed presentation normalizer implemented. |
+| `2d5a693` | Exact v2 package, import, and optional-profile proof recorded. |
 
 Use `git show <commit>` for exact patches. New changes must be committed and
 pushed in similarly bounded checkpoints.
@@ -172,3 +173,12 @@ preserved v1 raw Markdown: the smoke and every non-handwriting dispatch pass,
 while both handwriting dispatches retain the original seven failure codes. No
 provider call occurred, the v1 evidence was not rewritten, and this does not
 authorize another billed run.
+
+The no-network v2 preflight passed at full commit
+`2d5a693e53ba3395aa08c530c4dbdea693295097`: 99 relevant files were clean, all
+20 artifacts authenticated, the manifest hash and `board.v2`/evidence-v2
+contracts matched, the plan contained exactly 13 calls, credential presence was
+accepted without printing it, and the proposed evidence path was absent. The
+preflight made zero network calls. Because recording this result creates a
+later documentation commit, the same preflight must run again from the exact
+commit used by any future paid attempt.

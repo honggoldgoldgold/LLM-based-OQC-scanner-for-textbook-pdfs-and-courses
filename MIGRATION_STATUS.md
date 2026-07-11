@@ -768,6 +768,13 @@ the generated-PNG recognition and offline Beijing client-construction probes
 pass without provider HTTP. See `docs/phase1_implementation_record.md` for the
 recorded disk-contention and wrong-origin measurement incidents.
 
+A zero-network v2 preflight passed at full commit
+`2d5a693e53ba3395aa08c530c4dbdea693295097`. It verified 99 clean relevant
+files, 20 artifacts, the v2 manifest/prompt/evidence contracts, the fixed
+13-call plan, credential presence, Beijing settings, and an absent new evidence
+path. Repeat it from the exact future paid-run commit; this result neither makes
+a provider call nor authorizes one.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
