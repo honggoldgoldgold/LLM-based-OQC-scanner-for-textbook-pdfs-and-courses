@@ -38,11 +38,37 @@ Phase 1 now contains one lazy DashScope vision adapter with offline boundary
 tests. It requires immutable `DashScopeSettings` with an explicit region and
 OpenAI-compatible endpoint, accepts only `qwen3.7-plus` or the default pinned
 `qwen3.7-plus-2026-05-26`, constructs `OpenAI(max_retries=0)`, and sends ordered
-Base64 data URLs rather than local paths. This is an experimental implementation,
-not recognition-quality evidence. Phase 1 remains NO-GO until the committed,
-licensed five-class corpus/scorer, live smoke, two independent full-corpus live
-runs, and final clean-profile gate all pass. The local user screenshots are
-supplemental and non-redistributable; they do not replace that corpus.
+Base64 data URLs rather than local paths.
+
+Offline checkpoint `e328253` commits the licensed five-class corpus,
+deterministic generators, exact scorers, and integrated manifest-authenticated
+live-scoring gate. The byte-frozen manifest is `35,400` bytes with SHA-256
+`f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
+Its 20 artifacts include 5 images and total `17,914,515` bytes, leaving
+`8,299,885` bytes under the 25 MiB corpus limit. The pinned full suite passed
+`546` tests; regenerated fixtures were byte-identical and `compileall` passed.
+
+Runner checkpoint `fb23d1e` is committed. Its offline fake/evidence tests and a
+direct live-preflight check pass without a provider/API call. The public live
+entrypoint closes over real dependencies and exposes no injection parameters;
+the private fake path labels its output `simulated` and cannot set the live gate
+to passed. The frozen zero-retry plan is exactly one clean-slide smoke, six
+dispatches in run A, and six independently dispatched entries in run B.
+
+This is committed offline corpus/scorer/runner infrastructure, not live
+recognition-quality evidence. Phase 1 remains NO-GO solely pending the caller's
+exact region and `base_url`, the 13 live calls and resulting two passing full
+runs, and the final clean-profile/GO-decision update. The local user screenshots
+under `docs/` remain untracked, supplemental, and non-redistributable; they are
+not part of pass/fail evidence.
+
+Pushed packaging hotfix `3414f47` renamed `resolve_dashscope_api_key.py` /
+`resolve_dashscope_api_key` to `resolve_dashscope_credential.py` /
+`resolve_dashscope_credential`. The old legitimate filename matched the
+existing `*_api_key*` secret-ignore pattern; the rename fixed that defect
+without weakening secret protection. A clean Git-archive build from the hotfix
+produced a `50,094`-byte wheel and passed an isolated explicit-key resolver
+round-trip without a provider call.
 
 The active library also has no local OCR mode, API-key pools, automatic retries
 or model fallback, resume/checkpoint support, PDF recognition, audio
@@ -120,7 +146,8 @@ AGENTS.md                             Repo-level boundary instructions.
 src/ocrllm/                           Active importable library package.
 src/ocrllm/README_ACTIVE_LIBRARY.md   Local active-library boundary.
 src/ocrllm/AGENTS.md                  Local active-library agent rules.
-tests/                                Active library import-contract tests.
+tests/                                Active library contract and licensed
+                                      Phase 1 quality-gate tests.
 legacy_app/                           Old GUI/CLI/FastAPI application.
 legacy_app/README_LEGACY.md           Local legacy-app boundary.
 legacy_app/AGENTS.md                  Local legacy-app agent rules.
@@ -198,12 +225,17 @@ D:\Anaconda\envs\OCRLLM\python.exe -m OCRLLM.cli social_long <bilibili-url> `
 
 ## Verification
 
-```bash
-pip install -e .
-python -c "import ocrllm; print(ocrllm.__version__)"
-pytest
+```powershell
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --with 'pytest>=8,<10' --with 'openai>=2.30,<3' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m pytest -q -p no:cacheprovider
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m tests.quality.generators.generate_phase1_fixtures --check
+& 'D:\Anaconda\envs\OCRLLM\python.exe' -m compileall -q src tests
 ```
 
-This is the short local check. The required temporary-wheel install,
-outside-repo import, and heavy-module guard are in
+These are the pinned offline checkpoint checks. The clean Git-archive wheel
+build, isolated install, outside-repo import, and heavy-module guard are in
 `docs/ocrllm_library_go_no_go.md`.

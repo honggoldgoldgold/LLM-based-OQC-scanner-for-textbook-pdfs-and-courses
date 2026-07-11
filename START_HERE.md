@@ -39,19 +39,36 @@ optional and atomic; `output_dir=None` stays memory-only. Pillow is installed by
 the `image` extra and remains lazy during plain `import ocrllm`.
 
 Phase 0 GO is a contract result, not a real recognition-capability claim. The
-active library now has an offline-tested built-in DashScope adapter, but no
-committed quality corpus/scorer, local OCR path, API-key pool,
-retry/model-fallback policy, or resume support. PDF, audio, and video are also
-unavailable. Phase 1 remains NO-GO pending reproducible image-quality and live
-provider evidence. The adapter requires immutable `DashScopeSettings` with an
-explicit region and OpenAI-compatible endpoint, accepts only `qwen3.7-plus` or
-the default pinned `qwen3.7-plus-2026-05-26`, disables SDK retries, and sends
-Base64 data URLs rather than local paths. Local user screenshots remain
-uncommitted supplemental evidence; the GO gate still needs the committed
-licensed five-class corpus, live smoke, and two complete live corpus runs. Read
+active library has an offline-tested built-in DashScope adapter. Offline
+checkpoint `e328253` also commits the licensed five-class Phase 1 corpus,
+deterministic generators, scorers, and integrated manifest-authenticated
+live-scoring gate. Its byte-frozen manifest is `35,400` bytes with SHA-256
+`f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`;
+the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
+with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
+now passes `546` tests; the generator byte-identity check and `compileall` pass.
+Committed runner checkpoint `fb23d1e` adds the guarded live evidence path. Its
+offline fake/evidence tests and direct preflight passed without a provider/API
+call.
+
+The runner's live entrypoint is non-injectable; fake dependencies enter only a
+separately labeled simulated path that cannot pass the live gate. Its immutable
+plan is exactly 13 zero-retry calls: one clean-slide smoke, then all six
+dispatches in run A and all six independently dispatched entries in run B.
+Phase 1 nevertheless remains NO-GO solely pending the caller's exact region and
+`base_url`, those 13 live calls and two passing full runs, and the final
+clean-profile/GO-decision update. Local user screenshots under `docs/` remain
+untracked, non-redistributable supplemental material and are not gate evidence.
+
+Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
+the existing secret filename-ignore rules no longer exclude that source module;
+the rules themselves remain intact. Its clean Git-archive build produced a
+`50,094`-byte wheel and passed an isolated resolver round-trip without a
+network call. The active library still has no local OCR path, API-key pool,
+retry/model-fallback policy, resume support, PDF, audio, or video support. Read
 `MIGRATION_STATUS.md` for current evidence and next steps, and
-`docs/ocrllm_library_go_no_go.md` for exact gates, target responsibilities, and
-the migrate/rewrite/reject matrix.
+`docs/ocrllm_library_go_no_go.md` for exact gates, commands, target
+responsibilities, and the migrate/rewrite/reject matrix.
 
 ## Legacy Application
 
@@ -132,16 +149,24 @@ Need to revisit future Rust/PyO3 design    -> Architecture.md
 
 ## Verification Commands
 
-The short local check is:
+The pinned offline checkpoint checks are:
 
-```bash
-pip install -e .
-python -c "import ocrllm; print(ocrllm.__version__)"
-pytest
+```powershell
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --with 'pytest>=8,<10' --with 'openai>=2.30,<3' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m pytest -q -p no:cacheprovider
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m tests.quality.generators.generate_phase1_fixtures --check
+& 'D:\Anaconda\envs\OCRLLM\python.exe' -m compileall -q src tests
 ```
 
-Before reporting completion, run the temporary-wheel install and outside-repo
-heavy-module guard in `docs/ocrllm_library_go_no_go.md`.
+Before reporting completion, run the clean Git-archive wheel build, isolated
+install, and outside-repo heavy-module guard in
+`docs/ocrllm_library_go_no_go.md`. Do not run the paid live gate until the
+exact region/`base_url` is confirmed by the caller and the runner's Git/import,
+manifest, artifact, and credential preflight passes.
 
 Active-library migration tests must not modify or run the legacy suite as a
 phase gate. Create fixtures and tests under root `tests/`. Legacy commands and

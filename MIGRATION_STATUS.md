@@ -148,12 +148,16 @@ built-in provider metadata          region, thinking/high-resolution flags,
 public Config boundary              exact Config only; freshly revalidated
 ```
 
-The built-in DashScope adapter and offline boundary tests now exist. The
-injected and built-in routes are implementation evidence, not recognition-quality
-evidence. Phase 1 remains NO-GO until the committed licensed quality
-corpus/scorers, live smoke, two independent full live runs, and final clean-tree
-profile evidence pass. Google, Codex, local-OCR, PDF, audio, and video adapters
-do not exist in the active library.
+The built-in DashScope adapter and offline boundary tests now exist. Offline
+checkpoint `e328253` additionally commits the licensed five-class image corpus,
+deterministic generators, scorers, and integrated manifest-authenticated
+live-scoring gate. The pinned suite and byte-identity checks pass. This is
+offline gate infrastructure, not live recognition evidence: Phase 1 remains
+NO-GO solely until the caller's exact region and `base_url` are known, the
+committed `fb23d1e` runner executes its 13-call live plan without retry, both
+six-dispatch corpus runs pass, and the final clean-profile/GO-decision update is
+recorded. Google, Codex, local-OCR, PDF, audio, and video adapters do not exist
+in the active library.
 
 Current package metadata still has no base runtime requirements. It declares
 exactly `dev`, `image`, and `dashscope`; `image` installs `Pillow>=10.4,<13`, and
@@ -220,10 +224,13 @@ The exact gate ran the authoritative test/build/isolated-target/timing commands.
 For the image-extra proof it generated an 8-by-6 PNG inside the fresh image venv
 after installing the wheel, then decoded and recognized that file; this replaces
 the stale reference to a nonexistent committed `tests/fixtures/images/valid.png`.
-All Phase 0 numeric and behavior gates pass. This does not make recognition
-quality available: no committed licensed quality corpus or scorer exists yet.
+All Phase 0 numeric and behavior gates passed at that historical checkpoint.
+Phase 0 alone did not make recognition quality available. Current checkpoint
+`e328253` now supplies the licensed Phase 1 corpus and scorer separately, but no
+live Phase 1 result is available until its remaining smoke and full-run gates
+pass.
 
-The verification entrypoints used were:
+The historical Phase 0 verification entrypoints used were:
 
 ```powershell
 & D:\Anaconda\envs\OCRLLM\python.exe -m pytest -q -p no:cacheprovider
@@ -523,8 +530,9 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `prompt_version="board.v1"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`. It never records the API
   key or request body.
-- The implementation checkpoint is commit `a6a8b18`. Its final offline gate
-  passed `283` tests, `compileall`, and `git diff --check`. A clean wheel was
+- The historical adapter-only implementation checkpoint is commit `a6a8b18`.
+  Its final offline gate passed `283` tests, `compileall`, and
+  `git diff --check`. A clean wheel was
   `50,970` bytes with SHA-256
   `5502B5ED58D9D049F3640F3AF9AF5C4A8732426C14EA630D01125BD2556245AE`,
   `53` entries, no native/bytecode payload, and no base runtime requirement. Its
@@ -536,11 +544,74 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   was `40,727,895` bytes, below the 64 MiB gate. Its offline adapter probe used
   Pillow 12.3.0, OpenAI 2.45.0, and HTTPX 0.28.1, constructed the real client
   with `max_retries=0`, and sent no HTTP request.
+- The current offline quality checkpoint is commit `e328253`. It commits the
+  licensed five-class corpus, deterministic generators, provenance records,
+  exact per-language/token, critical-slot, formula, table, and ordered-anchor
+  scorers, plus the integrated live-scoring gate. That entrypoint authenticates
+  the supplied manifest against a freshly strict-loaded byte-frozen manifest
+  before scoring and fails closed when a scoring channel is not applicable.
+- The byte-frozen manifest is exactly `35,400` bytes with SHA-256
+  `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
+  The committed corpus has 20 artifacts, including 5 images, totaling
+  `17,914,515` bytes and leaving `8,299,885` bytes of headroom below the 25 MiB
+  limit.
+- Runner checkpoint `fb23d1e` is committed at full commit
+  `fb23d1e40d4594ed1da8e244945ae7ccb9568efd`. Its offline fake/evidence tests
+  pass; the complete pinned suite now passes `546` tests, the four generated
+  images remain byte-identical, and `compileall` passes. Direct no-network
+  preflight verified the strict manifest and artifacts, exact repository import
+  origins, the closed public signature
+  `(region, base_url, evidence_path, confirm_paid_calls, repository_root)`, and a
+  clean Git identity covering 98 tracked relevant files at that exact commit.
+  No provider/API call was made.
+- The runner freezes exactly 13 zero-retry invocations: one clean-slide smoke,
+  then six manifest dispatches in run A and the same six independently
+  dispatched in run B. The live entrypoint closes over real dependencies and
+  cannot accept test injections. The private simulated path records its injected
+  dependencies and can pass only `simulated_plan_passed`, never
+  `phase1_gate_passed`.
+- At startup the runner establishes exact import origins, strict manifest and
+  artifact validity, code/Git identity, and the environment credential. Before
+  and after each call it rechecks the applicable manifest, input, code/Git, and
+  credential invariants; final postflight repeats the full identity checks. It
+  atomically checkpoints the active attempt before each call and the raw
+  Markdown, hashes, metadata, elapsed time, and complete scorer metrics
+  afterward. Both SDK and runner retry counts are zero; a provider or identity
+  failure aborts without another call.
+- Evidence writes flush and `fsync` the temporary file, publish the first
+  checkpoint with an exclusive hard link, and update it with normal atomic
+  `os.replace`. The writer does not explicitly `fsync` the containing directory,
+  so it does not promise persistence across sudden power loss beyond normal
+  filesystem link/replace guarantees.
+- Pushed packaging hotfix `3414f47` fixed a filename-ignore defect without
+  weakening secret protection. The legitimate module/function formerly named
+  `resolve_dashscope_api_key.py` / `resolve_dashscope_api_key` matched the
+  existing `*_api_key*` secret-ignore pattern; the hotfix renamed them to
+  `resolve_dashscope_credential.py` / `resolve_dashscope_credential` and updated
+  imports, documentation, and tests. A clean Git-archive build from full commit
+  `3414f47e5b44a6d5fe2023012ebf2cf361f96a61` produced a `50,094`-byte wheel.
+  Its isolated no-deps install imported `Config` and the resolver and passed an
+  explicit test-key round-trip. No provider network call was made.
 - The user-supplied screenshots currently present under `docs/` are local,
   supplemental, and non-redistributable. They may help manual development, but
-  they cannot enter Git or satisfy the gate. Phase 1 still requires the
-  committed, licensed five-class corpus and manifest defined by the controlling
-  GO/NO-GO record.
+  they remain untracked and cannot enter pass/fail evidence. They are not part
+  of the committed licensed corpus.
+
+The current offline checkpoint verification entrypoints are:
+
+```powershell
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --with 'pytest>=8,<10' --with 'openai>=2.30,<3' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m pytest -q -p no:cacheprovider
+uv run --no-project --isolated --with 'Pillow==12.3.0' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m tests.quality.generators.generate_phase1_fixtures --check
+& 'D:\Anaconda\envs\OCRLLM\python.exe' -m compileall -q src tests
+```
+
+The exact clean archive/build/install/import sequence for `3414f47` is recorded
+under `Verification Commands` in `docs/ocrllm_library_go_no_go.md`.
 
 Primary references: [Model Studio visual understanding and model
 status](https://www.alibabacloud.com/help/en/model-studio/vision-model), [image
@@ -607,22 +678,28 @@ legacy_app/environment.yml
 
 Current phase: **Phase 1 -- real board/image and one provider**.
 
-Finish only this bounded slice. The adapter and offline boundary implementation
-are present; do not rebuild them as a second client:
+Finish only this bounded slice. The adapter, corpus, generators, scorers, and
+manifest-authenticated scoring gate and evidence runner are committed; do not
+rebuild them as a second client, corpus, or runner:
 
-1. Commit the licensed five-class image corpus and manifest required by the
-   authoritative quality gate, including expected units and corruption tests for
-   the scorer itself. Keep the local user screenshots uncommitted and outside
-   pass/fail evidence.
-2. Preserve the one built-in adapter's exact settings, model allowlist,
-   no-retry request, strict raw-response boundary, typed error mapping,
-   cancellation checks, and preflight limits while completing the quality work.
-3. Run one live smoke and two independently dispatched full-corpus live runs
-   after the caller supplies the key's exact region and approved endpoint.
-   Record provider/model, prompt version, hashes, metrics, dependency versions,
-   elapsed time, UTC time, `enable_thinking=false`, and
-   `vl_high_resolution_images=true` without secrets. Reject truncated output.
-4. Keep the recorded clean-tree offline/package gate current: rerun it after
+1. Obtain the caller credential's exact region and approved `base_url`. Do not
+   infer either value from the key, example documentation, or a nearby region.
+   In particular, the shared endpoint used by offline tests is not evidence of
+   the caller's endpoint.
+2. From the exact clean runner checkpoint, run the guarded 13-call live plan
+   once with `--confirm-paid-calls 13`: one clean-slide smoke, full run A with
+   all six dispatches, and independently dispatched full run B with all six
+   dispatches. A failed/truncated call invalidates that complete run; do not
+   retry only a failed fixture or select the better run.
+3. Review the atomically checkpointed raw Markdown and scorer reports. Confirm
+   both full runs pass and that the evidence records provider/model, prompt
+   version, corpus/manifest/code/Git hashes, import origins, every metric,
+   dependency versions, elapsed time, UTC time, `enable_thinking=false`, and
+   `vl_high_resolution_images=true` without secrets.
+4. Rerun the final clean package profiles and update the authoritative decision
+   plus recovery documents. Phase 1 becomes GO only after that explicit update;
+   successful runner output does not edit the decision automatically.
+5. Keep the recorded clean-tree offline/package gate current: rerun it after
    any source, packaged README, dependency, or package-metadata change.
 
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
@@ -641,6 +718,18 @@ Office, social, GPU, and offline-model work are not the next task.
 - Do not begin or claim HarmonyOS/ArkTS compatibility.
 - Do not claim support from code existence, mocks, installed dependencies, or
   historical logs alone.
+- Do not make a paid provider call before the caller confirms the exact region
+  and `base_url`, the intended Git/import/manifest/artifact preflight is clean,
+  and the new evidence path does not already exist.
+- Do not pass fake callables or clocks into the public live runner or relabel
+  simulated evidence as live. The public signature intentionally exposes no
+  dependency-injection parameters.
+- Do not retry one failed paid dispatch. Preserve the failed complete-run
+  evidence and start a separately dispatched full run only under a new explicit
+  decision.
+- Do not claim the evidence checkpoint survives every sudden power loss. File
+  data is flushed and `fsync`ed before atomic link/replace, but the containing
+  directory is not explicitly `fsync`ed.
 
 ## Done Criteria For This Migration Step
 
