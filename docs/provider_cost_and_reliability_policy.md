@@ -14,9 +14,10 @@ does not replace the phase gates in `ocrllm_library_go_no_go.md`.
   current credential, use canonical region `cn-beijing` with the confirmed
   OpenAI-compatible endpoint
   `https://dashscope.aliyuncs.com/compatible-mode/v1`.
-- Qwen image recognition is billed independently by usage. The fixed Phase 1
-  quality gate is authorized to make exactly 13 zero-retry calls. A failed call
-  is evidence; do not retry only that fixture or silently spend more quota.
+- Qwen image recognition is billed independently by usage. On 2026-07-11 the
+  user authorized unrestricted API use for implementation and robustness
+  testing. Each comparable gate still declares its complete call plan before
+  dispatch; never selectively retry one fixture or hide failed evidence.
 - The Phase 1 model remains `qwen3.7-plus-2026-05-26` unless the authoritative
   decision is changed before collecting a new complete evidence set.
 
@@ -49,6 +50,10 @@ entitlements and current product terms before a large run.
   before activating any of them.
 - Every paid or quota-consuming evidence run records its exact call plan before
   dispatch and preserves failures rather than cherry-picking a better result.
+- The four screenshots and PDF under `docs/` are authorized as private local
+  testing data. Use and provider submission are allowed. Keep them untracked and
+  do not redistribute or commit them unless the user separately grants that
+  permission. PDF implementation remains behind its phase gate.
 
 ## Change Rule
 

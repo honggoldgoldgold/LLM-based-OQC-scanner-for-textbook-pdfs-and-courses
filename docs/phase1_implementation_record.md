@@ -182,3 +182,22 @@ accepted without printing it, and the proposed evidence path was absent. The
 preflight made zero network calls. Because recording this result creates a
 later documentation commit, the same preflight must run again from the exact
 commit used by any future paid attempt.
+
+## V2 Live Gate Result
+
+The user authorized unrestricted API use and private local testing with the
+four screenshots and PDF under `docs/`. The assets remain untracked and are not
+treated as redistribution permission.
+
+After a repeated clean preflight at `94d5187`, the fixed v2 gate invoked all 13
+calls with zero retries. All provider calls succeeded, both full runs completed,
+and neither passed. The 78,235-byte evidence file has SHA-256
+`03275cf5922a46dd59fc75e4ab6dc6499e3aeea973190f1d3a6f48b0c556df0b`.
+Projected slide, formula board, and calibration table passed in both runs.
+Printed and ordered dispatches were rejected only for U+2A7E `⩾`; handwriting
+was rejected for line-leading U+2192 diagram arrows. The durable audit is
+`phase1_live_quality_result_v2_2026-07-11.md`.
+
+The PowerShell stdin pipeline reported exit code 1 after the runner printed the
+evidence hash, although the JSON is complete with no terminal failure. The file
+was audited instead of rerunning any call.

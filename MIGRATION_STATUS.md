@@ -775,6 +775,18 @@ files, 20 artifacts, the v2 manifest/prompt/evidence contracts, the fixed
 path. Repeat it from the exact future paid-run commit; this result neither makes
 a provider call nor authorizes one.
 
+The first fixed v2 live gate then completed at full commit
+`94d5187ff8718f2683f67e4c5f75e95c3a9d9070`: 13 calls, zero retries, zero
+provider failures, two complete runs, and zero passing runs. The evidence is
+`evidence/phase1/phase1-quality-v2-2026-07-11-cn-beijing.json`, 78,235 bytes,
+SHA-256
+`03275cf5922a46dd59fc75e4ab6dc6499e3aeea973190f1d3a6f48b0c556df0b`.
+Projected slide, formula board, and calibration table passed twice. Printed and
+ordered requests exposed undeclared U+2A7E relation typography; handwriting
+exposed undeclared line-leading U+2192 diagram connectors. Phase 1 remains
+NO-GO. The next correction must be versioned and keep wrong content and inline
+arrows fail-closed.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

@@ -1598,6 +1598,17 @@ recognition. Image + DashScope adds 40,837,813 bytes, loads OpenAI 2.45.0, and
 constructs/closes the real client using the Beijing settings without HTTP.
 These result-recording edits do not change packaged inputs.
 
+The first fixed v2 live gate completed at full commit
+`94d5187ff8718f2683f67e4c5f75e95c3a9d9070`. All 13 zero-retry provider calls
+succeeded and both full runs completed, but zero runs passed. Evidence SHA-256
+is `03275cf5922a46dd59fc75e4ab6dc6499e3aeea973190f1d3a6f48b0c556df0b`.
+Projected slide, formula board, and calibration table passed twice. Printed and
+ordered requests were rejected for U+2A7E `⩾`; handwriting was rejected for
+line-leading U+2192 diagram connectors. Preserve v2 unchanged. A separately
+versioned correction may normalize only those content-preserving typography and
+layout forms, with corruption tests that keep inline arrows, wrong relations,
+and wrong values failing. Phase 1 remains NO-GO.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:
