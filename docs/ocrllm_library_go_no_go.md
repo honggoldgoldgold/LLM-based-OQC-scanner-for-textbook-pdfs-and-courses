@@ -1587,6 +1587,17 @@ application to the preserved raw output makes the smoke and all non-handwriting
 dispatches pass; both handwriting dispatches still fail the same seven gates.
 This diagnosis is not replacement live evidence and authorizes no paid call.
 
+Clean package proof for the versioned correction is bound to full commit
+`9dc4e7a8d9f113c1ea001105335829494086d003`. Its wheel is 52,602 bytes with
+SHA-256
+`8ce3a51f2367bdfa3255f8ca23f1b95fd46176e728edec3ef4369da1c626f385`;
+the isolated no-deps target is 237,251 bytes, with zero base requirements and no
+native payload. The origin-bound 30-sample Python 3.10 and 3.13 import probes
+pass all wall/CPU budgets. Image adds 15,918,041 bytes and passes generated-PNG
+recognition. Image + DashScope adds 40,837,813 bytes, loads OpenAI 2.45.0, and
+constructs/closes the real client using the Beijing settings without HTTP.
+These result-recording edits do not change packaged inputs.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:

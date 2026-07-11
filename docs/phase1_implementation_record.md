@@ -32,6 +32,8 @@ the image adapter.
 | `5aaa854` | Missing exact below/at/above input-limit coverage completed. |
 | `8fe4847` | Boundary, package, profile, and endpoint-search evidence recorded. |
 | `7df3514` | Beijing provider policy and the pre-live implementation ledger recorded. |
+| `cf4be8b` | Failed Beijing live evidence and the immutable NO-GO audit recorded. |
+| `9dc4e7a` | Versioned `board.v2` prompt and fail-closed presentation normalizer implemented. |
 
 Use `git show <commit>` for exact patches. New changes must be committed and
 pushed in similarly bounded checkpoints.
@@ -97,10 +99,36 @@ The live runner uses it before and after every paid call.
 - Current versioned manifest: 35,400 bytes; SHA-256
   `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
 - Corpus: 20 artifacts, including 5 images, totaling 17,914,515 bytes.
-- Clean wheel from `5aaa854`: 51,281 bytes; SHA-256
-  `23e0068b4525a437052254d8929f0d7ab7706efd5ff48447d04572c796909d93`.
-- Base, Image, and Image + DashScope profiles pass their size and lazy-import
-  budgets. The real client construction proof sends no HTTP request.
+- Clean wheel from `9dc4e7a`: 52,602 bytes; SHA-256
+  `8ce3a51f2367bdfa3255f8ca23f1b95fd46176e728edec3ef4369da1c626f385`.
+- Its isolated no-deps target is 237,251 bytes, has zero base runtime
+  requirements and no native payload, and leaves Pillow, PDFium, OpenAI, and
+  HTTPX unloaded.
+- Python 3.10 fresh-import wall median/p95/max is
+  `40.1895/68.8959/105.353` ms and CPU is `31.25/62.5/93.75` ms. Python 3.13
+  wall is `34.7108/40.7423/44.7913` ms and CPU is
+  `31.25/46.875/46.875` ms. Both pass the Base budgets.
+- Image adds 15,918,041 bytes and passes a generated-PNG recognition call.
+  Image + DashScope adds 40,837,813 bytes, uses OpenAI 2.45.0, and constructs
+  and closes the real client with Beijing settings without HTTP. Both profiles
+  pass their size and lazy-import budgets.
+
+### Package Verification Incidents
+
+The user's large backup/move was actively loading `D:` during the proof. Two
+bounded combined orchestration attempts timed out after isolated build work;
+their workspace-scoped temporary directories were verified and removed. A
+later split run found the complete wheel already atomically published and
+verified that exact file instead of rebuilding it.
+
+The first valid 30-sample Python 3.10 timing set read directly from the busy
+`D:` target and failed (`200.7165/436.1208` ms wall median/p95 and
+`171.875/296.875` ms CPU). A first attempt to copy the target to `C:` used
+literal-path wildcard semantics, so it did not prove the intended origin and
+was discarded. The corrected probe copied the 237,251-byte target, asserted
+that `ocrllm.__file__` was inside that GUID-scoped target on every process, and
+produced the passing measurements above. No failed or wrong-origin measurement
+is used as package-pass evidence.
 
 ## First Live Gate Result
 

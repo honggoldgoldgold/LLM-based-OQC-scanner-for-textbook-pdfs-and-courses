@@ -757,6 +757,17 @@ preserved v1 raw outputs makes the smoke and every non-handwriting dispatch pass
 while both handwriting dispatches retain the same seven failure codes. This is
 not new live evidence and does not authorize another billed run.
 
+Clean package proof for full commit
+`9dc4e7a8d9f113c1ea001105335829494086d003` passes. The wheel is 52,602 bytes
+with SHA-256
+`8ce3a51f2367bdfa3255f8ca23f1b95fd46176e728edec3ef4369da1c626f385`;
+its isolated no-deps target is 237,251 bytes with zero base requirements and no
+native payload. Python 3.10 and 3.13 pass the 30-sample wall/CPU import budgets.
+Image and Image + DashScope add 15,918,041 and 40,837,813 bytes respectively;
+the generated-PNG recognition and offline Beijing client-construction probes
+pass without provider HTTP. See `docs/phase1_implementation_record.md` for the
+recorded disk-contention and wrong-origin measurement incidents.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
