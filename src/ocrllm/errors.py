@@ -20,9 +20,11 @@ STABLE_ERROR_CODES = frozenset(
         "CONFIG_MISSING",
         "CONFIG_INVALID",
         "PROVIDER_AUTHENTICATION",
+        "PROVIDER_RATE_LIMITED",
         "PROVIDER_QUOTA_EXHAUSTED",
         "PROVIDER_TIMEOUT",
         "PROVIDER_NETWORK",
+        "PROVIDER_UNAVAILABLE",
         "PROVIDER_RESPONSE_INVALID",
         "PDF_BACKEND_UNAVAILABLE",
         "PDF_PASSWORD_REQUIRED",
@@ -43,7 +45,14 @@ STABLE_ERROR_CODES = frozenset(
     }
 )
 
-_RETRYABLE_BY_DEFAULT = frozenset({"PROVIDER_TIMEOUT", "PROVIDER_NETWORK"})
+_RETRYABLE_BY_DEFAULT = frozenset(
+    {
+        "PROVIDER_RATE_LIMITED",
+        "PROVIDER_TIMEOUT",
+        "PROVIDER_NETWORK",
+        "PROVIDER_UNAVAILABLE",
+    }
+)
 _REDACTED = "[REDACTED]"
 _SENSITIVE_DETAIL_KEY_PARTS = (
     "apikey",
@@ -159,9 +168,11 @@ class ProviderError(OCRLLMError):
     allowed_codes = frozenset(
         {
             "PROVIDER_AUTHENTICATION",
+            "PROVIDER_RATE_LIMITED",
             "PROVIDER_QUOTA_EXHAUSTED",
             "PROVIDER_TIMEOUT",
             "PROVIDER_NETWORK",
+            "PROVIDER_UNAVAILABLE",
             "PROVIDER_RESPONSE_INVALID",
         }
     )
@@ -172,6 +183,22 @@ class QuotaExhausted(ProviderError):
 
     default_code = "PROVIDER_QUOTA_EXHAUSTED"
     default_message = "The provider quota is exhausted."
+    allowed_codes = frozenset({default_code})
+
+
+class RateLimited(ProviderError):
+    """The provider temporarily throttled this request."""
+
+    default_code = "PROVIDER_RATE_LIMITED"
+    default_message = "The provider temporarily rate-limited the request."
+    allowed_codes = frozenset({default_code})
+
+
+class ProviderUnavailable(ProviderError):
+    """The provider service was temporarily unavailable."""
+
+    default_code = "PROVIDER_UNAVAILABLE"
+    default_message = "The provider service is temporarily unavailable."
     allowed_codes = frozenset({default_code})
 
 

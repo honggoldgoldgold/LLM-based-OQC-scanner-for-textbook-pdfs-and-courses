@@ -14,6 +14,22 @@ class SecretProvider:
         return f"SecretProvider({self.secret})"
 
 
+class SecretObject:
+    def __init__(self, secret: str) -> None:
+        self.secret = secret
+
+    def __repr__(self) -> str:
+        return self.secret
+
+
+class HostileText(str):
+    def strip(self, *args, **kwargs):
+        raise RuntimeError("HOSTILE_CONFIG_TEXT_SECRET_9b31")
+
+    def __hash__(self):
+        raise RuntimeError("HOSTILE_CONFIG_HASH_SECRET_6e20")
+
+
 def test_config_is_frozen_slotted_and_omits_secrets_from_repr(tmp_path):
     provider_secret = "PROVIDER-SECRET-7f391"
     api_secret = "API-SECRET-a512c"
@@ -34,6 +50,44 @@ def test_config_is_frozen_slotted_and_omits_secrets_from_repr(tmp_path):
     assert not hasattr(config, "__dict__")
     with pytest.raises(FrozenInstanceError):
         config.model = "another-model"  # type: ignore[misc]
+
+
+def test_config_omits_progress_and_cancellation_objects_from_repr():
+    sentinels = (
+        "PROGRESS_OBJECT_SECRET_f9c2",
+        "CANCELLATION_OBJECT_SECRET_a461",
+    )
+
+    rendered = repr(
+        Config(
+            progress=SecretObject(sentinels[0]),
+            cancellation=SecretObject(sentinels[1]),
+        )
+    )
+
+    assert all(sentinel not in rendered for sentinel in sentinels)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"provider": HostileText("dashscope")},
+        {"api_key": HostileText("key")},
+        {"model": HostileText("qwen3.7-plus")},
+        {"profile": HostileText("board")},
+        {"pdf_password": HostileText("password")},
+        {"input_languages": (HostileText("en"),)},
+        {"output_language": HostileText("en")},
+        {"output_dir": HostileText("output")},
+    ],
+)
+def test_config_rejects_string_subclasses_without_running_overrides(kwargs):
+    with pytest.raises(ConfigError) as captured:
+        Config(**kwargs)
+
+    rendered = f"{captured.value!s} {captured.value!r}"
+    assert "HOSTILE_CONFIG_TEXT_SECRET_9b31" not in rendered
+    assert "HOSTILE_CONFIG_HASH_SECRET_6e20" not in rendered
 
 
 def test_config_copies_and_recursively_freezes_extra():

@@ -11,6 +11,7 @@ from typing import Literal, cast
 
 from .errors import ConfigError
 from .freeze_json_value import FrozenJSONValue, JSONValue, freeze_json_value
+from .providers.dashscope.provider_settings import DashScopeSettings
 
 
 _LANGUAGE_SUBTAG = re.compile(r"^[A-Za-z0-9]{1,8}$")
@@ -24,6 +25,7 @@ class Config:
     provider: str | object | None = field(default=None, repr=False)
     api_key: str | None = field(default=None, repr=False)
     model: str | None = None
+    dashscope: DashScopeSettings | None = field(default=None, repr=False)
     profile: str | None = None
     input_languages: tuple[str, ...] = ()
     output_language: str | None = None
@@ -37,8 +39,8 @@ class Config:
     timeout_seconds: float = 120.0
     resume: bool = False
     overwrite: bool = False
-    progress: object | None = None
-    cancellation: object | None = None
+    progress: object | None = field(default=None, repr=False)
+    cancellation: object | None = field(default=None, repr=False)
     extra: Mapping[str, JSONValue] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
@@ -47,6 +49,7 @@ class Config:
         _validate_optional_nonempty_text(self.model, field_name="model")
         _validate_optional_nonempty_text(self.profile, field_name="profile")
         _validate_optional_text(self.pdf_password, field_name="pdf_password")
+        dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
 
         input_languages = _normalize_input_languages(self.input_languages)
         output_language = _normalize_output_language(self.output_language)
@@ -73,6 +76,7 @@ class Config:
         object.__setattr__(self, "output_language", output_language)
         object.__setattr__(self, "pdf_pages", pdf_pages)
         object.__setattr__(self, "timeout_seconds", timeout_seconds)
+        object.__setattr__(self, "dashscope", dashscope)
         object.__setattr__(self, "extra", extra)
 
     def output_directory(self) -> Path | None:
@@ -90,15 +94,59 @@ def _validate_optional_nonempty_text(
 ) -> None:
     if value is None:
         return
-    if allow_object and not isinstance(value, str):
+    if allow_object:
+        if type(value) is str:
+            if not value.strip():
+                raise ConfigError(
+                    f"Config.{field_name} must be nonempty text when set"
+                ) from None
+            return
+        if isinstance(value, str):
+            raise ConfigError(
+                f"Config.{field_name} must name an exact built-in provider "
+                "or be a provider object"
+            ) from None
         return
-    if not isinstance(value, str) or not value.strip():
+    if type(value) is not str or not value.strip():
         raise ConfigError(f"Config.{field_name} must be nonempty text when set") from None
 
 
 def _validate_optional_text(value: object | None, *, field_name: str) -> None:
-    if value is not None and not isinstance(value, str):
+    if value is not None and type(value) is not str:
         raise ConfigError(f"Config.{field_name} must be text when set") from None
+
+
+def _normalize_dashscope_pair(
+    provider: object | None,
+    dashscope: object | None,
+) -> DashScopeSettings | None:
+    if dashscope is not None and type(dashscope) is not DashScopeSettings:
+        raise ConfigError(
+            "Config.dashscope must be DashScopeSettings when set."
+        ) from None
+
+    uses_builtin_dashscope = type(provider) is str and provider == "dashscope"
+    if uses_builtin_dashscope and dashscope is None:
+        raise ConfigError(
+            "Config.provider='dashscope' requires Config.dashscope settings.",
+            code="CONFIG_MISSING",
+        ) from None
+    if not uses_builtin_dashscope and dashscope is not None:
+        raise ConfigError(
+            "Config.dashscope is valid only with the exact built-in provider 'dashscope'."
+        ) from None
+    if dashscope is None:
+        return None
+
+    # ``frozen=True`` prevents ordinary assignment, but callers can still use
+    # ``object.__setattr__``. Reconstruct the nested value so Config owns a
+    # freshly validated endpoint snapshot rather than trusting prior state.
+    return DashScopeSettings(
+        region=dashscope.region,
+        base_url=dashscope.base_url,
+        enable_thinking=dashscope.enable_thinking,
+        vl_high_resolution_images=dashscope.vl_high_resolution_images,
+    )
 
 
 def _normalize_input_languages(value: object) -> tuple[str, ...]:
@@ -129,7 +177,7 @@ def _normalize_output_language(value: object | None) -> str | None:
 
 
 def _validate_language_tag(value: object, *, field_name: str) -> None:
-    if not isinstance(value, str) or value != value.strip() or not value:
+    if type(value) is not str or value != value.strip() or not value:
         raise ConfigError(f"Config.{field_name} contains an invalid language tag") from None
 
     subtags = value.split("-")
@@ -177,7 +225,7 @@ def _require_boolean(value: object, *, field_name: str) -> None:
 def _validate_optional_path(value: object | None, *, field_name: str) -> None:
     if value is None or isinstance(value, Path):
         return
-    if not isinstance(value, str) or not value.strip():
+    if type(value) is not str or not value.strip():
         raise ConfigError(f"Config.{field_name} must be a nonempty path when set") from None
 
 

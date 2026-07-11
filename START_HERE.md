@@ -25,7 +25,7 @@ Read next:
 Public import shape:
 
 ```python
-from ocrllm import Config, recognize
+from ocrllm import Config, DashScopeSettings, recognize
 ```
 
 Current phase: **Phase 1 -- real board/image**. Phase 0 contract honesty is GO.
@@ -39,10 +39,16 @@ optional and atomic; `output_dir=None` stays memory-only. Pillow is installed by
 the `image` extra and remains lazy during plain `import ocrllm`.
 
 Phase 0 GO is a contract result, not a real recognition-capability claim. The
-active library still has no built-in real provider, committed quality corpus,
-local OCR path, API-key pool, retry/model-fallback policy, or resume support.
-PDF, audio, and video are also unavailable. Phase 1 is limited to one lazy
-DashScope vision adapter plus reproducible image-quality evidence. Read
+active library now has an offline-tested built-in DashScope adapter, but no
+committed quality corpus/scorer, local OCR path, API-key pool,
+retry/model-fallback policy, or resume support. PDF, audio, and video are also
+unavailable. Phase 1 remains NO-GO pending reproducible image-quality and live
+provider evidence. The adapter requires immutable `DashScopeSettings` with an
+explicit region and OpenAI-compatible endpoint, accepts only `qwen3.7-plus` or
+the default pinned `qwen3.7-plus-2026-05-26`, disables SDK retries, and sends
+Base64 data URLs rather than local paths. Local user screenshots remain
+uncommitted supplemental evidence; the GO gate still needs the committed
+licensed five-class corpus, live smoke, and two complete live corpus runs. Read
 `MIGRATION_STATUS.md` for current evidence and next steps, and
 `docs/ocrllm_library_go_no_go.md` for exact gates, target responsibilities, and
 the migrate/rewrite/reject matrix.

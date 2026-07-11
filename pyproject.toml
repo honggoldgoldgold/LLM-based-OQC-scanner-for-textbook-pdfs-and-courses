@@ -16,10 +16,12 @@ dependencies = []
 dev = [
     "build>=1.2",
     "hatchling>=1.25",
+    "openai>=2.30,<3",
     "Pillow>=10.4,<13",
     "pytest>=8.0",
 ]
 image = ["Pillow>=10.4,<13"]
+dashscope = ["openai>=2.30,<3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ocrllm"]

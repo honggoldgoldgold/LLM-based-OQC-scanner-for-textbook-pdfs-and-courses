@@ -65,14 +65,21 @@ prove the boundary before optimizing internals.
 The completed package must be boring to import and predictable to call:
 
 ```python
-from ocrllm import Config, recognize
+from ocrllm import Config, DashScopeSettings, recognize
 
 result = recognize(
     "lecture_board.png",
     config=Config(
         provider="dashscope",
         api_key="sk-...",
-        model="qwen-vl-max",
+        model="qwen3.7-plus-2026-05-26",
+        dashscope=DashScopeSettings(
+            region="ap-southeast-1",
+            base_url=(
+                "https://YOUR_WORKSPACE_ID.ap-southeast-1.maas.aliyuncs.com/"
+                "compatible-mode/v1"
+            ),
+        ),
     ),
 )
 
@@ -82,11 +89,22 @@ print(result.markdown)
 For batch use:
 
 ```python
-from ocrllm import Config, recognize_batch
+from ocrllm import Config, DashScopeSettings, recognize_batch
 
 results = recognize_batch(
     ["board.png", "slides.pdf", "lecture.mp4"],
-    config=Config(provider="dashscope", pdf_mode="vision", output_dir="out"),
+    config=Config(
+        provider="dashscope",
+        dashscope=DashScopeSettings(
+            region="ap-southeast-1",
+            base_url=(
+                "https://YOUR_WORKSPACE_ID.ap-southeast-1.maas.aliyuncs.com/"
+                "compatible-mode/v1"
+            ),
+        ),
+        pdf_mode="vision",
+        output_dir="out",
+    ),
 )
 ```
 
@@ -121,6 +139,7 @@ documented.
 ```python
 from ocrllm import (
     Config,
+    DashScopeSettings,
     Artifact,
     RecognitionResult,
     CapabilityReport,
@@ -134,7 +153,9 @@ from ocrllm import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderUnavailable,
     QuotaExhausted,
+    RateLimited,
     NoSpeechDetected,
     UnsupportedFormat,
     Cancelled,
@@ -158,10 +179,11 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
 ```
 
 This function performs no network call and imports no optional package. With no
-config it reports local gate/install state and environment-scoped status for the
-built-in DashScope/default model. With config it evaluates that exact named or
-injected provider/model. An unverified injected object is `experimental` at
-most. The worker query uses zero-argument semantics and never exposes secrets.
+config it reports local gate/install state and says built-in DashScope needs
+explicit region/endpoint settings; API-key presence alone cannot select a
+region. With config it evaluates that exact named or injected provider/model and
+provider settings. An unverified injected object is `experimental` at most. The
+worker query uses zero-argument semantics and never exposes secrets.
 
 ### Versioned Contract DTOs
 
@@ -351,7 +373,7 @@ Purpose:
 Default behavior is fail-fast. A later `BatchPolicy` can add
 `continue_on_error` without changing `recognize`.
 
-### `Config`
+### `Config` and `DashScopeSettings`
 
 `Config` is immutable and safe to pass across calls.
 
@@ -359,10 +381,19 @@ Target fields:
 
 ```python
 @dataclass(frozen=True, slots=True)
+class DashScopeSettings:
+    region: str
+    base_url: str
+    enable_thinking: bool = False
+    vl_high_resolution_images: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     provider: str | object | None = field(default=None, repr=False)
     api_key: str | None = field(default=None, repr=False)
     model: str | None = None
+    dashscope: DashScopeSettings | None = field(default=None, repr=False)
     profile: str | None = None
     input_languages: tuple[str, ...] = ()
     output_language: str | None = None
@@ -376,8 +407,8 @@ class Config:
     timeout_seconds: float = 120.0
     resume: bool = False
     overwrite: bool = False
-    progress: object | None = None
-    cancellation: object | None = None
+    progress: object | None = field(default=None, repr=False)
+    cancellation: object | None = field(default=None, repr=False)
     extra: Mapping[str, JSONValue] = field(default_factory=dict, repr=False)
 ```
 
@@ -391,8 +422,27 @@ Design rules:
   audio, and video requests raise `ConfigError` without a required provider;
   the library never triggers an implicit paid call.
 - Phase 1 accepts an injected provider object or the exact built-in name
-  `"dashscope"`. The built-in adapter uses `Config.model` when set and otherwise
-  uses `qwen-vl-max`.
+  `"dashscope"`. The built-in adapter requires immutable `DashScopeSettings`
+  with explicit `region` and full OpenAI-compatible `base_url`. It uses
+  `Config.model` when set and otherwise pins `qwen3.7-plus-2026-05-26`. The
+  exact model allowlist is that snapshot plus `qwen3.7-plus`; every other value
+  is `CONFIG_INVALID`.
+- API keys are region-specific. Validate the `DashScopeSettings.region` and
+  `base_url` pair before dispatch. Prefer a workspace-dedicated endpoint;
+  accept an existing shared DashScope-domain endpoint only when explicitly
+  selected. Never guess a region, workspace, or legacy endpoint.
+- Initial evidence uses `enable_thinking=False` and
+  `vl_high_resolution_images=True`. A different value is allowed only as an
+  explicit configuration and requires its own live-quality evidence.
+- The public boundary accepts only an exact `Config`, not a subclass, and
+  freshly revalidates the entire value before source or provider work. That
+  validation preserves the caller's object identity so injected providers
+  receive the exact `Config` they were given. Named built-in image processing
+  snapshots config as its first action, before provider/model resolution,
+  prompt construction, or cancellation inspection, and the adapter revalidates
+  that isolated copy. `Config` reconstructs nested `DashScopeSettings` at each
+  snapshot, so callback mutation or `object.__setattr__` cannot diverge request
+  metadata or bypass endpoint allowlisting.
 - Config loading from files can exist, but it must not happen implicitly on
   `import ocrllm`.
 - `profile=None` selects the modality's only approved profile; for Phase 1 image
@@ -401,11 +451,14 @@ Design rules:
   otherwise it is a nonempty ordered tuple of unique one-based indices.
 - `pdf_password` is secret data: never log, serialize into results, or echo it
   in errors. `pdf_allow_partial=False` is the default.
-- Generated/custom repr omits provider objects, `api_key`, `pdf_password`, and
-  `extra`. Tests place unique sentinels in each and assert none appears in repr,
-  errors, events, logs, or serialized results.
-- Provider-specific options belong in provider adapters or `extra`, not as an
-  exploding list of top-level fields.
+- Generated/custom repr omits provider objects, `api_key`, `dashscope`,
+  `pdf_password`, `progress`, `cancellation`, and `extra`. Tests place unique
+  sentinels in each and assert none appears in repr, errors, events, logs, or
+  serialized results.
+- Routing and evidence-affecting provider options belong in an approved immutable
+  provider-settings value such as `DashScopeSettings`, not an exploding list of
+  top-level fields. `extra` remains an extension surface for injected providers;
+  the built-in adapter does not hide required routing decisions there.
 - Provider objects, progress callbacks, and cancellation objects are
   direct-Python conveniences. They are never serialized into worker requests.
 - Model queues and key pools are deferred until one-provider failure handling
@@ -485,7 +538,9 @@ InvalidSource       Missing, unreadable, corrupt, empty, or unsafe input.
 OutputError         Base class for output path and write failures.
 OutputExists        OutputError for an existing target without overwrite/resume.
 ProviderError       Provider call failed for a non-quota reason.
-QuotaExhausted      All configured model or key options were exhausted.
+RateLimited         Provider temporarily throttled this request; retryable.
+QuotaExhausted      Provider quota, billing, or purchase state blocks spending.
+ProviderUnavailable Provider service is temporarily unavailable; retryable.
 NoSpeechDetected    Valid audio contained no scored speech.
 UnsupportedFormat   The source cannot be routed to a supported processor.
 Cancelled           Caller cancellation was honored.
@@ -512,6 +567,9 @@ src/ocrllm/
   recognize.py                      recognize.
   recognize_batch.py                recognize_batch.
   config.py                         Immutable Config.
+  validate_config.py                Fresh validation preserving caller identity.
+  snapshot_config.py                Isolated validated Config copy.
+  raise_if_cancelled.py             Event-compatible typed cancellation check.
   result.py                         Direct-Python compatibility re-export.
   processor_output.py               Internal processor outcome DTO.
   build_recognition_result.py       Public result construction/validation.
@@ -556,10 +614,21 @@ src/ocrllm/
 
   providers/
     vision_provider.py               Vision capability protocol.
+    resolved_vision_provider.py      Provider callable and safe identity data.
     short_audio_provider.py          Synchronous short-audio protocol.
     long_audio_provider.py           Resumable long-audio protocol.
-    resolve_provider.py              Explicit provider resolution.
+    resolve_vision_provider.py       Explicit vision-provider resolution.
+    map_injected_provider_error.py   Safe injected-provider error mapping.
+    validate_provider_markdown.py    Nonempty/non-control text validation.
     dashscope/
+      provider_settings.py           Immutable region/endpoint/request settings.
+      resolve_dashscope_api_key.py   Exact credential lookup and validation.
+      resolve_dashscope_model.py     Exact model allowlist and pinned default.
+      load_openai.py                 Lazy OpenAI dependency/version guard.
+      build_dashscope_image_request.py Exact-byte preflight and JSON request.
+      create_dashscope_openai_client.py No-retry client construction.
+      parse_dashscope_raw_response.py Partial-header/raw parse boundary.
+      parse_dashscope_image_response.py Strict complete-choice parsing.
       recognize_images.py            One DashScope vision request.
       transcribe_short_audio.py       One synchronous short-audio request.
       submit_filetrans.py             Submit one long-audio task.
@@ -568,7 +637,9 @@ src/ocrllm/
       map_dashscope_error.py         DashScope-to-public error mapping.
 
   imaging/
-    decode_image.py                  Image decoding and validation.
+    decode_image.py                  Bounded path-to-bytes image read.
+    decode_image_bytes.py            Exact-buffer Pillow decode/validation.
+    decoded_image_info.py            Validated dimensions/pixels/format DTO.
     snapshot_image_group.py          Bounded stable provider-visible snapshots.
     normalize_image.py               Provider-required format conversion.
     resize_image.py                  Provider size-limit enforcement.
@@ -710,8 +781,18 @@ Responsibilities:
 - Normalize images only when needed.
 - Preserve multi-image order.
 - Enforce 25 MiB/source, 24,000,000 pixels/image, 10 images/group,
-  100 MiB aggregate source, 64,000,000 aggregate pixels, and 20 MiB serialized
-  request caps before provider invocation; process decoded images sequentially.
+  100 MiB aggregate source, and 64,000,000 aggregate pixels before provider
+  invocation; process decoded images sequentially.
+- For the OpenAI-compatible adapter, read snapshots into MIME-correct Base64 data
+  URLs instead of sending local paths. Enforce `10,000,000` UTF-8 bytes per
+  complete data URL and 20 MiB (`20,971,520` bytes) for the fully serialized JSON.
+- Enforce provider/model preflight in addition to generic limits. The initial
+  DashScope baseline requires each dimension greater than 10 pixels, aspect ratio
+  at most 200:1, longest side at most `7,680` pixels, and at most `16,777,216`
+  pixels/image when `vl_high_resolution_images=True`.
+- Decode and Base64-encode the same bounded byte buffer, then recalculate the
+  final `64,000,000` aggregate-pixel cap from those exact buffers. Snapshot or
+  caller-path replacement must not bypass provider preflight.
 - Copy validated bytes into bounded stable snapshots and pass only those paths
   to the synchronous provider method. The provider must finish consuming them
   before it returns; cleanup starts only after that return, and no provider may
@@ -902,7 +983,8 @@ Provider resolution:
 
 ```text
 Config.provider is an object       -> use it directly after capability checks.
-Config.provider == "dashscope"     -> load the built-in adapter lazily.
+Config.provider == "dashscope"     -> require DashScopeSettings, validate the
+                                      region/base_url pair, and load lazily.
 Config.provider is another string  -> raise ConfigError.
 Config.provider is None            -> allow local PDF text only; otherwise raise
                                       ConfigError and never spend implicitly.
@@ -911,11 +993,12 @@ Config.provider is None            -> allow local PDF text only; otherwise raise
 Critical rule: provider adapters own HTTP details, authentication, request
 format, and response parsing. Processors own media-specific workflow.
 
-At the Phase 0 transition, injected-provider `image.board.png` and
-`image.board.jpeg` are `experimental`, not `available`; the required Phase 1
-live-quality and built-in-provider proofs remain. `provider.dashscope.vision` is
-`unavailable` because its adapter has not been implemented. No Phase 0 result
-authorizes a later capability.
+The injected-provider and built-in DashScope implementations for
+`image.board.png`, `image.board.jpeg`, and `provider.dashscope.vision` are now
+offline-tested and `experimental`, not `available`. The required licensed
+corpus/scorer, live smoke, and two independent full-corpus live proofs remain;
+Phase 1 is therefore still NO-GO. No Phase 0 result authorizes a later
+capability.
 
 ## Optional Dependencies
 
@@ -938,14 +1021,19 @@ ocrllm[all]      All supported optional features.
 ocrllm[dev]      Test and development tools.
 ```
 
+The current Phase 1 distribution declares exactly `dev`, `image`, and
+`dashscope`; all later target extras above remain uncreated. Base runtime
+requirements are empty. Plain `import ocrllm` must not import `PIL`, `openai`,
+or transitive `httpx`.
+
 Rules:
 
 - Missing optional dependencies must raise `DependencyMissing` with the exact
   required extra name.
 - Optional dependency imports must live inside the function or module that
   needs them.
-- Importing `ocrllm` must not require ffmpeg, PyQt, FastAPI, browser tools, or
-  provider SDKs.
+- Importing `ocrllm` must not require ffmpeg, PyQt, FastAPI, browser tools,
+  provider SDKs/clients, or their transitive HTTP client.
 - `ocrllm[pdf-text]` and `ocrllm[pdf-vision]` must use PDFium through
   `pypdfium2`; PyMuPDF/`fitz` is rejected.
 - PDF binary distributions must include pypdfium2, PDFium, and bundled
@@ -1052,6 +1140,41 @@ Rules:
 - Never print API keys.
 - Never include API keys in exceptions, warnings, result metadata, or logs.
 - Do not silently fall back to a different paid provider.
+- Do not infer a DashScope endpoint from a key or environment variable. Region
+  and full base URL are explicit immutable settings because keys do not cross
+  regions. Prefer workspace-dedicated endpoints; a legacy shared endpoint is an
+  explicit compatibility choice only.
+- The synchronous OpenAI-compatible client uses `max_retries=0`. It checks
+  cancellation before preflight, between image preflights, and immediately
+  before dispatch, but cannot interrupt an in-flight synchronous HTTP call.
+- Build image inputs as Base64 data URLs, never caller or snapshot filesystem
+  paths. Reject output truncation such as `finish_reason="length"` as an invalid
+  provider response.
+- Preserve image order, put the board prompt last, use `temperature=0` and
+  `max_completion_tokens=16,384`, and call the raw-response SDK boundary. Accept
+  `x-dashscope-partialresponse` only when absent or `false`; require the exact
+  requested model and one index-0 `assistant` choice with no refusal and
+  `finish_reason="stop"`.
+- Distinguish temporary rate limiting (`PROVIDER_RATE_LIMITED`) and service
+  availability (`PROVIDER_UNAVAILABLE`) from permanent quota/billing
+  (`PROVIDER_QUOTA_EXHAUSTED`). Provider billing/quota codes take precedence
+  over generic HTTP status; documented provider timeout codes take precedence
+  over generic 5xx handling; and the adapter performs no retry. Invalid model
+  strings are never echoed in public error data.
+- Preserve a primary typed request error when client cleanup also fails, adding
+  only `provider_client_cleanup_failed=true`; a cleanup-only failure is an
+  invalid provider response.
+- Successful image metadata records provider/model, `board.v1`, profile, image
+  count, region, and the thinking/high-resolution flags, never credentials or
+  request/source content.
+
+The Phase 1 choices track Alibaba's [visual-understanding model and limit
+reference](https://www.alibabacloud.com/help/en/model-studio/vision-model),
+[OpenAI-compatible Chat Completions
+reference](https://www.alibabacloud.com/help/en/model-studio/qwen-api-via-openai-chat-completions),
+and [region/workspace base URL
+reference](https://www.alibabacloud.com/help/en/model-studio/base-url), plus the
+OpenAI Python client's [retry configuration](https://github.com/openai/openai-python#retries).
 
 ## Testing Strategy
 
@@ -1059,10 +1182,16 @@ This decision defines allowed boundaries and required gates. Tests and runtime
 trials provide the evidence for a GO status; they do not override a NO-GO or
 deferred boundary.
 
+Phase 1 quality proof requires the committed, licensed five-class corpus and
+manifest defined in `docs/ocrllm_library_go_no_go.md`. The user-supplied
+screenshots under `docs/` remain local, supplemental, non-redistributable, and
+uncommitted; they cannot substitute for gate fixtures.
+
 Required test groups:
 
 ```text
 tests/test_import_contract.py             Public facade and lightweight import.
+tests/test_lightweight_import.py           PIL/openai/httpx base-import guard.
 tests/test_validate_source.py             Missing/corrupt/oversized input gates.
 tests/test_detect_source_type.py          Source detection and mixed groups.
 tests/test_config.py                      Config normalization and secrets.
@@ -1070,6 +1199,10 @@ tests/test_errors.py                      Typed, redacted public failures.
 tests/test_output.py                      In-memory/file output and collisions.
 tests/test_provider_contracts.py          Fake capability checks.
 tests/test_recognize_images.py            Image/board-profile vertical slice.
+tests/test_dashscope_settings.py           Settings/endpoint/copy boundaries.
+tests/test_dashscope_provider_boundaries.py Model/key/error/config boundaries.
+tests/test_build_dashscope_image_request.py Exact-buffer and payload limits.
+tests/test_dashscope_adapter.py            No-retry raw response and cleanup.
 tests/test_jsonl_worker.py                Protocol-only worker events.
 tests/test_pdfium_backend.py              Open/text/render/error PDFium behavior.
 tests/test_recognize_pdf.py               Text and vision PDF composition.

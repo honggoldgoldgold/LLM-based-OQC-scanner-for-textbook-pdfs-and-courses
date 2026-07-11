@@ -128,6 +128,32 @@ def test_non_config_argument_is_rejected_before_source_or_provider_work(tmp_path
     assert provider.calls == []
 
 
+def test_mutated_config_is_revalidated_before_source_or_provider_work(tmp_path):
+    provider = RecordingProvider()
+    config = Config(provider=provider)
+    object.__setattr__(config, "timeout_seconds", "unsafe")
+
+    with pytest.raises(ConfigError) as captured:
+        recognize(tmp_path / "missing.png", config=config)
+
+    assert captured.value.code == "CONFIG_INVALID"
+    assert provider.calls == []
+
+
+def test_config_subclasses_are_rejected_before_source_or_provider_work(tmp_path):
+    class ConfigSubclass(Config):
+        pass
+
+    provider = RecordingProvider()
+    config = ConfigSubclass(provider=provider)
+
+    with pytest.raises(ConfigError) as captured:
+        recognize(tmp_path / "missing.png", config=config)
+
+    assert captured.value.code == "CONFIG_INVALID"
+    assert provider.calls == []
+
+
 @pytest.mark.parametrize(
     "provider_output",
     [

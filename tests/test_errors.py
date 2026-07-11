@@ -12,7 +12,9 @@ from ocrllm.errors import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderUnavailable,
     QuotaExhausted,
+    RateLimited,
     UnsupportedFormat,
 )
 
@@ -42,6 +44,8 @@ def test_public_error_defaults_have_stable_codes(error, code):
 def test_provider_retryability_defaults_follow_stable_failure_category():
     assert ProviderError(code="PROVIDER_NETWORK").retryable is True
     assert ProviderError(code="PROVIDER_TIMEOUT").retryable is True
+    assert RateLimited().retryable is True
+    assert ProviderUnavailable().retryable is True
     assert ProviderError(code="PROVIDER_AUTHENTICATION").retryable is False
     assert QuotaExhausted().retryable is False
 

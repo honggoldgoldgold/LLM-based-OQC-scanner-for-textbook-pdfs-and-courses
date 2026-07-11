@@ -2,7 +2,14 @@
 
 from __future__ import annotations
 
-from ..errors import Cancelled, OCRLLMError, ProviderError, QuotaExhausted
+from ..errors import (
+    Cancelled,
+    OCRLLMError,
+    ProviderError,
+    ProviderUnavailable,
+    QuotaExhausted,
+    RateLimited,
+)
 
 
 def map_injected_provider_error(error: Exception, *, model: str | None) -> OCRLLMError:
@@ -19,6 +26,11 @@ def map_injected_provider_error(error: Exception, *, model: str | None) -> OCRLL
     if isinstance(error, QuotaExhausted) or code == "PROVIDER_QUOTA_EXHAUSTED":
         return QuotaExhausted(
             "The configured provider quota is exhausted.",
+            details=details,
+        )
+    if isinstance(error, RateLimited) or code == "PROVIDER_RATE_LIMITED":
+        return RateLimited(
+            "The configured provider temporarily rate-limited the request.",
             details=details,
         )
     if isinstance(error, TimeoutError) or code == "PROVIDER_TIMEOUT":
@@ -39,6 +51,11 @@ def map_injected_provider_error(error: Exception, *, model: str | None) -> OCRLL
         return ProviderError(
             "The configured provider rejected authentication.",
             code="PROVIDER_AUTHENTICATION",
+            details=details,
+        )
+    if isinstance(error, ProviderUnavailable) or code == "PROVIDER_UNAVAILABLE":
+        return ProviderUnavailable(
+            "The configured provider is temporarily unavailable.",
             details=details,
         )
 

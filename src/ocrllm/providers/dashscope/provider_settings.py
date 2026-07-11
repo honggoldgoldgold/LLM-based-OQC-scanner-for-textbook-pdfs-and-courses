@@ -1,0 +1,118 @@
+"""Immutable routing and quality settings for the built-in DashScope provider."""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from urllib.parse import urlsplit
+
+from ...errors import ConfigError
+
+
+_OPENAI_COMPATIBLE_PATH = "/compatible-mode/v1"
+_WORKSPACE_REGIONS = frozenset(
+    {
+        "ap-northeast-1",
+        "ap-southeast-1",
+        "cn-beijing",
+        "cn-hongkong",
+        "eu-central-1",
+    }
+)
+_SHARED_HOST_BY_REGION = {
+    "ap-southeast-1": "dashscope-intl.aliyuncs.com",
+    "cn-beijing": "dashscope.aliyuncs.com",
+    "cn-hongkong": "cn-hongkong.dashscope.aliyuncs.com",
+    "us-east-1": "dashscope-us.aliyuncs.com",
+}
+_SUPPORTED_REGIONS = _WORKSPACE_REGIONS | frozenset(_SHARED_HOST_BY_REGION)
+_WORKSPACE_ID = re.compile(
+    r"(?!trial$)(?!token-plan$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
+)
+
+
+@dataclass(frozen=True, slots=True)
+class DashScopeSettings:
+    """Explicit DashScope region, endpoint, and evidence-affecting options."""
+
+    region: str
+    base_url: str
+    enable_thinking: bool = False
+    vl_high_resolution_images: bool = True
+
+    def __post_init__(self) -> None:
+        _validate_region(self.region)
+        _validate_base_url(self.base_url, region=self.region)
+        _require_exact_boolean(self.enable_thinking, field_name="enable_thinking")
+        _require_exact_boolean(
+            self.vl_high_resolution_images,
+            field_name="vl_high_resolution_images",
+        )
+
+
+def _validate_region(region: object) -> None:
+    if type(region) is not str or region not in _SUPPORTED_REGIONS:
+        raise ConfigError(
+            "DashScopeSettings.region must be a supported canonical region ID."
+        ) from None
+
+
+def _validate_base_url(base_url: object, *, region: str) -> None:
+    if (
+        type(base_url) is not str
+        or not base_url
+        or base_url != base_url.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in base_url)
+    ):
+        raise _invalid_base_url()
+
+    try:
+        parsed = urlsplit(base_url)
+        hostname = parsed.hostname
+        port = parsed.port
+    except (TypeError, ValueError):
+        raise _invalid_base_url() from None
+
+    if (
+        parsed.scheme != "https"
+        or hostname is None
+        or parsed.netloc != hostname
+        or port is not None
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path != _OPENAI_COMPATIBLE_PATH
+        or parsed.query
+        or parsed.fragment
+        or base_url != f"https://{hostname}{_OPENAI_COMPATIBLE_PATH}"
+    ):
+        raise _invalid_base_url()
+
+    if hostname == _SHARED_HOST_BY_REGION.get(region):
+        return
+    if region not in _WORKSPACE_REGIONS:
+        raise _invalid_region_pair()
+
+    workspace_suffix = f".{region}.maas.aliyuncs.com"
+    if not hostname.endswith(workspace_suffix):
+        raise _invalid_region_pair()
+    workspace_id = hostname[: -len(workspace_suffix)]
+    if _WORKSPACE_ID.fullmatch(workspace_id) is None:
+        raise _invalid_base_url()
+
+
+def _require_exact_boolean(value: object, *, field_name: str) -> None:
+    if type(value) is not bool:
+        raise ConfigError(f"DashScopeSettings.{field_name} must be a boolean") from None
+
+
+def _invalid_base_url() -> ConfigError:
+    return ConfigError(
+        "DashScopeSettings.base_url must be an approved HTTPS OpenAI-compatible "
+        "DashScope endpoint."
+    )
+
+
+def _invalid_region_pair() -> ConfigError:
+    return ConfigError(
+        "DashScopeSettings.region and base_url must identify the same DashScope region."
+    )

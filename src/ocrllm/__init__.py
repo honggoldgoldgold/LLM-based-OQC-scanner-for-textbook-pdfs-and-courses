@@ -1,6 +1,7 @@
 """Public OCRLLM library facade."""
 
 from .config import Config
+from .providers.dashscope.provider_settings import DashScopeSettings
 from .errors import (
     Cancelled,
     ConfigError,
@@ -11,7 +12,9 @@ from .errors import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderUnavailable,
     QuotaExhausted,
+    RateLimited,
     UnsupportedFormat,
 )
 from .recognize import recognize
@@ -22,6 +25,7 @@ __all__ = [
     "Cancelled",
     "Config",
     "ConfigError",
+    "DashScopeSettings",
     "DependencyMissing",
     "InvalidSource",
     "NoSpeechDetected",
@@ -29,7 +33,9 @@ __all__ = [
     "OutputError",
     "OutputExists",
     "ProviderError",
+    "ProviderUnavailable",
     "QuotaExhausted",
+    "RateLimited",
     "RecognitionResult",
     "UnsupportedFormat",
     "recognize",

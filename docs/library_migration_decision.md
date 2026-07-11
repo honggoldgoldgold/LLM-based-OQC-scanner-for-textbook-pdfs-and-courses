@@ -44,7 +44,9 @@ clients, and Rust internals were not part of that first import contract.
 The later execution decision makes the boundary more precise:
 
 - The original injected-provider scaffold was a Phase 0 facade. Phase 0 is now
-  GO; Phase 1 real-provider and quality evidence is still incomplete.
+  GO. Phase 1 now has one offline-tested built-in DashScope adapter, but its
+  licensed corpus/scorer and required live-quality evidence are still
+  incomplete, so Phase 1 remains NO-GO.
 - Active PDF work uses PDFium through `pypdfium2`; PyMuPDF/`fitz` remains
   legacy-only.
 - A versioned JSON-safe contract and Electron JSONL worker proof happen before

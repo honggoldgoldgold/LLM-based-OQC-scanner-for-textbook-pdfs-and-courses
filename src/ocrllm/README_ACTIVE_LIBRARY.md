@@ -10,6 +10,7 @@ from ocrllm import (
     Cancelled,
     Config,
     ConfigError,
+    DashScopeSettings,
     DependencyMissing,
     InvalidSource,
     NoSpeechDetected,
@@ -17,7 +18,9 @@ from ocrllm import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderUnavailable,
     QuotaExhausted,
+    RateLimited,
     RecognitionResult,
     UnsupportedFormat,
     recognize,
@@ -39,12 +42,24 @@ The current image facade:
 - returns `source_type="image"` and `profile="board"`;
 - keeps output in memory unless `output_dir` requests atomic Markdown output;
 - loads Pillow lazily from the optional `ocrllm[image]` extra.
+- resolves the exact built-in provider name `"dashscope"` only when immutable
+  `DashScopeSettings` is present, while keeping `openai` and `httpx` lazy behind
+  `ocrllm[dashscope]`.
+- freshly revalidates an exact public `Config`; injected providers retain the
+  caller's config identity, while the built-in adapter uses an isolated,
+  revalidated copy.
 
-This is not yet a completed recognition capability. There is no built-in real
-provider, committed quality corpus/scorer, local OCR backend, key pool,
-automatic retry/model fallback, or image resume. PDF, audio, and video are also
-unavailable. Phase 1 is specifically one lazy DashScope vision adapter plus
-reproducible quality and live-provider evidence.
+This is not yet a completed recognition capability. The built-in DashScope
+adapter and its offline boundary tests now exist, but the committed quality
+corpus/scorer and required live-provider evidence do not. Phase 1 therefore
+remains NO-GO and no image/provider capability is `available`. The adapter
+requires an explicit regional endpoint, accepts only `qwen3.7-plus` and the
+default pinned `qwen3.7-plus-2026-05-26`, disables OpenAI SDK retries, and builds
+Base64 data URLs rather than sending local paths. There is still no local OCR
+backend, key pool, automatic retry/model fallback, or image resume; PDF, audio,
+and video remain unavailable. Local user screenshots are uncommitted
+supplemental material; only the committed licensed five-class corpus can
+satisfy the quality gate.
 
 Read `../../docs/ocrllm_library_go_no_go.md` before active-library work. It is
 the authoritative source for file responsibilities, GO gates, and the

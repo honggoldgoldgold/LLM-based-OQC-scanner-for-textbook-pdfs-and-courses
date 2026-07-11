@@ -173,7 +173,7 @@ def test_decode_image_does_not_change_pillow_global_pixel_limit(tmp_path):
 
 
 def test_decode_image_rejects_dimensions_above_the_pixel_limit(tmp_path, monkeypatch):
-    decode_module = importlib.import_module("ocrllm.imaging.decode_image")
+    decode_module = importlib.import_module("ocrllm.imaging.decode_image_bytes")
     fake_module = _FakeImageModule(
         size=(MAX_IMAGE_PIXELS + 1, 1),
         image_format="PNG",
@@ -181,26 +181,26 @@ def test_decode_image_rejects_dimensions_above_the_pixel_limit(tmp_path, monkeyp
     monkeypatch.setattr(decode_module, "_load_pillow", lambda: (fake_module, OSError))
 
     with pytest.raises(InvalidSource) as raised:
-        decode_module.decode_image(tmp_path / "huge.png")
+        decode_module.decode_image_bytes(b"fake image", suffix=".png")
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
 
 
 def test_decode_image_accepts_the_exact_pixel_limit(tmp_path, monkeypatch):
-    decode_module = importlib.import_module("ocrllm.imaging.decode_image")
+    decode_module = importlib.import_module("ocrllm.imaging.decode_image_bytes")
     fake_module = _FakeImageModule(
         size=(MAX_IMAGE_PIXELS, 1),
         image_format="PNG",
     )
     monkeypatch.setattr(decode_module, "_load_pillow", lambda: (fake_module, OSError))
 
-    decoded = decode_module.decode_image(tmp_path / "at-limit.png")
+    decoded = decode_module.decode_image_bytes(b"fake image", suffix=".png")
 
     assert decoded.pixel_count == MAX_IMAGE_PIXELS
 
 
 def test_decode_image_maps_decompression_bomb_warning_to_too_large(tmp_path, monkeypatch):
-    decode_module = importlib.import_module("ocrllm.imaging.decode_image")
+    decode_module = importlib.import_module("ocrllm.imaging.decode_image_bytes")
     fake_module = _FakeImageModule(
         size=(1, 1),
         image_format="PNG",
@@ -209,7 +209,7 @@ def test_decode_image_maps_decompression_bomb_warning_to_too_large(tmp_path, mon
     monkeypatch.setattr(decode_module, "_load_pillow", lambda: (fake_module, OSError))
 
     with pytest.raises(InvalidSource) as raised:
-        decode_module.decode_image(tmp_path / "bomb.png")
+        decode_module.decode_image_bytes(b"fake image", suffix=".png")
 
     assert raised.value.code == "SOURCE_TOO_LARGE"
 

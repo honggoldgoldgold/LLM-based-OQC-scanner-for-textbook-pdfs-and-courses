@@ -30,11 +30,19 @@ The current verified contract:
 - Requested Markdown output uses deterministic collision handling and atomic
   publication.
 - Pillow is installed only through `ocrllm[image]` and is imported lazily.
+- The built-in DashScope adapter is installed only through
+  `ocrllm[dashscope]`; plain `import ocrllm` imports neither `openai` nor
+  transitive `httpx`.
 
-Phase 1 now adds one lazy DashScope vision adapter and a committed, reproducible
-quality corpus/scorer with real-provider evidence. There is no built-in real
-provider yet, so Phase 0 GO does not advertise board/image recognition as an
-available capability.
+Phase 1 now contains one lazy DashScope vision adapter with offline boundary
+tests. It requires immutable `DashScopeSettings` with an explicit region and
+OpenAI-compatible endpoint, accepts only `qwen3.7-plus` or the default pinned
+`qwen3.7-plus-2026-05-26`, constructs `OpenAI(max_retries=0)`, and sends ordered
+Base64 data URLs rather than local paths. This is an experimental implementation,
+not recognition-quality evidence. Phase 1 remains NO-GO until the committed,
+licensed five-class corpus/scorer, live smoke, two independent full-corpus live
+runs, and final clean-profile gate all pass. The local user screenshots are
+supplemental and non-redistributable; they do not replace that corpus.
 
 The active library also has no local OCR mode, API-key pools, automatic retries
 or model fallback, resume/checkpoint support, PDF recognition, audio
@@ -50,10 +58,41 @@ as a future reference.
 
 ## Current Public API
 
-This example shows the current synchronous injected-provider contract. The
-library validates and snapshots the image before calling the provider. The
-provider shown here is still caller-supplied; it is not the future built-in
-DashScope adapter or recognition-quality evidence.
+Install the current image and provider extras together for the built-in adapter:
+
+```bash
+pip install "ocrllm[image,dashscope]"
+```
+
+The built-in call shape is explicit about its regional endpoint:
+
+```python
+from ocrllm import Config, DashScopeSettings, recognize
+
+
+settings = DashScopeSettings(
+    region="ap-southeast-1",
+    base_url=(
+        "https://your-workspace-id.ap-southeast-1.maas.aliyuncs.com/"
+        "compatible-mode/v1"
+    ),
+)
+result = recognize(
+    "board.jpg",
+    config=Config(provider="dashscope", dashscope=settings),
+)
+print(result.markdown)
+```
+
+Supply the key through `Config.api_key` or `DASHSCOPE_API_KEY`; Coding Plan
+`sk-sp-` credentials are not accepted. Replace the example workspace ID with a
+real endpoint in the same region. Only the floating alias `qwen3.7-plus` and the
+default pinned snapshot `qwen3.7-plus-2026-05-26` are accepted in Phase 1.
+
+The injected-provider contract remains available to host applications that own
+their clients and network policy. The library validates and snapshots the image
+before calling the provider; this offline example is contract evidence, not
+recognition-quality evidence.
 
 ```python
 from ocrllm import Config, recognize

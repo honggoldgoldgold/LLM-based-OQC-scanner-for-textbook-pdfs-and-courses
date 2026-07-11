@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .config import Config
-from .errors import ConfigError, OCRLLMError
+from .errors import OCRLLMError
 
 if TYPE_CHECKING:
     from .result import RecognitionResult
@@ -46,12 +46,9 @@ def _recognize(
     from .profiles.resolve_image_profile import resolve_image_profile
     from .validate_same_type_group import validate_same_type_group
 
-    if config is None:
-        cfg = Config()
-    elif isinstance(config, Config):
-        cfg = config
-    else:
-        raise ConfigError("config must be a Config instance", code="CONFIG_INVALID")
+    from .validate_config import validate_config
+
+    cfg = validate_config(config)
     profile = resolve_image_profile(cfg.profile)
     source_paths = coerce_source_paths(source)
     media_type = validate_same_type_group(source_paths)
