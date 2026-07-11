@@ -151,17 +151,19 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   bound the strict manifest and artifacts, exact import origins, closed public
   signature, and clean Git identity for 98 tracked relevant files to that full
   commit.
-- Current boundary-completion verification hits exact one-below, at, and
+- Boundary checkpoint `5aaa854` (full commit
+  `5aaa8545a8b73277fa728861be5510cb0a073d84`) hits exact one-below, at, and
   one-above values for the per-source byte, decoded-pixel, group-count,
   aggregate-source-byte, and aggregate-pixel caps. Every rejecting integration
   path proves zero provider calls; aggregate-source rejection also precedes
   temporary-directory access. Together with the already exact provider-request
   limits, the pinned suite now passes `554` tests, fixture generation remains
   byte-identical, and `compileall` passes without a provider/API call.
-- Phase 1 is still NO-GO solely because the caller has not supplied the
-  credential's exact region and `base_url`, the fixed 13-call live plan has not
-  run, its two complete six-dispatch runs therefore have no passing evidence,
-  and the final clean-profile/GO-decision update is pending.
+- Phase 1 is still NO-GO solely because the caller has not confirmed the exact
+  region and intended use of the explicit key-matching `base_url` recovered
+  from local UI configuration, the fixed 13-call live plan has not run, its two
+  complete six-dispatch runs therefore have no passing evidence, and the final
+  clean-profile/GO-decision update is pending.
 - Pushed packaging hotfix `3414f47` corrected a filename-ignore defect without
   weakening secret-ignore patterns. The legitimate
   `resolve_dashscope_api_key.py` / `resolve_dashscope_api_key` names matched the
@@ -171,27 +173,37 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   commit `3414f47e5b44a6d5fe2023012ebf2cf361f96a61` produced a `50,094`-byte
   wheel; its isolated no-deps install passed an explicit test-key resolver
   round-trip without a provider network call.
-- The current packaged-README proof archives full commit
-  `72667e545e3f09fb3c6781999ed574fd6a4b8d91`. Its wheel is `50,945` bytes with
-  SHA-256
-  `192696f35f3bc3962006d5094833aa8294a18667c20ddc4b07330f66c1fcf4a4` and 52
-  entries, with zero base runtime requirements and no native or bytecode
-  payload. The isolated no-deps target contains 103 files totaling `233,835`
-  bytes. Plain import leaves Pillow, OpenAI, and HTTPX unloaded, and the
-  explicit test-key credential resolver passes without a provider/API call.
-  Result-recording edits limited to this decision file and
-  `MIGRATION_STATUS.md` do not change the wheel inputs.
-- Current clean optional-profile proof at full commit
-  `51d3f27d308cdeb6e5e7c93ab23f6dcb8434d801` reproduced that exact wheel. The
-  fresh Image profile used Pillow 12.3.0, added `15,904,036` bytes, left Pillow,
-  OpenAI, and HTTPX unloaded on plain import, and completed an actual generated
-  PNG call through the injected-provider path. The separate fresh Image +
-  DashScope profile used Pillow 12.3.0, OpenAI 2.45.0, and HTTPX 0.28.1, added
-  `40,676,876` bytes, preserved the same lazy-import boundary, and constructed
-  and closed the real client with `max_retries=0` without sending HTTP. Both
-  pass the 25 MiB and 64 MiB ceilings. This does not replace the required final
-  decision-time rerun after live evidence or after packaged-source, README,
-  metadata, or dependency changes.
+- The clean package proof for `5aaa854` archives that exact commit. Its wheel is
+  `51,281` bytes with SHA-256
+  `23e0068b4525a437052254d8929f0d7ab7706efd5ff48447d04572c796909d93`, 52
+  entries, zero base runtime requirements, and no native or bytecode payload.
+  The isolated no-deps target contains 103 files totaling `233,665` bytes.
+  Plain import leaves Pillow, PDFium, OpenAI, and HTTPX unloaded, and the
+  explicit test-key credential resolver passes. Thirty measured processes
+  after two discarded warm-ups pass the Base import budgets: Python 3.10.20
+  wall median/p95/max `51.9831/75.8686/77.3612` ms and CPU
+  `46.875/78.125/78.125` ms; Python 3.13.5 wall
+  `50.79575/61.3618/62.4312` ms and CPU `46.875/62.5/62.5` ms.
+- The separate clean optional profiles for `5aaa854` pass too. Image uses
+  Pillow 12.3.0, adds `15,904,714` bytes, preserves lazy import, and completes
+  a generated-PNG recognition call through the injected-provider path. Image +
+  DashScope uses Pillow 12.3.0, OpenAI 2.45.0, and HTTPX 0.28.1, adds
+  `40,677,554` bytes, preserves lazy base import, and constructs and closes the
+  real client with `max_retries=0` without HTTP. Both pass the 25 MiB and 64 MiB
+  ceilings. No external provider/API HTTP request was made. Result-recording
+  edits limited to this decision file and `MIGRATION_STATUS.md` do not change
+  wheel inputs; this still does not replace the required final decision-time
+  rerun after live evidence or a later packaged-input/dependency change.
+- A secret-safe local configuration audit found that
+  `HKCU:\Software\OCRLLM\QCR\ui` stores a full HTTPS `base_url` whose API key is
+  an exact match for the current `DASHSCOPE_API_KEY` under an ordinal string
+  comparison that never prints either secret. It uses host
+  `dashscope.aliyuncs.com`, exact path `/compatible-mode/v1`, and no query. The
+  registry stores no region/location, and no DashScope-related region variable
+  was found in the checked Process/User/Machine scopes. This is explicit stored
+  endpoint evidence for the current key, not proof that the endpoint remains
+  intended and not region evidence; do not derive the credential region from
+  the hostname before the caller confirms both values.
 - The historical Phase 1 adapter-only implementation checkpoint is commit
   `a6a8b18`. Its final offline gate passed `283` tests, `compileall`, and
   `git diff --check`. The wheel was `50,970` bytes with SHA-256
@@ -1305,11 +1317,11 @@ fake/evidence tests pass without a provider/API call.
 
 That offline evidence does not make image recognition `available`. Phase 1
 still has no live clean-slide smoke or two independently dispatched full-corpus
-runs. It remains NO-GO solely pending the caller's exact region and `base_url`,
-the runner's 13 live calls and two passing full runs, and the final
-clean-profile/GO-decision update. PDFium remains only a backend feasibility
-spike; PDF, audio, and video recognition remain unavailable under their later
-gates.
+runs. It remains NO-GO solely pending caller confirmation of the exact region
+and intended use of the recovered key-matching `base_url`, the runner's 13 live
+calls and two passing full runs, and the final clean-profile/GO-decision update.
+PDFium remains only a backend feasibility spike; PDF, audio, and video
+recognition remain unavailable under their later gates.
 
 The user-supplied screenshots currently present under `docs/` are local,
 supplemental, non-redistributable, and remain untracked. Keep them uncommitted.
@@ -1556,10 +1568,10 @@ artifact authentication, scorers, deliberate-corruption tests, guarded evidence
 runner, provider boundary, lazy import, and clean profile work are integrated.
 The pinned full suite reports `554 passed`; generator bytes and `compileall`
 pass, with no provider/API call. Phase 1 remains **NO-GO solely** because the
-caller has not supplied the exact region and `base_url`, none of the 13 required
-paid no-retry calls has been recorded, the two full six-dispatch runs therefore
-have no passing live evidence, and the final clean-profile/GO-decision update
-remains.
+caller has not confirmed the exact region and intended use of the recovered
+key-matching `base_url`, none of the 13 required paid no-retry calls has been
+recorded, the two full six-dispatch runs therefore have no passing live
+evidence, and the final clean-profile/GO-decision update remains.
 
 ### Phase 2: JSON contract and Electron worker
 
@@ -2032,9 +2044,10 @@ PDF phase verification must additionally print:
 - copied license/notice file locations.
 
 The guarded runner is committed at `fb23d1e`, but do not execute its paid live
-CLI until the caller supplies the credential's exact approved region and
-`base_url`; the shared endpoint used by offline tests is only a test value. Use
-a new evidence path and the exact confirmation value 13. The live plan is fixed
+CLI until the caller confirms the credential's exact approved region and the
+recovered key-matching `base_url`; the shared endpoint used by offline tests is
+only a test value. Use a new evidence path and the exact confirmation value 13.
+The live plan is fixed
 at 13 paid calls with no retry: one clean-slide smoke, all six dispatches in run
 A, then all six independently dispatched entries in run B. A provider failure
 or truncation aborts without another call; never rerun only the failed fixture.

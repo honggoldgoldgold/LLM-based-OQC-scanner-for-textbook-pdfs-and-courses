@@ -153,7 +153,8 @@ checkpoint `e328253` additionally commits the licensed five-class image corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
 live-scoring gate. The pinned suite and byte-identity checks pass. This is
 offline gate infrastructure, not live recognition evidence: Phase 1 remains
-NO-GO solely until the caller's exact region and `base_url` are known, the
+NO-GO solely until the caller confirms the exact region and intended use of the
+explicit key-matching `base_url` recovered from local UI configuration, the
 committed `fb23d1e` runner executes its 13-call live plan without retry, both
 six-dispatch corpus runs pass, and the final clean-profile/GO-decision update is
 recorded. Google, Codex, local-OCR, PDF, audio, and video adapters do not exist
@@ -584,12 +585,13 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `os.replace`. The writer does not explicitly `fsync` the containing directory,
   so it does not promise persistence across sudden power loss beyond normal
   filesystem link/replace guarantees.
-- Current boundary-completion verification adds exact one-below, at, and
+- Boundary checkpoint `5aaa854` (full commit
+  `5aaa8545a8b73277fa728861be5510cb0a073d84`) adds exact one-below, at, and
   one-above cases for the per-source byte, decoded-pixel, group-count,
   aggregate-source-byte, and aggregate-pixel caps. The rejecting
   per-source/pixel/count/aggregate integration cases all prove zero provider
   calls; aggregate-source rejection additionally precedes temporary-directory
-  access. The complete pinned suite now passes `554` tests, generated fixture
+  access. The complete pinned suite passes `554` tests, generated fixture
   bytes remain identical, and `compileall` passes without a provider/API call.
 - Pushed packaging hotfix `3414f47` fixed a filename-ignore defect without
   weakening secret protection. The legitimate module/function formerly named
@@ -600,28 +602,37 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `3414f47e5b44a6d5fe2023012ebf2cf361f96a61` produced a `50,094`-byte wheel.
   Its isolated no-deps install imported `Config` and the resolver and passed an
   explicit test-key round-trip. No provider network call was made.
-- The current packaged-README proof uses a clean Git archive from full commit
-  `72667e545e3f09fb3c6781999ed574fd6a4b8d91`, not the working directory. It
-  produced a `50,945`-byte wheel with SHA-256
-  `192696f35f3bc3962006d5094833aa8294a18667c20ddc4b07330f66c1fcf4a4` and 52
-  entries. The wheel has zero base runtime requirements and no native or
-  bytecode payload. Its isolated no-deps target has 103 files totaling
-  `233,835` bytes; plain import leaves Pillow, OpenAI, and HTTPX unloaded, and
-  the explicit test-key credential-resolver round-trip passes. No provider/API
-  call was made. Later edits that only record this result in
-  `MIGRATION_STATUS.md` and `docs/ocrllm_library_go_no_go.md` do not alter the
-  wheel inputs.
-- Current optional-profile proof at full commit
-  `51d3f27d308cdeb6e5e7c93ab23f6dcb8434d801` rebuilt that exact wheel from a
-  clean Git archive. A fresh `ocrllm[image]` environment installed Pillow
-  12.3.0 with a `15,904,036`-byte delta, preserved lazy import, and completed a
-  generated-PNG recognition call through the injected-provider path. A separate
-  fresh `ocrllm[image,dashscope]` environment installed Pillow 12.3.0, OpenAI
-  2.45.0, and HTTPX 0.28.1 with a `40,676,876`-byte delta, preserved lazy base
-  import, and constructed and closed the real zero-retry client without an HTTP
-  request. Both remain below their 25 MiB and 64 MiB ceilings. The decision-time
-  profile rerun remains required after the live gate, and after any packaged
-  source, README, metadata, or dependency change.
+- The clean package proof for `5aaa854` uses a Git archive, not the working
+  directory. It produced a `51,281`-byte wheel with SHA-256
+  `23e0068b4525a437052254d8929f0d7ab7706efd5ff48447d04572c796909d93`, 52
+  entries, zero base runtime requirements, and no native or bytecode payload.
+  Its isolated no-deps target has 103 files totaling `233,665` bytes. Plain
+  import leaves Pillow, PDFium, OpenAI, and HTTPX unloaded, and the explicit
+  test-key credential resolver passes. Thirty measured processes after two
+  discarded warm-ups pass the import budgets: Python 3.10.20 wall
+  median/p95/max `51.9831/75.8686/77.3612` ms and CPU
+  `46.875/78.125/78.125` ms; Python 3.13.5 wall
+  `50.79575/61.3618/62.4312` ms and CPU `46.875/62.5/62.5` ms.
+- The separate clean optional profiles for `5aaa854` also pass. Image uses
+  Pillow 12.3.0, adds `15,904,714` bytes, preserves lazy import, and completes
+  a generated-PNG recognition call through the injected-provider path. Image +
+  DashScope uses Pillow 12.3.0, OpenAI 2.45.0, and HTTPX 0.28.1, adds
+  `40,677,554` bytes, preserves lazy base import, and constructs and closes the
+  real zero-retry client without HTTP. Both remain below their 25 MiB and 64 MiB
+  ceilings. No external provider/API HTTP request was made. Decision-only
+  result-recording edits do not change wheel inputs; the decision-time profile
+  rerun remains required after live evidence or any later
+  packaged-input/dependency change.
+- A secret-safe local configuration audit found that
+  `HKCU:\Software\OCRLLM\QCR\ui` stores a full HTTPS `base_url` whose API key is
+  an exact match for the current `DASHSCOPE_API_KEY` under an ordinal string
+  comparison that never prints either secret. The endpoint uses host
+  `dashscope.aliyuncs.com`, exact path `/compatible-mode/v1`, and no query. That
+  registry key stores no region/location value, and no DashScope-related region
+  variable was found in the checked Process/User/Machine scopes. This recovers
+  the key's configured endpoint but does not authorize inferring the
+  credential's region from the hostname; caller region confirmation remains
+  required before paid calls.
 - The user-supplied screenshots currently present under `docs/` are local,
   supplemental, and non-redistributable. They may help manual development, but
   they remain untracked and cannot enter pass/fail evidence. They are not part
@@ -712,10 +723,11 @@ Finish only this bounded slice. The adapter, corpus, generators, scorers, and
 manifest-authenticated scoring gate and evidence runner are committed; do not
 rebuild them as a second client, corpus, or runner:
 
-1. Obtain the caller credential's exact region and approved `base_url`. Do not
-   infer either value from the key, example documentation, or a nearby region.
-   In particular, the shared endpoint used by offline tests is not evidence of
-   the caller's endpoint.
+1. Confirm the caller credential's exact region and that its recovered full
+   `base_url` remains intended. A secret-safe comparison ties the current key to
+   the endpoint stored under `HKCU:\Software\OCRLLM\QCR\ui`, but that registry
+   stores no region. Do not derive the region from the key, hostname, example
+   documentation, or a nearby region.
 2. From the exact clean runner checkpoint, run the guarded 13-call live plan
    once with `--confirm-paid-calls 13`: one clean-slide smoke, full run A with
    all six dispatches, and independently dispatched full run B with all six
@@ -749,8 +761,8 @@ Office, social, GPU, and offline-model work are not the next task.
 - Do not claim support from code existence, mocks, installed dependencies, or
   historical logs alone.
 - Do not make a paid provider call before the caller confirms the exact region
-  and `base_url`, the intended Git/import/manifest/artifact preflight is clean,
-  and the new evidence path does not already exist.
+  and the recovered `base_url`, the intended Git/import/manifest/artifact
+  preflight is clean, and the new evidence path does not already exist.
 - Do not pass fake callables or clocks into the public live runner or relabel
   simulated evidence as live. The public signature intentionally exposes no
   dependency-injection parameters.
