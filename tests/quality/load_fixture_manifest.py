@@ -48,6 +48,9 @@ from tests.quality.generators.phase1_fixture_content import (
     VISIBLE_FORMULAS,
 )
 from tests.quality.normalize_content_units import NORMALIZATION_VERSION
+from tests.quality.normalize_recognized_markdown_v2 import (
+    normalize_recognized_markdown_v2,
+)
 from tests.quality.parse_formula_signature import parse_formula_signature
 from tests.quality.score_critical_slots import score_critical_slots
 from tests.quality.score_formula_signatures import FormulaScore, score_formula_signatures
@@ -67,7 +70,7 @@ DEFAULT_PHASE1_MANIFEST_PATH = (
     Path(__file__).parents[1] / "fixtures" / "phase1" / "manifest.json"
 )
 FROZEN_PHASE1_MANIFEST_SHA256 = (
-    "f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42"
+    "b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336"
 )
 
 _SCHEMA_VERSION = "ocrllm.phase1-fixture-manifest.v1"
@@ -107,7 +110,7 @@ _PINNED_EVIDENCE_CONTRACT = {
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v1",
+    "prompt_version": "board.v2",
     "enable_thinking": False,
     "vl_high_resolution_images": True,
     "output_language": None,
@@ -115,7 +118,7 @@ _PINNED_EVIDENCE_CONTRACT = {
 _PINNED_SCORING_CONTRACT = {
     "normalization_version": NORMALIZATION_VERSION,
     "tokenizer_version": TOKENIZER_VERSION,
-    "formula_dialect": "labeled-latex-restricted.v1",
+    "formula_dialect": "labeled-latex-restricted.v2",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": NEUTRAL_TABLE_LINE_BREAKS,
     "language_token_kinds": dict(LANGUAGE_TOKEN_KIND_BY_TAG),
@@ -330,7 +333,10 @@ def _parse_scoring_contract(value: object) -> ScoringContract:
                 probe += "\nF01: $a_{1} = 2$"
             elif profile == "table":
                 probe += "\n| A | B |\n| --- | --- |\n| 1 | 2 |"
-            build_scoring_views(probe, neutral_markdown=rules)
+            build_scoring_views(
+                normalize_recognized_markdown_v2(probe),
+                neutral_markdown=rules,
+            )
     except (TypeError, ValueError) as exc:
         raise ManifestValidationError(
             "scoring_contract is not accepted by the current scoring-view builder"

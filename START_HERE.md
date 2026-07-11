@@ -43,13 +43,14 @@ the `image` extra and remains lazy during plain `import ocrllm`.
 
 Phase 0 GO is a contract result, not a real recognition-capability claim. The
 active library has an offline-tested built-in DashScope adapter. Offline
-checkpoint `e328253` also commits the licensed five-class Phase 1 corpus,
+checkpoint `e328253` also committed the licensed five-class Phase 1 corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. Its byte-frozen manifest is `35,400` bytes with SHA-256
-`f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`;
+live-scoring gate. The current versioned `board.v2` manifest is `35,400` bytes
+with SHA-256
+`b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`;
 the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
 with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `554` tests; the generator byte-identity check and `compileall` pass.
+now passes `568` tests; the generator byte-identity check and `compileall` pass.
 Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
 group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
 integration paths proving zero provider calls.
@@ -69,6 +70,12 @@ request failed. Preserve the evidence and read
 scorer; a new billed run requires a new explicit decision. Local user
 screenshots under `docs/` remain untracked, non-redistributable supplemental
 material and are not gate evidence.
+
+The offline `board.v2` correction is implemented. It makes formula
+serialization explicit, preserves handwritten spelling/case, and canonicalizes
+only observed content-preserving Markdown/LaTeX variants. Applied diagnostically
+to the preserved outputs, every non-handwriting dispatch passes while both
+handwriting dispatches retain their original seven quality failures.
 
 Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
 the existing secret filename-ignore rules no longer exclude that source module;

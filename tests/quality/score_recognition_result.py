@@ -26,6 +26,9 @@ from tests.quality.fixture_manifest import (
     OrderedRequestRecord,
     Phase1FixtureManifest,
 )
+from tests.quality.normalize_recognized_markdown_v2 import (
+    normalize_recognized_markdown_v2,
+)
 from tests.quality.score_critical_slots import (
     CriticalSlotScore,
     ExpectedCriticalSlot,
@@ -127,8 +130,14 @@ def score_recognition_result(
         raise ValueError("recognized_markdown must be nonempty plain text")
 
     target = _resolve_scoring_target(manifest, dispatch)
+    scoring_markdown = (
+        normalize_recognized_markdown_v2(recognized_markdown)
+        if manifest.scoring_contract.formula_dialect
+        == "labeled-latex-restricted.v2"
+        else recognized_markdown
+    )
     views = build_scoring_views(
-        recognized_markdown,
+        scoring_markdown,
         neutral_markdown=target.neutral_markdown,
     )
     recognized_text_tokens = tokenize_content_units(views.text)

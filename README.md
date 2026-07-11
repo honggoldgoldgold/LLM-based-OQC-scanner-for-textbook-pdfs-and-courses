@@ -40,13 +40,14 @@ OpenAI-compatible endpoint, accepts only `qwen3.7-plus` or the default pinned
 `qwen3.7-plus-2026-05-26`, constructs `OpenAI(max_retries=0)`, and sends ordered
 Base64 data URLs rather than local paths.
 
-Offline checkpoint `e328253` commits the licensed five-class corpus,
+Offline checkpoint `e328253` committed the licensed five-class corpus,
 deterministic generators, exact scorers, and integrated manifest-authenticated
-live-scoring gate. The byte-frozen manifest is `35,400` bytes with SHA-256
-`f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
+live-scoring gate. The current versioned `board.v2` manifest is `35,400` bytes
+with SHA-256
+`b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
 Its 20 artifacts include 5 images and total `17,914,515` bytes, leaving
 `8,299,885` bytes under the 25 MiB corpus limit. The pinned full suite passed
-`554` tests; regenerated fixtures were byte-identical and `compileall` passed.
+`568` tests; regenerated fixtures were byte-identical and `compileall` passed.
 The boundary suite now hits exact one-below, at, and one-above values for every
 per-source byte, decoded-pixel, group-count, aggregate-source-byte, and
 aggregate-pixel cap; every rejecting integration case proves zero provider
@@ -64,8 +65,9 @@ Both full runs completed, but neither passed; Phase 1 remains NO-GO. There were
 no provider request failures. The live record separates a real handwriting
 quality miss from a deterministic mismatch between reasonable Qwen
 Markdown/LaTeX presentation variants and the frozen v1 scorer grammar. The
-evidence remains unchanged; offline work may prepare a separately versioned
-contract before any newly authorized paid run. See
+evidence remains unchanged. The offline `board.v2` correction is implemented
+and tested: it declares the output grammar, normalizes only predeclared
+presentation equivalents, and leaves both handwriting failures intact. See
 `docs/phase1_live_quality_result_2026-07-11.md`. The local user screenshots
 under `docs/` remain untracked, supplemental, and non-redistributable; they are
 not part of pass/fail evidence.

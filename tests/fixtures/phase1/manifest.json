@@ -7,7 +7,7 @@
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v1",
+    "prompt_version": "board.v2",
     "enable_thinking": false,
     "vl_high_resolution_images": true,
     "output_language": null
@@ -15,7 +15,7 @@
   "scoring_contract": {
     "normalization_version": "content-units.v1",
     "tokenizer_version": "content-units.v1",
-    "formula_dialect": "labeled-latex-restricted.v1",
+    "formula_dialect": "labeled-latex-restricted.v2",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": ["<br>", "<br/>", "<br />"],
     "language_token_kinds": {

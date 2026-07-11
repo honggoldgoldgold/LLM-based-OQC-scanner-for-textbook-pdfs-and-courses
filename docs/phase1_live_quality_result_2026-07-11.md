@@ -80,3 +80,17 @@ critical values and thresholds, continue to reject malformed or unsupported
 content, and preserve this evidence unchanged. A second billed image run is not
 authorized by the completed 13-call confirmation; it requires a new explicit
 decision, a new evidence path, and the same clean preflight discipline.
+
+## Subsequent Offline Correction
+
+The separately versioned `board.v2` / `labeled-latex-restricted.v2` correction
+is now implemented without editing this evidence. Its prompt declares the
+formula grammar and exact handwriting case/spelling. Its fail-closed normalizer
+handles only the observed presentation equivalents plus standalone horizontal
+rules. The full suite passes `568` tests.
+
+As a diagnostic only, v2 makes the preserved smoke and all non-handwriting
+dispatches pass. Both handwriting dispatches still fail the original seven
+quality gates. This confirms that the format mismatch is isolated while the
+product-quality failure remains visible; it does not turn this v1 run into GO
+evidence.

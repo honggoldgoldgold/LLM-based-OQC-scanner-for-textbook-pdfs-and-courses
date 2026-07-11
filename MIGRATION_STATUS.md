@@ -531,7 +531,7 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   typed error remains primary with only
   `provider_client_cleanup_failed=true` attached.
 - Successful result metadata records `provider`, `model`,
-  `prompt_version="board.v1"`, `profile`, `image_count`, `provider_region`,
+  `prompt_version="board.v2"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`. It never records the API
   key or request body.
 - The historical adapter-only implementation checkpoint is commit `a6a8b18`.
@@ -554,8 +554,8 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   scorers, plus the integrated live-scoring gate. That entrypoint authenticates
   the supplied manifest against a freshly strict-loaded byte-frozen manifest
   before scoring and fails closed when a scoring channel is not applicable.
-- The byte-frozen manifest is exactly `35,400` bytes with SHA-256
-  `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
+- The current versioned manifest is exactly `35,400` bytes with SHA-256
+  `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
   The committed corpus has 20 artifacts, including 5 images, totaling
   `17,914,515` bytes and leaving `8,299,885` bytes of headroom below the 25 MiB
   limit.
@@ -594,7 +594,7 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   aggregate-source-byte, and aggregate-pixel caps. The rejecting
   per-source/pixel/count/aggregate integration cases all prove zero provider
   calls; aggregate-source rejection additionally precedes temporary-directory
-  access. The complete pinned suite passes `554` tests, generated fixture
+  access. The complete pinned suite passes `568` tests, generated fixture
   bytes remain identical, and `compileall` passes without a provider/API call.
 - Pushed packaging hotfix `3414f47` fixed a filename-ignore defect without
   weakening secret protection. The legitimate module/function formerly named
@@ -747,6 +747,15 @@ not delete, overwrite, selectively retry, or reinterpret its evidence:
    Git/import/manifest/artifact preflight before another billed call set.
 5. Keep the clean-tree offline/package gate current after source, packaged
    README, dependency, or package-metadata changes.
+
+The offline versioned correction is implemented. `board.v2` explicitly
+requires labeled standalone formulas, Unicode inline relations, and exact
+handwritten spelling/capitalization. Its separate fail-closed normalizer accepts
+only the observed content-preserving presentation forms and standalone
+horizontal rules. The full suite passes `568` tests. Diagnostic scoring of the
+preserved v1 raw outputs makes the smoke and every non-handwriting dispatch pass
+while both handwriting dispatches retain the same seven failure codes. This is
+not new live evidence and does not authorize another billed run.
 
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.

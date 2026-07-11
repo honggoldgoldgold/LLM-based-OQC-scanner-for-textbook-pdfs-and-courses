@@ -119,7 +119,7 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v1",
+                "prompt_version": "board.v2",
                 "provider": "dashscope",
                 "profile": "board",
                 "provider_region": config.dashscope.region,

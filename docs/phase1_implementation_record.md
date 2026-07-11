@@ -91,11 +91,11 @@ The live runner uses it before and after every paid call.
 
 ## Current Verified Offline State
 
-- Pinned suite: `554 passed`.
+- Pinned suite: `568 passed` after the offline `board.v2` correction.
 - Generated fixture check: byte-identical.
 - Compile check: passed.
-- Frozen manifest: 35,400 bytes; SHA-256
-  `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
+- Current versioned manifest: 35,400 bytes; SHA-256
+  `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
 - Corpus: 20 artifacts, including 5 images, totaling 17,914,515 bytes.
 - Clean wheel from `5aaa854`: 51,281 bytes; SHA-256
   `23e0068b4525a437052254d8929f0d7ab7706efd5ff48447d04572c796909d93`.
@@ -123,3 +123,24 @@ Phase 1 remains NO-GO. Do not rerun a dispatch or begin another billed set under
 the exhausted 13-call confirmation. Offline work may prepare a versioned
 prompt/scorer correction; another live plan requires a new explicit decision
 and a new evidence path.
+
+## Offline V2 Correction
+
+The post-evidence correction is versioned as `board.v2` and
+`labeled-latex-restricted.v2`. The runtime prompt now states the labeled formula
+serialization, uses Unicode inline relations, forbids formula tables and
+invented labels, and requires exact handwritten spelling and capitalization.
+
+`tests/quality/normalize_recognized_markdown_v2.py` has one responsibility: it
+canonicalizes only the observed content-preserving presentation forms before
+the existing exact scoring views run. It accepts inline relation math,
+missing-colon labeled formulas, strict paired formula tables, common slanted
+relation commands, and standalone horizontal rules. Ambiguous wrappers,
+arbitrary inline LaTeX, malformed pairs, duplicate labels, and wrong formula
+content remain rejected or fail exact scoring.
+
+The pinned full suite passes `568` tests. A diagnostic test applies v2 to the
+preserved v1 raw Markdown: the smoke and every non-handwriting dispatch pass,
+while both handwriting dispatches retain the original seven failure codes. No
+provider call occurred, the v1 evidence was not rewritten, and this does not
+authorize another billed run.

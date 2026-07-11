@@ -130,9 +130,9 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   `DashScopeSettings` are reconstructed at each snapshot, so callback mutation
   or `object.__setattr__` cannot diverge the request from its metadata or smuggle
   an endpoint past the allowlist.
-- The current offline quality checkpoint is commit `e328253`. Its byte-frozen
-  manifest is exactly `35,400` bytes with SHA-256
-  `f0df9e7cd1dab282bec73a75717af150ecf34b3cd04567a2bef300b38a39df42`.
+- The original offline quality checkpoint is commit `e328253`. The current
+  versioned `board.v2` manifest is exactly `35,400` bytes with SHA-256
+  `b6b272790563399c924179da4744bf54d131c33e1ad5cbb06e3c81d959d63336`.
   It authenticates 20 committed artifacts, including 5 images, totaling
   `17,914,515` bytes with `8,299,885` bytes of headroom below the 25 MiB corpus
   ceiling. The checkpoint contains the exact licensed corpus, deterministic
@@ -142,7 +142,7 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
 - The scorer entrypoint authenticates the caller's manifest against a freshly
   strict-loaded byte-frozen manifest before scoring. It fails closed for
   non-applicable channels instead of treating missing evidence as a pass. On the
-  pinned OCRLLM environment, the full offline suite passed `554` tests, the
+  pinned OCRLLM environment, the full offline suite passed `568` tests, the
   generator reproduced every committed generated image byte-for-byte, and
   `compileall` passed.
 - The guarded evidence runner is committed at `fb23d1e` (full commit
@@ -157,7 +157,7 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   aggregate-source-byte, and aggregate-pixel caps. Every rejecting integration
   path proves zero provider calls; aggregate-source rejection also precedes
   temporary-directory access. Together with the already exact provider-request
-  limits, the pinned suite now passes `554` tests, fixture generation remains
+  limits, the pinned suite now passes `568` tests, fixture generation remains
   byte-identical, and `compileall` passes without a provider/API call.
 - On 2026-07-11 the user confirmed canonical region `cn-beijing` and the
   key-matching endpoint. The fixed plan then invoked all 13 calls with zero
@@ -942,7 +942,7 @@ Phase 1 provider policy is concrete:
   `PROVIDER_RESPONSE_INVALID`. Never publish truncated Markdown as complete or
   partial success.
 - Successful image metadata includes `provider`, `model`,
-  `prompt_version="board.v1"`, `profile`, `image_count`, `provider_region`,
+  `prompt_version="board.v2"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`; it never includes a key,
   endpoint credential, request body, or source content.
 - Always close a constructed client. If request processing and close both fail,
@@ -1571,12 +1571,21 @@ Status after offline checkpoint `e328253`, packaging hotfix `3414f47`, runner
 checkpoint `fb23d1e`, and the exact boundary completion: the corpus, generators,
 artifact authentication, scorers, deliberate-corruption tests, guarded evidence
 runner, provider boundary, lazy import, and clean profile work are integrated.
-The pinned full suite reports `554 passed`; generator bytes and `compileall`
+The pinned full suite reports `568 passed`; generator bytes and `compileall`
 pass, with no provider/API call. The user-confirmed Beijing region/endpoint gate
 is satisfied. The first 13-call live plan completed with both full runs failing;
 Phase 1 remains **NO-GO**. See
 `phase1_live_quality_result_2026-07-11.md` for the immutable evidence identity,
 per-dispatch result, and versioned-correction decision.
+
+The offline `board.v2` correction is implemented without changing the v1
+evidence. It declares the labeled-formula grammar and exact handwriting
+spelling/case in the prompt. A separate fail-closed normalizer canonicalizes
+only inline relation math, missing-colon labeled formulas, strict paired formula
+tables, slanted relation commands, and standalone horizontal rules. Diagnostic
+application to the preserved raw output makes the smoke and all non-handwriting
+dispatches pass; both handwriting dispatches still fail the same seven gates.
+This diagnosis is not replacement live evidence and authorizes no paid call.
 
 ### Phase 2: JSON contract and Electron worker
 
