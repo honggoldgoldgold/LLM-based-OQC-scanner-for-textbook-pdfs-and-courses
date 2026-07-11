@@ -1697,6 +1697,16 @@ with 26 required in evidence before GO. The isolated suite passes 599 tests;
 fixture generation, compilation, Ruff, and diff checks pass. Fresh v6 evidence
 is still required.
 
+The complete v6 gate then returned all 13 recognitions and 26 provider calls.
+Both full runs completed; run A passed. Handwriting passed in both runs. Run B
+failed only because review changed visible lowercase `s_4` to uppercase `S_4`
+in F04; the formula hard gate correctly rejected the unexpected atom. Preserve
+the 97,150-byte evidence at
+`evidence/phase1/phase1-quality-v6-2026-07-11-cn-beijing.json` (SHA-256
+`bc256bfbdc73f7d5f80806eb95767d4e68f17cb512f76c9e6daaba5278504707`).
+V7 may make review conservative about exact draft identifiers/case; it must not
+weaken formula truth or handwriting critical symbols.
+
 ### Phase 2: JSON contract and Electron worker
 
 GO when all are true:

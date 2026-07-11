@@ -308,3 +308,14 @@ provider calls, evidence schema v6. The 37,685-byte manifest SHA-256 is
 `c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`.
 The isolated suite passes 599 tests; fixture generation, compilation, Ruff, and
 diff checks pass. Fresh repeated live v6 evidence remains required.
+
+The complete v6 gate ran from clean full commit
+`ef63a432ed8c5af61eb164ed754a2d2c1f9dda66`. All 13 recognitions and 26
+provider calls returned; both runs completed and run A passed. Handwriting
+passed twice, proving the quoted review closes both the missing-plus and hatch-
+digit failures. Run B failed only F04 after review changed lowercase `s_4` to
+uppercase `S_4`; formula signature was 11/12, atom precision 132/133, and all
+108 critical atoms were correct. The 97,150-byte evidence SHA-256 is
+`bc256bfbdc73f7d5f80806eb95767d4e68f17cb512f76c9e6daaba5278504707`.
+V7 must preserve exact draft identifiers/case unless pixels clearly contradict
+them while retaining omission/hallucination repair.

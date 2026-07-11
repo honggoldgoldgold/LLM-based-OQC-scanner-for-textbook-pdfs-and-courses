@@ -908,6 +908,19 @@ calls and requires all 26 to be reported before GO. The isolated suite passes
 599 tests; generated fixtures, compilation, Ruff, and diff checks pass. Commit
 and push v6, then run a new clean 26-call evidence path.
 
+The complete v6 gate is preserved at
+`evidence/phase1/phase1-quality-v6-2026-07-11-cn-beijing.json`, 97,150 bytes,
+SHA-256
+`bc256bfbdc73f7d5f80806eb95767d4e68f17cb512f76c9e6daaba5278504707`.
+All 13 recognition invocations and 26 provider calls returned, both full runs
+completed, and run A passed. Handwriting passed in both runs: review fixed the
+missing operator without hallucinating hatch digits. Run B failed only the
+formula board because review changed source lowercase `s_4` to uppercase `S_4`.
+The exact formula gate correctly rejected that one unexpected atom. Do not
+accept uppercase as truth. Make v7 review conservative about changing exact
+draft identifiers/case, then test handwriting repair and formula preservation.
+See `docs/phase1_live_quality_result_v6_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
