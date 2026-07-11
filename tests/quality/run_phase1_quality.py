@@ -25,7 +25,10 @@ from ocrllm import (
     recognize,
 )
 from ocrllm.profiles.build_board_prompt import build_board_prompt
-from ocrllm.profiles.build_board_sign_scout_prompt import build_board_sign_scout_prompt
+from ocrllm.profiles.build_board_sign_scout_prompt import (
+    SIGN_SCOUT_PROMPT_VERSION,
+    build_board_sign_scout_prompt_template,
+)
 from ocrllm.profiles.build_board_symbol_audit_prompt import (
     build_board_symbol_audit_prompt,
 )
@@ -76,7 +79,7 @@ from tests.quality.write_quality_evidence_atomically import (
 DEFAULT_REPOSITORY_ROOT = Path(__file__).parents[2]
 PHASE1_TIMEOUT_SECONDS = 180.0
 _TEMPERATURE = 0
-_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v16"
+_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v17"
 _MANIFEST_RELATIVE_PATH = "tests/fixtures/phase1/manifest.json"
 _BOUND_OUTPUT_ROOTS = (
     "src/ocrllm",
@@ -478,7 +481,7 @@ def _initial_evidence(
         sort_keys=True,
         separators=(",", ":"),
     ).encode("utf-8")
-    scout_prompt = build_board_sign_scout_prompt()
+    scout_prompt_template = build_board_sign_scout_prompt_template()
     return {
         "schema_version": _SCHEMA_VERSION,
         "state": "running",
@@ -524,11 +527,12 @@ def _initial_evidence(
             "standalone_sign_scout_enable_thinking": (
                 manifest.evidence_contract.standalone_sign_scout_enable_thinking
             ),
-            "standalone_sign_scout_prompt_sha256": hashlib.sha256(
-                scout_prompt.encode("utf-8")
+            "standalone_sign_scout_prompt_version": SIGN_SCOUT_PROMPT_VERSION,
+            "standalone_sign_scout_prompt_template_sha256": hashlib.sha256(
+                scout_prompt_template.encode("utf-8")
             ).hexdigest(),
-            "standalone_sign_scout_prompt_utf8_bytes": len(
-                scout_prompt.encode("utf-8")
+            "standalone_sign_scout_prompt_template_utf8_bytes": len(
+                scout_prompt_template.encode("utf-8")
             ),
             "provider_calls_per_recognition": PROVIDER_CALLS_PER_RECOGNITION,
             "provider_region": region,

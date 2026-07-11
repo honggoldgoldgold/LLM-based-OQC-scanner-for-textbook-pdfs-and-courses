@@ -58,12 +58,14 @@ full-corpus runs, final clean profiles, and explicit GO-decision update pass.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data
-URLs rather than sending local paths. The v15 evidence candidate uses one
+URLs rather than sending local paths. The v17 evidence candidate uses one
 thinking-enabled pinned Qwen3.7 transcript plus three independent
-thinking-enabled sign ledgers from the same pinned model. Only exact allowlisted
-records can reach two-of-three deterministic quorum; scout prose and unsupported
-punctuation cannot enter the result. V16 additionally forbids directional-arrow
-insertion by scouts while leaving complete primary transcription unchanged.
+thinking-enabled omission ledgers from the same pinned model, each conditioned
+on the quoted inert primary. Only exact allowlisted records can reach
+two-of-three deterministic quorum; scout prose and unsupported punctuation
+cannot enter the result. Directional-arrow insertion is forbidden while
+complete primary transcription remains unchanged. Exact dynamic scout-prompt
+hashes and byte counts are returned in metadata.
 Qwen-VL Max remains an explicit supported scout option but is not the Phase 1
 evidence baseline. There is still no local OCR
 backend, key pool, automatic retry/model fallback, or image resume; PDF, audio,

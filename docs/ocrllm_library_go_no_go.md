@@ -2351,6 +2351,15 @@ v7. Preserve the 103,882-byte evidence SHA-256
 Phase 1 remains NO-GO. See
 `phase1_live_quality_result_v16_2026-07-11.md`.
 
+V17 conditions each scout on the quoted primary transcript and asks only for
+missing arithmetic/relation signs. Three targeted calls on the exact failed v16
+primary agree only on `foreign gene + I:V`. The pool remains three, quorum
+remains two, and all structural guards remain. Dynamic prompt hashes enter
+result metadata and evidence. The v17 manifest is 37,864 bytes with SHA-256
+`4ec1440f531e88492eb06795a29308256a5718c2748625ce2ad9b1230807e393`;
+all 712 isolated tests pass. Phase 1 remains NO-GO pending complete live
+evidence. See `phase1_v17_conditioned_omission_scout_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

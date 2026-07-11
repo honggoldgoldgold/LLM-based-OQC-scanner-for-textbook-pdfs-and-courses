@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
+
 from ocrllm import RecognitionResult
+from ocrllm.profiles.build_board_sign_scout_prompt import SIGN_SCOUT_PROMPT_VERSION
 
 from tests.quality.build_phase1_dispatch_plan import Phase1DispatchPlanEntry
 from tests.quality.fixture_manifest import EvidenceContract
@@ -58,6 +61,15 @@ def validate_phase1_recognition_result(
         "standalone_sign_scout_abstention_count": result.metadata.get(
             "standalone_sign_scout_abstention_count"
         ),
+        "standalone_sign_scout_prompt_version": result.metadata.get(
+            "standalone_sign_scout_prompt_version"
+        ),
+        "standalone_sign_scout_prompt_sha256": result.metadata.get(
+            "standalone_sign_scout_prompt_sha256"
+        ),
+        "standalone_sign_scout_prompt_utf8_bytes": result.metadata.get(
+            "standalone_sign_scout_prompt_utf8_bytes"
+        ),
         "provider": contract.provider,
         "profile": contract.profile,
         "provider_region": provider_region,
@@ -73,6 +85,16 @@ def validate_phase1_recognition_result(
         or not 0 <= abstention_count <= contract.standalone_sign_scout_count
     ):
         raise ValueError("recognition result has an invalid scout-abstention count")
+    if expected_metadata["standalone_sign_scout_prompt_version"] != (
+        SIGN_SCOUT_PROMPT_VERSION
+    ):
+        raise ValueError("recognition result has an invalid scout-prompt version")
+    prompt_sha256 = expected_metadata["standalone_sign_scout_prompt_sha256"]
+    if type(prompt_sha256) is not str or re.fullmatch(r"[0-9a-f]{64}", prompt_sha256) is None:
+        raise ValueError("recognition result has an invalid scout-prompt SHA-256")
+    prompt_bytes = expected_metadata["standalone_sign_scout_prompt_utf8_bytes"]
+    if type(prompt_bytes) is not int or prompt_bytes <= 0:
+        raise ValueError("recognition result has an invalid scout-prompt byte count")
     if dict(result.metadata) != expected_metadata:
         raise ValueError(
             "recognition result metadata differs from the frozen request contract"

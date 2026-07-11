@@ -120,7 +120,7 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v16",
+                "prompt_version": "board.v17",
                 "provider_call_count": (
                     config.preferences.draft_candidates
                     + config.preferences.review_passes
@@ -135,6 +135,9 @@ class FakeRecognizer:
                 "standalone_sign_scout_enable_thinking": True,
                 "standalone_signs_restored": 0,
                 "standalone_sign_scout_abstention_count": 0,
+                "standalone_sign_scout_prompt_version": "board-sign-omission.v1",
+                "standalone_sign_scout_prompt_sha256": "a" * 64,
+                "standalone_sign_scout_prompt_utf8_bytes": 1,
                 "provider": "dashscope",
                 "profile": "board",
                 "provider_region": config.dashscope.region,

@@ -1118,6 +1118,18 @@ restored. Arrow exclusion and formula dialect v7 both pass live. Preserve the
 Do not split handwriting or lower quorum. Compare a generic primary-conditioned
 omission ledger with a larger fixed scout pool before raising the call plan.
 
+The primary-conditioned design wins the bounded comparison without increasing
+the pool. Three independent Qwen3.7 calls on the exact failed v16 primary each
+return only `+ | foreign gene | I:V`, with no existing-plus or arrow report.
+V17 binds the quoted inert primary to all three omission scouts, records the
+template identity plus exact per-dispatch prompt hashes, and treats quorum rows
+as missing occurrences rather than a full inventory. Same-location checks,
+relation equivalence, tables, arrow exclusion, extraction, and two-of-three
+quorum remain. The 37,864-byte manifest SHA-256 is
+`4ec1440f531e88492eb06795a29308256a5718c2748625ce2ad9b1230807e393`;
+89 focused and all 712 isolated tests pass. See
+`docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

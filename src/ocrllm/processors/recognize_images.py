@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
@@ -12,7 +13,10 @@ from ..processor_output import ProcessorOutput
 from ..profiles.build_board_consensus_prompt import build_board_consensus_prompt
 from ..profiles.build_board_prompt import BOARD_PROMPT_VERSION, build_board_prompt
 from ..profiles.build_board_review_prompt import build_board_review_prompt
-from ..profiles.build_board_sign_scout_prompt import build_board_sign_scout_prompt
+from ..profiles.build_board_sign_scout_prompt import (
+    SIGN_SCOUT_PROMPT_VERSION,
+    build_board_sign_scout_prompt,
+)
 from ..profiles.build_board_symbol_audit_prompt import build_board_symbol_audit_prompt
 from ..providers.call_vision_provider import call_vision_provider
 from ..providers.dashscope.resolve_sign_scout_enable_thinking import (
@@ -92,6 +96,7 @@ def recognize_images(
     )
     restored_sign_count = 0
     abstained_scout_count = 0
+    scout_prompt: str | None = None
     if scout_model is not None:
         assert config.dashscope is not None
         scout_enable_thinking = resolve_sign_scout_enable_thinking(scout_model)
@@ -105,6 +110,7 @@ def recognize_images(
             ),
         )
         resolved_scout = resolve_vision_provider(scout_config)
+        scout_prompt = build_board_sign_scout_prompt(markdown)
         scouts: list[str] = []
         for scout_index in range(3):
             try:
@@ -112,7 +118,7 @@ def recognize_images(
                     call_vision_provider(
                         resolved_scout,
                         image_paths,
-                        prompt=build_board_sign_scout_prompt(),
+                        prompt=scout_prompt,
                         config=scout_config,
                     )
                 )
@@ -161,6 +167,17 @@ def recognize_images(
         "standalone_sign_scout_count": 3 if scout_model is not None else 0,
         "standalone_signs_restored": restored_sign_count,
         "standalone_sign_scout_abstention_count": abstained_scout_count,
+        "standalone_sign_scout_prompt_version": (
+            SIGN_SCOUT_PROMPT_VERSION if scout_prompt is not None else None
+        ),
+        "standalone_sign_scout_prompt_sha256": (
+            hashlib.sha256(scout_prompt.encode("utf-8")).hexdigest()
+            if scout_prompt is not None
+            else None
+        ),
+        "standalone_sign_scout_prompt_utf8_bytes": (
+            len(scout_prompt.encode("utf-8")) if scout_prompt is not None else None
+        ),
     }
     if resolved_provider.name == "dashscope" and config.dashscope is not None:
         metadata.update(

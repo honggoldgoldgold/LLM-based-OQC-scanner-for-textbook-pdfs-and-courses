@@ -18,6 +18,7 @@ from .parse_standalone_sign_ledger import (
 )
 
 _MAX_SCOUT_SIGN_EVENTS = 256
+_GLOBAL_EQUIVALENCE_BUDGET_SIGNS = frozenset({"<=", ">=", "≤", "≥"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,7 +65,12 @@ def restore_quorum_standalone_signs(
     remaining = {
         sign: max(
             0,
-            count - count_standalone_sign_representations(base_markdown, sign),
+            count
+            - (
+                count_standalone_sign_representations(base_markdown, sign)
+                if sign in _GLOBAL_EQUIVALENCE_BUDGET_SIGNS
+                else 0
+            ),
         )
         for sign, count in quorum_counts.items()
     }

@@ -145,6 +145,13 @@ failed only one missing handwriting plus despite three usable scouts. Arrow
 exclusion and formula dialect v7 both pass live. Phase 1 remains NO-GO; see
 `docs/phase1_live_quality_result_v16_2026-07-11.md`.
 
+V17 keeps the three-scout, 52-call unified workflow but conditions omission
+scouts on the quoted primary transcript. Three targeted calls on the exact
+failed v16 result agree only on the missing `foreign gene + I:V` plus. Exact
+dynamic prompt hashes are recorded; all prior guards remain. All 712 offline
+tests pass; live evidence is pending. See
+`docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

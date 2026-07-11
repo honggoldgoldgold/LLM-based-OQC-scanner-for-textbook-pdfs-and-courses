@@ -7,7 +7,7 @@
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v16",
+    "prompt_version": "board.v17",
     "draft_candidates": 1,
     "review_passes": 0,
     "standalone_sign_scout_model": "qwen3.7-plus-2026-05-26",

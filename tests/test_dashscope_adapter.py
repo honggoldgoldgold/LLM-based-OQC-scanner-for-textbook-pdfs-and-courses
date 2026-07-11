@@ -131,7 +131,7 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v16"
+    assert result.metadata["prompt_version"] == "board.v17"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
@@ -494,6 +494,11 @@ def test_same_qwen37_model_uses_thinking_scouts_and_extracts_supported_rows(
     assert result.metadata["standalone_signs_restored"] == 1
     assert result.metadata["standalone_sign_scout_abstention_count"] == 0
     assert result.metadata["standalone_sign_scout_enable_thinking"] is True
+    assert result.metadata["standalone_sign_scout_prompt_version"] == (
+        "board-sign-omission.v1"
+    )
+    assert len(result.metadata["standalone_sign_scout_prompt_sha256"]) == 64
+    assert result.metadata["standalone_sign_scout_prompt_utf8_bytes"] > 0
 
 
 def test_mutated_review_preferences_fail_before_builtin_provider_work(

@@ -445,6 +445,17 @@ exclusion and formula dialect v7 eliminate both v15 failures. Preserve the
 Next compare a generic primary-conditioned omission ledger against a larger
 pool; do not lower quorum or add handwriting routing.
 
+V17 keeps three scouts. On the exact failed v16 primary, three independent
+conditioned Qwen3.7 calls each return only the missing
+`foreign gene + I:V` record. The primary is quoted as inert data; request
+evidence records a fixed template identity and each result records the exact
+dynamic prompt hash/size. Omission rows no longer lose their budget because the
+same sign appears elsewhere, while all location and structural guards remain.
+The 37,864-byte manifest SHA-256 is
+`4ec1440f531e88492eb06795a29308256a5718c2748625ce2ad9b1230807e393`;
+89 focused and 712 exact isolated tests pass. Complete live v17 evidence is
+pending.
+
 The v14 live gate returned all 52 calls. Run B passed all six dispatches; Run A
 failed only handwriting at 29/30 recall and 5/6 critical signs because two
 scouts abstained and no quorum restoration occurred. Both tables now pass, and

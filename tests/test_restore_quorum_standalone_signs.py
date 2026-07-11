@@ -28,6 +28,20 @@ def test_quorum_restores_one_missing_sign_without_copying_scout_prose():
     assert "Ligase join" not in result.markdown
 
 
+def test_omission_only_quorum_is_not_consumed_by_same_sign_elsewhere():
+    base = "foreign gene\nI:V\nTransformation\n+\nValidation\n"
+    omission = "+ | foreign gene | I:V"
+
+    result = restore_quorum_standalone_signs(
+        base,
+        (omission, omission, "NONE"),
+        minimum_agreement=2,
+    )
+
+    assert result.markdown == "foreign gene\n+\nI:V\nTransformation\n+\nValidation\n"
+    assert result.restored_count == 1
+
+
 def test_quorum_counts_inline_isolated_sign_and_leaves_correct_base_byte_identical():
     base = "foreign gene\n+\nI:V 3:1 Ratio\nTransformation.\n+ Validation\n"
 
