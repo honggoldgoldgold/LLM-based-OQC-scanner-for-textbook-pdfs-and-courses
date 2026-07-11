@@ -531,7 +531,7 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   typed error remains primary with only
   `provider_client_cleanup_failed=true` attached.
 - Successful result metadata records `provider`, `model`,
-  `prompt_version="board.v4"`, `profile`, `image_count`, `provider_region`,
+  `prompt_version="board.v5"`, `profile`, `image_count`, `provider_region`,
   `enable_thinking`, and `vl_high_resolution_images`. It never records the API
   key or request body.
 - The historical adapter-only implementation checkpoint is commit `a6a8b18`.
@@ -848,6 +848,25 @@ the runner aborted before run B. Preserve this partial evidence. The next
 offline correction may accept only line-leading ASCII connectors with corruption
 tests, but must still solve the genuinely missing `+`. See
 `docs/phase1_live_quality_result_v4_attempt2_2026-07-11.md`.
+
+The post-attempt correction is `board.v5` /
+`labeled-latex-restricted.v5` / evidence schema v5. It adds a generic internal
+region-by-region verification pass that inventories repeated standalone marks,
+not a handwriting-specific prompt. It accepts ASCII `->` only as a
+line-leading diagram connector; inline `A -> B` and other content remain
+visible. Source reinspection adds the second genuine `RG` occurrence and the
+visible `OR` label to optional precision truth. The center `+` remains required.
+
+Two targeted built-in-provider calls wrote Markdown through the library's
+atomic writer. Both reached 30/30 recall, 6/6 critical tokens, 10/10 critical
+slots, and zero unexpected critical tokens. One passed directly; the other was
+below English precision only under incomplete v4 optional truth and passes
+after the two verified source labels are included. Truncated or guessed sequence
+labels remain unmatched. The 37,661-byte v5 manifest SHA-256 is
+`d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
+The isolated suite passes 588 tests, fixtures are byte-identical, `compileall`
+passes, and changed Python files pass Ruff. Commit/push v5, repeat the clean
+preflight, then run a new v5 evidence path; Phase 1 remains NO-GO meanwhile.
 
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.

@@ -7,7 +7,7 @@
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v4",
+    "prompt_version": "board.v5",
     "enable_thinking": true,
     "vl_high_resolution_images": true,
     "output_language": null
@@ -15,7 +15,7 @@
   "scoring_contract": {
     "normalization_version": "content-units.v1",
     "tokenizer_version": "content-units.v1",
-    "formula_dialect": "labeled-latex-restricted.v4",
+    "formula_dialect": "labeled-latex-restricted.v5",
     "table_dialect": "gfm-pipe-table-restricted.v1",
     "table_header_line_breaks": ["<br>", "<br/>", "<br />"],
     "language_token_kinds": {
@@ -548,6 +548,8 @@
         {"id": "handwriting-optional-r", "text": "R", "case_sensitive": true},
         {"id": "handwriting-optional-amp", "text": "amp", "case_sensitive": false},
         {"id": "handwriting-optional-rg", "text": "RG", "case_sensitive": true},
+        {"id": "handwriting-optional-rg-second", "text": "RG", "case_sensitive": true},
+        {"id": "handwriting-optional-or", "text": "OR", "case_sensitive": true},
         {"id": "handwriting-optional-atcg", "text": "ATCG", "case_sensitive": true},
         {"id": "handwriting-optional-tagc", "text": "TAGC", "case_sensitive": true},
         {"id": "handwriting-optional-acgt", "text": "ACGT", "case_sensitive": true},

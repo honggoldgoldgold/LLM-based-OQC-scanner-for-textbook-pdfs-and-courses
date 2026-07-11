@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 
-BOARD_PROMPT_VERSION = "board.v4"
+BOARD_PROMPT_VERSION = "board.v5"
 
 
 def build_board_prompt(
@@ -30,6 +30,11 @@ def build_board_prompt(
         " Inspect the complete image before responding, including faint but visible diagram "
         "labels, connectors, and operator marks; transcribe uncertain visible text as seen "
         "instead of silently omitting it."
+        " Before returning, perform an internal region-by-region verification pass from "
+        "top-left to bottom-right. Inventory every visible text fragment and every standalone "
+        "operator or connector mark before rendering the Markdown. Count repeated standalone "
+        "marks as separate visible occurrences, including marks between diagrams; preserve "
+        "each exactly once and do not infer new marks."
     )
     if input_languages:
         prompt += f" Expected input languages: {', '.join(input_languages)}."

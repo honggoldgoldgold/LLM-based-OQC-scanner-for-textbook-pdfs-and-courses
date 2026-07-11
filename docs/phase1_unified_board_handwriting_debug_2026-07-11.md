@@ -1,6 +1,6 @@
 # Phase 1 Unified Board Handwriting Debug: 2026-07-11
 
-Status: offline correction complete; repeated live v4 evidence pending.
+Status: v5 offline correction complete; repeated live v5 evidence pending.
 
 This record supersedes the temporary recommendation to split handwriting from
 the `board` capability. The user rejected that split based on legacy product
@@ -110,3 +110,25 @@ complete v4 runs to a new evidence path. Keep Phase 1 NO-GO until both runs pass
 The earlier Qwen3.5-OCR document-parsing signed-URL response remains rejected.
 No signed URL, query credential, private screenshot response, or temporary
 high-resolution audit derivative is committed.
+
+## V5 Continuation After Live V4
+
+V4 attempt 2 confirmed that every non-handwriting single passes. Its
+handwriting output retained only a genuinely missing center `+` after source
+and presentation re-scoring; the observed ASCII `->` connectors were still
+undeclared. The ordered request later timed out.
+
+Two targeted follow-up calls tested one generic prompt change: before returning,
+the model inventories every region and repeated standalone mark. Both calls
+captured both plus signs, reached 30/30 required recall, 6/6 critical tokens,
+and all 10 slots. Their outputs were written by the library's atomic Markdown
+writer. Source comparison also confirmed two `RG` occurrences and an `OR`
+label, which v4 optional truth under-counted or omitted.
+
+`board.v5` incorporates that generic verification step, the two source labels,
+and a corruption-tested line-leading-only ASCII `->` equivalence. It does not
+accept inline arrows, guessed sequence fragments, or a missing `+`. The v5
+manifest is 37,661 bytes with SHA-256
+`d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
+The full isolated suite passes 588 tests; fixture generation is byte-identical,
+compilation passes, and changed Python files pass Ruff.

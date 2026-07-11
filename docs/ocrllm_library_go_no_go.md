@@ -131,14 +131,14 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   or `object.__setattr__` cannot diverge the request from its metadata or smuggle
   an endpoint past the allowlist.
 - The original offline quality checkpoint is commit `e328253`. The current
-  versioned `board.v4` manifest is exactly `37,492` bytes with SHA-256
-  `b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`.
+  versioned `board.v5` manifest is exactly `37,661` bytes with SHA-256
+  `d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
   It authenticates 20 committed artifacts, including 5 images, totaling
   `17,914,515` bytes with `8,299,885` bytes of headroom below the 25 MiB corpus
   ceiling. The checkpoint contains the exact licensed corpus, deterministic
   generators, provenance, per-language/token, critical-slot, formula, table,
   and ordered-anchor scorers, and integrated manifest-authenticated
-  live-scoring gate. V4 keeps one unified board capability, corrects the
+  live-scoring gate. V5 keeps one unified board capability, corrects the
   source-derived handwriting truth, and separates required recall content from
   optional faint source content used only to avoid false precision penalties.
 - The scorer entrypoint authenticates the caller's manifest against a freshly
@@ -1657,6 +1657,16 @@ evidence at
 `936edd25c72d3d58f0d70fed4621c603ced023eca572901a8cf773d62635cc6e`).
 Accepting line-leading ASCII connectors requires a versioned corruption-tested
 normalizer change; the missing `+` remains a workflow blocker.
+
+That correction is implemented as `board.v5`. Its generic region-verification
+instruction captured both standalone plus signs in two targeted atomic-output
+calls. The scorer now declares only line-leading ASCII `->` as the observed
+layout equivalent and keeps inline arrows visible. Source reinspection adds a
+second real `RG` and the visible `OR` label to optional precision truth; guessed
+sequence fragments remain penalized. Both targeted outputs pass v5 with 30/30
+required recall, 6/6 critical tokens, 10/10 slots, and zero unexpected critical
+tokens. The isolated suite passes 588 tests; fixture generation, compilation,
+and changed-file Ruff checks pass. Fresh repeated v5 gate evidence is required.
 
 ### Phase 2: JSON contract and Electron worker
 

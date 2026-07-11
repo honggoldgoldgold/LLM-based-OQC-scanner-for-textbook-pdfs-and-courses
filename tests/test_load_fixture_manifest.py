@@ -39,7 +39,7 @@ def test_loads_frozen_five_class_manifest() -> None:
     assert manifest.max_corpus_bytes == 25 * 1024 * 1024
     assert manifest.scoring_contract.normalization_version == "content-units.v1"
     assert manifest.scoring_contract.tokenizer_version == "content-units.v1"
-    assert manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v4"
+    assert manifest.scoring_contract.formula_dialect == "labeled-latex-restricted.v5"
     assert manifest.scoring_contract.table_dialect == "gfm-pipe-table-restricted.v1"
     assert manifest.scoring_contract.table_header_line_breaks == (
         "<br>",
@@ -63,7 +63,7 @@ def test_loads_frozen_five_class_manifest() -> None:
     assert manifest.raw_sha256 == hashlib.sha256(raw).hexdigest()
     assert manifest.raw_sha256 == FROZEN_PHASE1_MANIFEST_SHA256
     assert manifest.evidence_contract.model == "qwen3.7-plus-2026-05-26"
-    assert manifest.evidence_contract.prompt_version == "board.v4"
+    assert manifest.evidence_contract.prompt_version == "board.v5"
     assert manifest.evidence_contract.enable_thinking is True
     assert manifest.evidence_contract.vl_high_resolution_images is True
     assert [fixture.fixture_class for fixture in manifest.fixtures] == [
@@ -91,7 +91,7 @@ def test_manifest_contains_every_frozen_quality_count() -> None:
         "printed_slide"
     ].content_units
     assert len(by_class["handwriting"].content_units) == 30
-    assert len(by_class["handwriting"].optional_content_units) == 16
+    assert len(by_class["handwriting"].optional_content_units) == 18
     assert len(by_class["handwriting"].critical_slots) == 10
     assert len(by_class["formula_board"].formulas) == 12
     table = by_class["table"].table
@@ -165,6 +165,8 @@ def test_handwriting_separates_required_and_optional_source_occurrences() -> Non
         "R",
         "amp",
         "RG",
+        "RG",
+        "OR",
         "ATCG",
         "TAGC",
         "ACGT",

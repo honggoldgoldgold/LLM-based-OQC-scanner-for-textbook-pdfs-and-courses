@@ -47,9 +47,10 @@ def test_aggregates_repeated_handwriting_tokens_into_exact_counts() -> None:
     assert by_value["End"].count == 2
     assert by_value["+"].count == 2
     assert sum(unit.count for unit in handwriting.text) == 30
-    assert sum(unit.count for unit in handwriting.precision_text) == 46
+    assert sum(unit.count for unit in handwriting.precision_text) == 48
     assert precision_by_value["R"].count == 2
     assert precision_by_value["3"].count == 4
+    assert precision_by_value["RG"].count == 2
     assert len([unit for unit in handwriting.text if unit.accepted == ("End",)]) == 1
     assert len([unit for unit in handwriting.text if unit.accepted == ("+",)]) == 1
 

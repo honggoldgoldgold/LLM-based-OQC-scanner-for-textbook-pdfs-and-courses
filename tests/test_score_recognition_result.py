@@ -152,6 +152,74 @@ Validation
     assert report.passes
 
 
+@pytest.mark.parametrize(
+    "recognized",
+    (
+        """MCS
+Plasmid Vector
+Sticky End
+Blunt End
+
+RG
+Amp RG
+OR
+ATCG
+AC...
+TAGA
+
+Enzymens
+-> Nuclease: Cut
+-> Ligase: join
+
+foreign gene
+TAG...
+TA...
+
++
+I:V 3:1 Ratio
+
+Transformation
++
+Validation
+- Selection
+- Screening
+
+R-DNA / Replasmid""",
+        """MCS
+Plasmid Vector
+Sticky End
+Blunt End
+ATCG
+TACA
+foreign gene
+Enzymens
+-> Nuclease: Cut
+-> Ligase: join
+TAG
+TA
++
+I:V 3:1 Ratio
+Transformation.
++
+Validation
+- Selection
+- Screening.
+R-DNA / Replasmid.
+RG
+Amp RG
+OR""",
+    ),
+)
+def test_region_verified_outputs_pass_the_unified_board_contract(recognized):
+    manifest = load_fixture_manifest()
+    dispatch = manifest.live_dispatch_order[2]
+
+    report = score_recognition_result(manifest, dispatch, recognized)
+
+    assert report.failures == ()
+    assert report.passes
+
+
 def test_ordered_request_missing_formula_and_extra_f99_fail_end_to_end():
     manifest = load_fixture_manifest()
     dispatch = manifest.live_dispatch_order[5]

@@ -10,7 +10,7 @@ from tests.quality.normalize_recognized_markdown_v3 import (
 
 
 _LINE_LEADING_DIAGRAM_CONNECTOR = re.compile(
-    r"^(?P<prefix> {0,3}(?:(?:[-*])|(?:[0-9]{1,3}[.)]))[ \t]+)?"
+    r"^(?P<prefix> {0,3}(?:(?:(?:[-*])|(?:[0-9]{1,3}[.)]))[ \t]+)?)"
     r"(?:\$(?:\\rightarrow|\\downarrow)\$|\\(?:rightarrow|downarrow)|[→↓])"
     r"(?=[ \t]|$)[ \t]*"
 )
@@ -32,4 +32,5 @@ def _remove_line_leading_diagram_connector(line: str) -> str:
     match = _LINE_LEADING_DIAGRAM_CONNECTOR.match(line)
     if match is None:
         return line
-    return f"{match.group('prefix') or ''}{line[match.end():]}"
+    prefix = match.group("prefix")
+    return f"{prefix if prefix.strip() else ''}{line[match.end():]}"

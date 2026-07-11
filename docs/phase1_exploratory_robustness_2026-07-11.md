@@ -8,7 +8,7 @@ private screenshot content and responses are not committed.
 
 ## Call Inventory
 
-Sixteen exploratory network requests were attempted: fifteen returned provider
+Eighteen exploratory network requests were attempted: seventeen returned provider
 responses and one model request returned HTTP 403. All requests used the
 confirmed Beijing-compatible endpoint and zero client retries.
 
@@ -24,6 +24,7 @@ confirmed Beijing-compatible endpoint and zero client retries.
 | 1 | Qwen3.7 with thinking enabled | Captured both visible plus signs, `R-DNA / Replasmid`, and faint labels. Initially rejected under defective truth; reclassified as the v4 workflow candidate. |
 | 1 | Qwen3.5-OCR Responses `document_parsing` | Returned a signed temporary OSS image link instead of text-only recognition. Rejected for result-contract and secret-surface risk. |
 | 3 | Whole-board crop, legacy prompt control, and 4160-pixel audit derivative | Crop, legacy prompt, and resolution did not change the disputed readings; these are not the fix. |
+| 2 | Generic region-verification prompt, Qwen3.7 thinking | Both captured both plus signs and all required content; atomic outputs become the v5 regression cases. |
 
 ## Private Screenshot Diagnostics
 

@@ -11,7 +11,7 @@ def test_line_leading_unicode_and_latex_connectors_are_structural():
     markdown = (
         r"* $\rightarrow$ Nuclease: Cut" "\n"
         r"- $\downarrow$ +" "\n"
-        r"\rightarrow Ligase: join" "\n"
+        r"  \rightarrow Ligase: join" "\n"
         "↓ Validation"
     )
 

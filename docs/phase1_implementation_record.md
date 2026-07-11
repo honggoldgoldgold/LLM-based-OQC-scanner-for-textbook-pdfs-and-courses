@@ -260,3 +260,19 @@ The 57,929-byte evidence SHA-256 is
 `936edd25c72d3d58f0d70fed4621c603ced023eca572901a8cf773d62635cc6e`.
 Preserve it; fix only verified presentation equivalence and continue debugging
 the missing operator before another full gate.
+
+The next correction is `board.v5`. It adds the generic region-by-region
+verification instruction tested in two targeted built-in-provider calls; it
+does not add handwriting routing or fixture-specific prompt text. Both calls
+captured the two standalone plus signs and wrote their Markdown through the
+library atomic writer under ignored `temp/` paths. V5 also accepts only
+line-leading ASCII `->` as layout and adds the source's second `RG` plus `OR` to
+optional precision truth. Partial guessed sequences remain unmatched.
+
+Both targeted outputs score 30/30 required recall, 6/6 critical tokens, 10/10
+critical slots, and zero unexpected critical tokens under v5. The 37,661-byte
+manifest SHA-256 is
+`d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
+The isolated suite passes 588 tests; fixtures are byte-identical, `compileall`
+passes, and changed Python files pass Ruff. Fresh repeated v5 evidence remains
+required.

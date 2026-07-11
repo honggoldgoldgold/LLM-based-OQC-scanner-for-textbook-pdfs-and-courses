@@ -45,12 +45,12 @@ Phase 0 GO is a contract result, not a real recognition-capability claim. The
 active library has an offline-tested built-in DashScope adapter. Offline
 checkpoint `e328253` also committed the licensed five-class Phase 1 corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v4` manifest is `37,492` bytes
+live-scoring gate. The current versioned `board.v5` manifest is `37,661` bytes
 with SHA-256
-`b0a38e364ca7e8a2b799548304a219392b5570ab515187ec72d52cd785bfbbb0`;
+`d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`;
 the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
 with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `583` tests; the generator byte-identity check and `compileall` pass.
+now passes `588` tests; the generator byte-identity check and `compileall` pass.
 Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
 group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
 integration paths proving zero provider calls.
@@ -71,10 +71,12 @@ scorer; a new billed run requires a new explicit decision. Local user
 screenshots under `docs/` remain untracked, non-redistributable supplemental
 material and are not gate evidence.
 
-The v2 gate is also preserved. The source-corrected unified `board.v4` contract
+The v2 gate is also preserved. The source-corrected unified `board.v5` contract
 shows that six of its seven handwriting failure codes came from defective
-annotation; only the genuinely missed second `+` remains. Thinking mode captures
-that operator and passes the same scorer offline. Fresh repeated v4 live
+annotation; only the genuinely missed second `+` remains. The v5 generic
+region-verification prompt captured both plus signs in two targeted calls; both
+clear the unchanged gate after source-complete optional labels and a strictly
+line-leading ASCII-arrow equivalence. Fresh repeated v5 live
 evidence is still required, so Phase 1 remains NO-GO. Read
 `docs/phase1_unified_board_handwriting_debug_2026-07-11.md`.
 
