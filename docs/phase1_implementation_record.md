@@ -465,3 +465,12 @@ the 99,223-byte evidence SHA-256
 `65dad6a47206562c526f643bab600d87e0f68987f443cc6757e7f07ec9fff95b`.
 Next exclude arrows from the auxiliary channel and add restricted formula
 dialect v7; no routing, call-count, retry, or truth change is justified.
+
+V16 excludes all directional arrows from auxiliary insertion while leaving the
+complete primary free to transcribe them. Formula dialect v7 narrowly unwraps
+only one-letter `\mathrm{X}` inside exact labeled formulas and preserves every
+v6 restriction. The preserved v15 formula passes end-to-end scoring; arrow-only
+scout evidence abstains. The 37,864-byte manifest SHA-256 is
+`12b5234850d885926ea01161c31643ae2050728bd377c86e44784377d00abde9`;
+99 focused and 706 exact isolated tests pass. Complete live v16 evidence is
+pending.

@@ -13,6 +13,7 @@ def test_extractor_keeps_exact_supported_rows_and_discards_other_punctuation():
         "+ | foreign gene | I:V\n"
         "/ | R-DNA | Replasmid\n"
         ": | Nuclease | Cut\n"
+        "← | Replasmid | RG\n"
         "+ | Transformation | Validation\n"
         "+ | foreign gene | I:V"
     )
@@ -29,7 +30,13 @@ def test_extractor_preserves_exact_none_as_valid_empty_evidence():
 
 @pytest.mark.parametrize(
     "response",
-    ("/ | R-DNA | Replasmid", "heading only", "", None),
+    (
+        "/ | R-DNA | Replasmid",
+        "← | Replasmid | RG",
+        "heading only",
+        "",
+        None,
+    ),
 )
 def test_extractor_rejects_responses_without_any_supported_exact_record(response):
     with pytest.raises(ValueError, match="standalone-sign response"):

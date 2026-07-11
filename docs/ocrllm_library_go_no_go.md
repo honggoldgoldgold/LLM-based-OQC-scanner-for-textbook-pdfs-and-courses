@@ -2334,6 +2334,15 @@ source-equivalent one-letter `\mathrm{X}` outside dialect v6. Preserve the
 Phase 1 remains NO-GO. See
 `phase1_live_quality_result_v15_2026-07-11.md`.
 
+V16 removes directional arrows from the auxiliary restorable set and upgrades
+the formula scorer to restricted dialect v7, which unwraps only one ASCII
+letter in `\mathrm{X}` inside exact labeled formulas. The primary can still
+transcribe arrows, and broader Roman LaTeX remains rejected. The v16 manifest
+is 37,864 bytes with SHA-256
+`12b5234850d885926ea01161c31643ae2050728bd377c86e44784377d00abde9`;
+all 706 isolated tests pass. Phase 1 remains NO-GO pending complete live
+evidence. See `phase1_v16_arrow_exclusion_and_formula_dialect_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

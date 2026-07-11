@@ -134,6 +134,12 @@ only source-equivalent one-letter `\mathrm{X}` outside the restricted formula
 dialect. Phase 1 remains NO-GO; see
 `docs/phase1_live_quality_result_v15_2026-07-11.md`.
 
+V16 prevents auxiliary restoration of ambiguous directional arrows and adds a
+strict formula dialect that accepts only one-letter `\mathrm{X}` inside exact
+labeled formulas. The unified profile, provider count, truth, and quorum remain
+unchanged. All 706 offline tests pass; live evidence is pending. See
+`docs/phase1_v16_arrow_exclusion_and_formula_dialect_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

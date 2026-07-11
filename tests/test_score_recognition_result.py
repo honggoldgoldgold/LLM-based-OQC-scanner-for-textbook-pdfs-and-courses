@@ -73,6 +73,24 @@ def test_perfect_single_and_ordered_dispatches_return_immutable_passing_reports(
         single_report.profile = "changed"  # type: ignore[misc]
 
 
+def test_formula_scorer_accepts_source_equivalent_single_letter_mathrm_groups():
+    manifest = load_fixture_manifest()
+    dispatch = manifest.live_dispatch_order[3]
+    recognized = (
+        _dispatch_markdown(manifest, dispatch)
+        .replace(
+            r"P(A \mid B)",
+            r"\mathrm{P}(\mathrm{A} \mid \mathrm{B})",
+        )
+        .replace(r"\det(M)", r"\det(\mathrm{M})")
+        .replace(r"E[X_2]", r"\mathrm{E}[X_2]")
+    )
+
+    report = score_recognition_result(manifest, dispatch, recognized)
+
+    assert report.passes
+
+
 def test_omitted_handwriting_critical_value_fails_while_ratios_still_pass():
     manifest = load_fixture_manifest()
     dispatch = manifest.live_dispatch_order[2]

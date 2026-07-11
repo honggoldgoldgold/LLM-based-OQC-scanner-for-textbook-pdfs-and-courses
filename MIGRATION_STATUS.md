@@ -1098,6 +1098,16 @@ evidence SHA-256
 V16 must exclude directional arrows from auxiliary restoration and narrowly
 unwrap one-letter `\mathrm{X}` in labeled formulas. Do not split handwriting.
 
+V16 implements exactly those changes. Auxiliary extraction now permits only
+`+`, `-`, `=`, `<=`, `>=`, `≤`, and `≥`; directional arrows can still appear
+in the primary but can never be inserted by scouts. Formula dialect v7 unwraps
+only one ASCII letter in `\mathrm{X}` inside exact labeled math wrappers, after
+all v6 normalization; broader Roman groups remain rejected. The 37,864-byte
+manifest SHA-256 is
+`12b5234850d885926ea01161c31643ae2050728bd377c86e44784377d00abde9`;
+99 focused and all 706 isolated tests pass. See
+`docs/phase1_v16_arrow_exclusion_and_formula_dialect_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

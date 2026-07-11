@@ -17,3 +17,4 @@ def test_sign_scout_prompt_requires_only_bounded_plain_text_records():
     assert "Do not output headings, fences" in prompt
     assert "SIGN must be exactly one of" in prompt
     assert "colon, slash, apostrophe" in prompt
+    assert "Never report directional or diagram arrows" in prompt

@@ -9,6 +9,7 @@ from .parse_standalone_sign_ledger import (
 
 
 _MAX_SCOUT_RESPONSE_LINES = 256
+_AUXILIARY_RESTORABLE_SIGNS = frozenset({"+", "-", "=", "<=", ">=", "≤", "≥"})
 
 
 def extract_supported_standalone_sign_events(
@@ -31,7 +32,9 @@ def extract_supported_standalone_sign_events(
             events = parse_standalone_sign_ledger(line)
         except ValueError:
             continue
-        result.extend(events)
+        result.extend(
+            event for event in events if event.sign in _AUXILIARY_RESTORABLE_SIGNS
+        )
     if not result:
         raise ValueError("standalone-sign response has no supported exact record")
     return tuple(dict.fromkeys(result))

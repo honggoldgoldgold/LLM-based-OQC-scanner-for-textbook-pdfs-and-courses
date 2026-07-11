@@ -62,8 +62,10 @@ URLs rather than sending local paths. The v15 evidence candidate uses one
 thinking-enabled pinned Qwen3.7 transcript plus three independent
 thinking-enabled sign ledgers from the same pinned model. Only exact allowlisted
 records can reach two-of-three deterministic quorum; scout prose and unsupported
-punctuation cannot enter the result. Qwen-VL Max remains an explicit supported
-scout option but is not the v15 evidence baseline. There is still no local OCR
+punctuation cannot enter the result. V16 additionally forbids directional-arrow
+insertion by scouts while leaving complete primary transcription unchanged.
+Qwen-VL Max remains an explicit supported scout option but is not the Phase 1
+evidence baseline. There is still no local OCR
 backend, key pool, automatic retry/model fallback, or image resume; PDF, audio,
 and video remain unavailable. Local user screenshots are uncommitted
 supplemental material and never replace the committed corpus in pass/fail

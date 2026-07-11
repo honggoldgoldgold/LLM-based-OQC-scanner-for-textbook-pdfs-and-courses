@@ -120,7 +120,7 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v15",
+                "prompt_version": "board.v16",
                 "provider_call_count": (
                     config.preferences.draft_candidates
                     + config.preferences.review_passes
