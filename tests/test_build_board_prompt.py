@@ -6,10 +6,10 @@ from ocrllm.profiles.build_board_prompt import (
 )
 
 
-def test_board_v5_declares_verified_transcription_without_fixture_specific_labels():
+def test_board_v6_declares_verified_transcription_without_fixture_specific_labels():
     prompt = build_board_prompt(("en-US", "zh-CN"), None)
 
-    assert BOARD_PROMPT_VERSION == "board.v5"
+    assert BOARD_PROMPT_VERSION == "board.v6"
     assert "LABEL: $formula$" in prompt
     assert "do not put labeled formulas in tables" in prompt
     assert "do not invent labels" in prompt
@@ -22,5 +22,7 @@ def test_board_v5_declares_verified_transcription_without_fixture_specific_label
     assert "internal region-by-region verification pass" in prompt
     assert "Count repeated standalone marks as separate visible occurrences" in prompt
     assert "do not infer new marks" in prompt
+    assert "Do not interpret repeated hatch marks" in prompt
+    assert "spatially distinct from drawing strokes" in prompt
     assert "F01" not in prompt
     assert "Expected input languages: en-US, zh-CN." in prompt

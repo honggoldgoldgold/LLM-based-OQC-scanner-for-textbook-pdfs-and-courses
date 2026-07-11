@@ -6,13 +6,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from ..config import Config
-from ..errors import ConfigError, OCRLLMError, ProviderError
+from ..errors import OCRLLMError
 from ..processor_output import ProcessorOutput
 from ..profiles.build_board_prompt import BOARD_PROMPT_VERSION, build_board_prompt
-from ..providers.map_injected_provider_error import map_injected_provider_error
+from ..profiles.build_board_review_prompt import build_board_review_prompt
+from ..providers.call_vision_provider import call_vision_provider
 from ..providers.resolve_vision_provider import resolve_vision_provider
-from ..providers.validate_provider_markdown import validate_provider_markdown
-from ..raise_if_cancelled import raise_if_cancelled
 from ..snapshot_config import snapshot_config
 
 
@@ -26,55 +25,30 @@ def recognize_images(
     if type(config.provider) is str:
         config = snapshot_config(config)
     resolved_provider = resolve_vision_provider(config)
-    provider = resolved_provider.value
-
-    lookup_error: ProviderError | OCRLLMError | None = None
+    base_prompt = build_board_prompt(config.input_languages, config.output_language)
     try:
-        recognize_method = getattr(provider, "recognize_images", None)
-    except Exception as error:
-        lookup_error = map_injected_provider_error(error, model=resolved_provider.model)
-    if lookup_error is not None:
-        del provider
-        raise lookup_error
-    if not callable(recognize_method):
-        del provider, recognize_method
-        raise ConfigError(
-            "Config.provider must be an injected object with a callable recognize_images method.",
-            code="CONFIG_INVALID",
+        markdown = call_vision_provider(
+            resolved_provider,
+            image_paths,
+            prompt=base_prompt,
+            config=config,
         )
-
-    prompt = build_board_prompt(config.input_languages, config.output_language)
-    raise_if_cancelled(config.cancellation)
-    dispatch_error: OCRLLMError | None = None
-    try:
-        provider_value = recognize_method(tuple(image_paths), prompt=prompt, config=config)
-    except Exception as error:
-        if resolved_provider.built_in and isinstance(error, OCRLLMError):
-            dispatch_error = error
-        else:
-            dispatch_error = map_injected_provider_error(
-                error,
-                model=resolved_provider.model,
+    except OCRLLMError as error:
+        error._add_safe_detail("workflow_pass", "draft")
+        error._add_safe_detail("provider_calls_attempted", 1)
+        raise
+    for _ in range(config.preferences.review_passes):
+        try:
+            markdown = call_vision_provider(
+                resolved_provider,
+                image_paths,
+                prompt=build_board_review_prompt(base_prompt, markdown),
+                config=config,
             )
-    if dispatch_error is not None:
-        del provider, recognize_method
-        raise dispatch_error
-
-    validation_error: ProviderError | None = None
-    try:
-        markdown = validate_provider_markdown(provider_value)
-    except ProviderError as error:
-        validation_error = ProviderError(
-            str(error),
-            code=error.code,
-            details={
-                "model": resolved_provider.model,
-                "provider": resolved_provider.name,
-            },
-        )
-    if validation_error is not None:
-        del provider, recognize_method, provider_value
-        raise validation_error
+        except OCRLLMError as error:
+            error._add_safe_detail("workflow_pass", "review")
+            error._add_safe_detail("provider_calls_attempted", 2)
+            raise
 
     metadata: dict[str, str | int | bool | None] = {
         "image_count": len(image_paths),
@@ -82,6 +56,8 @@ def recognize_images(
         "prompt_version": BOARD_PROMPT_VERSION,
         "provider": resolved_provider.name,
         "profile": profile,
+        "provider_call_count": 1 + config.preferences.review_passes,
+        "review_passes": config.preferences.review_passes,
     }
     if resolved_provider.name == "dashscope" and config.dashscope is not None:
         metadata.update(

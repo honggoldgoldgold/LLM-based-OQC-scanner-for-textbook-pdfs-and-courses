@@ -389,11 +389,17 @@ class DashScopeSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class RecognitionPreferences:
+    review_passes: int = 0
+
+
+@dataclass(frozen=True, slots=True)
 class Config:
     provider: str | object | None = field(default=None, repr=False)
     api_key: str | None = field(default=None, repr=False)
     model: str | None = None
     dashscope: DashScopeSettings | None = field(default=None, repr=False)
+    preferences: RecognitionPreferences = field(default_factory=RecognitionPreferences)
     profile: str | None = None
     input_languages: tuple[str, ...] = ()
     output_language: str | None = None
@@ -1164,9 +1170,9 @@ Rules:
 - Preserve a primary typed request error when client cleanup also fails, adding
   only `provider_client_cleanup_failed=true`; a cleanup-only failure is an
   invalid provider response.
-- Successful image metadata records provider/model, `board.v5`, profile, image
-  count, region, and the thinking/high-resolution flags, never credentials or
-  request/source content.
+- Successful image metadata records provider/model, `board.v6`, profile, image
+  count, region, review passes, provider-call count, and the thinking/high-
+  resolution flags, never credentials or request/source content.
 
 The Phase 1 choices track Alibaba's [visual-understanding model and limit
 reference](https://www.alibabacloud.com/help/en/model-studio/vision-model),

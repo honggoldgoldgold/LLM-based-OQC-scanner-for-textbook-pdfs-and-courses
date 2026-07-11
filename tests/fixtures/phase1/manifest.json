@@ -7,7 +7,8 @@
     "profile": "board",
     "provider": "dashscope",
     "model": "qwen3.7-plus-2026-05-26",
-    "prompt_version": "board.v5",
+    "prompt_version": "board.v6",
+    "review_passes": 1,
     "enable_thinking": true,
     "vl_high_resolution_images": true,
     "output_language": null

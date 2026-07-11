@@ -16,6 +16,7 @@ from ocrllm import (
     DashScopeSettings,
     InvalidSource,
     ProviderError,
+    RecognitionPreferences,
     recognize,
 )
 from write_test_image import write_test_image
@@ -130,10 +131,12 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v5"
+    assert result.metadata["prompt_version"] == "board.v6"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
+    assert result.metadata["provider_call_count"] == 1
+    assert result.metadata["review_passes"] == 0
     assert api_key_sentinel not in repr(result)
     assert api_key_sentinel not in repr(result.metadata)
 
@@ -181,6 +184,58 @@ def test_explicit_dashscope_model_reaches_request_and_result(tmp_path, monkeypat
 
     assert client.calls[0]["model"] == "qwen3.7-plus"
     assert result.metadata["model"] == "qwen3.7-plus"
+
+
+def test_builtin_review_pass_makes_two_no_retry_requests_and_returns_review(
+    tmp_path,
+    monkeypatch,
+):
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = FakeClient(response=_response(content="# Reviewed board\n"))
+    fake_openai = _install_fake_openai(monkeypatch, client)
+
+    result = recognize(
+        source,
+        config=Config(
+            provider="dashscope",
+            dashscope=_settings(),
+            api_key="test-key",
+            preferences=RecognitionPreferences(review_passes=1),
+        ),
+    )
+
+    assert result.markdown == "# Reviewed board\n"
+    assert result.metadata["provider_call_count"] == 2
+    assert result.metadata["review_passes"] == 1
+    assert len(fake_openai.constructor_calls) == 2
+    assert len(client.calls) == 2
+    first_prompt = client.calls[0]["messages"][0]["content"][-1]["text"]
+    review_prompt = client.calls[1]["messages"][0]["content"][-1]["text"]
+    assert "BEGIN FALLIBLE DRAFT DATA" not in first_prompt
+    assert "> # Reviewed board" in review_prompt
+    assert all(call["temperature"] == 0 for call in client.calls)
+
+
+def test_mutated_review_preferences_fail_before_builtin_provider_work(
+    tmp_path,
+    monkeypatch,
+):
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = FakeClient()
+    fake_openai = _install_fake_openai(monkeypatch, client)
+    config = Config(
+        provider="dashscope",
+        dashscope=_settings(),
+        api_key="test-key",
+        preferences=RecognitionPreferences(review_passes=1),
+    )
+    object.__setattr__(config.preferences, "review_passes", 2)
+
+    with pytest.raises(ConfigError, match="review_passes"):
+        recognize(source, config=config)
+
+    assert fake_openai.constructor_calls == []
+    assert client.calls == []
 
 
 def test_cancellation_callback_cannot_diverge_builtin_request_metadata(

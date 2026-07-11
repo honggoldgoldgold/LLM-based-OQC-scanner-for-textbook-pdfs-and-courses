@@ -12,6 +12,7 @@ from typing import Literal, cast
 from .errors import ConfigError
 from .freeze_json_value import FrozenJSONValue, JSONValue, freeze_json_value
 from .providers.dashscope.provider_settings import DashScopeSettings
+from .recognition_preferences import RecognitionPreferences
 
 
 _LANGUAGE_SUBTAG = re.compile(r"^[A-Za-z0-9]{1,8}$")
@@ -26,6 +27,7 @@ class Config:
     api_key: str | None = field(default=None, repr=False)
     model: str | None = None
     dashscope: DashScopeSettings | None = field(default=None, repr=False)
+    preferences: RecognitionPreferences = field(default_factory=RecognitionPreferences)
     profile: str | None = None
     input_languages: tuple[str, ...] = ()
     output_language: str | None = None
@@ -50,6 +52,7 @@ class Config:
         _validate_optional_nonempty_text(self.profile, field_name="profile")
         _validate_optional_text(self.pdf_password, field_name="pdf_password")
         dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
+        preferences = _normalize_preferences(self.preferences)
 
         input_languages = _normalize_input_languages(self.input_languages)
         output_language = _normalize_output_language(self.output_language)
@@ -77,6 +80,7 @@ class Config:
         object.__setattr__(self, "pdf_pages", pdf_pages)
         object.__setattr__(self, "timeout_seconds", timeout_seconds)
         object.__setattr__(self, "dashscope", dashscope)
+        object.__setattr__(self, "preferences", preferences)
         object.__setattr__(self, "extra", extra)
 
     def output_directory(self) -> Path | None:
@@ -84,6 +88,15 @@ class Config:
         if self.output_dir is None:
             return None
         return Path(self.output_dir)
+
+
+def _normalize_preferences(value: object) -> RecognitionPreferences:
+    if type(value) is not RecognitionPreferences:
+        raise ConfigError(
+            "Config.preferences must be an exact RecognitionPreferences instance",
+            code="CONFIG_INVALID",
+        ) from None
+    return RecognitionPreferences(review_passes=value.review_passes)
 
 
 def _validate_optional_nonempty_text(

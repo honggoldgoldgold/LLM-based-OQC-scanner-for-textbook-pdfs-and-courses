@@ -286,3 +286,25 @@ hatch strokes. The hard unexpected-critical gate correctly rejected it. The
 95,483-byte evidence SHA-256 is
 `0ceb74a7f05ed2ca5cbcac8eb3eb1c340dfac4bf43ceb84e6883cbe4c40e2343`.
 Do not add the digits to truth. Test a generic diagram-texture exclusion next.
+
+The post-v5 investigation is fully recorded in
+`phase1_v6_review_workflow_debug_2026-07-11.md`. Twenty-eight targeted calls
+tested hatch exclusion, broad/focused details, explicit glyph counting, four
+seeds, and three review-framing variants. Crops were inconsistent and added
+duplication risk. Every explicit seed reproducibly missed the center `+`.
+Prompt-only single pass remained stochastic.
+
+Three readable draft-to-review trials passed, including one repair of a failing
+draft. JSON-string framing failed twice because it obscured line comparison.
+Line-by-line blockquote framing kept hostile-looking draft lines as data and
+passed both actual production probes. The resulting `board.v6` adds immutable
+`RecognitionPreferences(review_passes=0|1)`, defaults review off, calls the same
+provider/model once more only when explicitly enabled, returns/writes only the
+review, and reports both review and provider-call counts. Review failure never
+falls back to the draft.
+
+V6 pins one review pass for evidence: 13 recognition invocations, 26 confirmed
+provider calls, evidence schema v6. The 37,685-byte manifest SHA-256 is
+`c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`.
+The isolated suite passes 599 tests; fixture generation, compilation, Ruff, and
+diff checks pass. Fresh repeated live v6 evidence remains required.

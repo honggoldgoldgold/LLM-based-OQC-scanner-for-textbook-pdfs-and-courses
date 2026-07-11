@@ -2,6 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
+from ocrllm import RecognitionPreferences
 from ocrllm.config import Config
 from ocrllm.errors import ConfigError
 
@@ -192,3 +193,28 @@ def test_config_does_not_require_future_modality_fields_at_construction():
 def test_output_directory_preserves_memory_only_default_and_converts_paths(tmp_path):
     assert Config().output_directory() is None
     assert Config(output_dir=str(tmp_path)).output_directory() == tmp_path
+
+
+def test_recognition_preferences_are_exact_frozen_and_bounded():
+    assert Config().preferences == RecognitionPreferences(review_passes=0)
+    assert Config(
+        preferences=RecognitionPreferences(review_passes=1)
+    ).preferences.review_passes == 1
+
+    for bad_value in (True, -1, 2, "1"):
+        with pytest.raises(ConfigError, match="review_passes"):
+            RecognitionPreferences(review_passes=bad_value)  # type: ignore[arg-type]
+
+    class PreferencesSubclass(RecognitionPreferences):
+        pass
+
+    with pytest.raises(ConfigError, match="exact RecognitionPreferences"):
+        Config(preferences=PreferencesSubclass())
+
+
+def test_config_revalidates_mutated_nested_preferences():
+    preferences = RecognitionPreferences(review_passes=0)
+    object.__setattr__(preferences, "review_passes", 2)
+
+    with pytest.raises(ConfigError, match="review_passes"):
+        Config(preferences=preferences)

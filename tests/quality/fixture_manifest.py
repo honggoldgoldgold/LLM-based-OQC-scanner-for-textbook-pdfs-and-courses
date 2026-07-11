@@ -14,6 +14,7 @@ class EvidenceContract:
     provider: str
     model: str
     prompt_version: str
+    review_passes: int
     enable_thinking: bool
     vl_high_resolution_images: bool
     output_language: str | None

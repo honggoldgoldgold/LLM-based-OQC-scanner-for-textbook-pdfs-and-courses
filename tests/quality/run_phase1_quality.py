@@ -20,6 +20,7 @@ from ocrllm import (
     DashScopeSettings,
     OCRLLMError,
     RecognitionResult,
+    RecognitionPreferences,
     __version__ as OCRLLM_VERSION,
     recognize,
 )
@@ -30,6 +31,8 @@ from ocrllm.providers.dashscope.build_dashscope_image_request import (
 
 from tests.quality.build_phase1_dispatch_plan import (
     CONFIRMED_PAID_CALL_COUNT,
+    PROVIDER_CALLS_PER_RECOGNITION,
+    RECOGNITION_INVOCATION_COUNT,
     Phase1DispatchPlanEntry,
     build_phase1_dispatch_plan,
 )
@@ -69,7 +72,7 @@ from tests.quality.write_quality_evidence_atomically import (
 DEFAULT_REPOSITORY_ROOT = Path(__file__).parents[2]
 PHASE1_TIMEOUT_SECONDS = 120.0
 _TEMPERATURE = 0
-_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v5"
+_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v6"
 _MANIFEST_RELATIVE_PATH = "tests/fixtures/phase1/manifest.json"
 _BOUND_OUTPUT_ROOTS = (
     "src/ocrllm",
@@ -503,6 +506,8 @@ def _initial_evidence(
             "provider": manifest.evidence_contract.provider,
             "model": manifest.evidence_contract.model,
             "prompt_version": manifest.evidence_contract.prompt_version,
+            "review_passes": manifest.evidence_contract.review_passes,
+            "provider_calls_per_recognition": PROVIDER_CALLS_PER_RECOGNITION,
             "provider_region": region,
             "base_url_sha256": hashlib.sha256(base_url.encode("utf-8")).hexdigest(),
             "endpoint_kind": (
@@ -537,8 +542,10 @@ def _initial_evidence(
             {"run_index": 2, "status": "pending", "passes": None, "dispatches": []},
         ],
         "summary": {
-            "planned_recognize_invocations": CONFIRMED_PAID_CALL_COUNT,
+            "planned_recognize_invocations": RECOGNITION_INVOCATION_COUNT,
+            "planned_provider_calls": CONFIRMED_PAID_CALL_COUNT,
             "recognize_invocations": 0,
+            "reported_provider_calls": 0,
             "completed_full_runs": 0,
             "passed_full_runs": 0,
             "simulated_plan_passed": False,
@@ -707,6 +714,7 @@ def _update_summary(evidence: dict[str, object]) -> None:
     summary = _require_mapping(evidence["summary"], "summary")
     summary["completed_full_runs"] = completed
     summary["passed_full_runs"] = passed
+    summary["reported_provider_calls"] = _reported_provider_call_count(evidence)
     smoke = evidence["smoke"]
     smoke_accepted = bool(
         type(smoke) is dict
@@ -719,7 +727,8 @@ def _update_summary(evidence: dict[str, object]) -> None:
         and smoke_accepted
         and completed == 2
         and passed == 2
-        and summary["recognize_invocations"] == CONFIRMED_PAID_CALL_COUNT
+        and summary["recognize_invocations"] == RECOGNITION_INVOCATION_COUNT
+        and summary["reported_provider_calls"] == CONFIRMED_PAID_CALL_COUNT
     )
     execution = _require_mapping(evidence["execution"], "execution")
     summary["simulated_plan_passed"] = bool(
@@ -728,6 +737,27 @@ def _update_summary(evidence: dict[str, object]) -> None:
     summary["phase1_gate_passed"] = bool(
         execution["mode"] == "live" and plan_passed
     )
+
+
+def _reported_provider_call_count(evidence: dict[str, object]) -> int:
+    records: list[object] = [evidence.get("smoke")]
+    for run in evidence.get("full_runs", []):
+        if type(run) is dict:
+            records.extend(run.get("dispatches", []))
+    result = 0
+    for record in records:
+        if type(record) is not dict:
+            continue
+        result_contract = record.get("result_contract")
+        if type(result_contract) is not dict or result_contract.get("status") != "passed":
+            continue
+        metadata = result_contract.get("metadata")
+        if type(metadata) is not dict:
+            continue
+        provider_call_count = metadata.get("provider_call_count")
+        if type(provider_call_count) is int and provider_call_count > 0:
+            result += provider_call_count
+    return result
 
 
 def _build_config(
@@ -740,6 +770,7 @@ def _build_config(
     return Config(
         provider=contract.provider,
         model=contract.model,
+        preferences=RecognitionPreferences(review_passes=contract.review_passes),
         dashscope=DashScopeSettings(
             region=settings.region,
             base_url=settings.base_url,

@@ -85,3 +85,9 @@ withdrawn because it was based on defective annotation, not a demonstrated
 capability boundary. Do not add handwriting-specific routing, thresholds,
 prompts, or provider selection. Phase 1 still remains NO-GO until two complete
 fresh v4 live runs pass.
+
+Later v5/v6 diagnostics are recorded separately in
+`phase1_v6_review_workflow_debug_2026-07-11.md`; its 28-call inventory must be
+included when auditing total API use. The selected v6 path is one explicit
+same-model review pass, not a capability split, seed trick, crop pipeline, or
+threshold relaxation.

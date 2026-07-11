@@ -8,12 +8,16 @@ from typing import Literal
 from tests.quality.fixture_manifest import Phase1FixtureManifest
 
 
-CONFIRMED_PAID_CALL_COUNT = 13
+RECOGNITION_INVOCATION_COUNT = 13
+PROVIDER_CALLS_PER_RECOGNITION = 2
+CONFIRMED_PAID_CALL_COUNT = (
+    RECOGNITION_INVOCATION_COUNT * PROVIDER_CALLS_PER_RECOGNITION
+)
 
 
 @dataclass(frozen=True, slots=True)
 class Phase1DispatchPlanEntry:
-    """One paid recognition invocation in immutable execution order."""
+    """One library recognition invocation in immutable execution order."""
 
     attempt_index: int
     phase: Literal["smoke", "full"]
@@ -65,8 +69,8 @@ def build_phase1_dispatch_plan(
             )
 
     result = tuple(plan)
-    if len(result) != CONFIRMED_PAID_CALL_COUNT or tuple(
+    if len(result) != RECOGNITION_INVOCATION_COUNT or tuple(
         item.attempt_index for item in result
-    ) != tuple(range(CONFIRMED_PAID_CALL_COUNT)):
-        raise AssertionError("the frozen paid-call plan is internally inconsistent")
+    ) != tuple(range(RECOGNITION_INVOCATION_COUNT)):
+        raise AssertionError("the frozen recognition plan is internally inconsistent")
     return result

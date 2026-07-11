@@ -531,8 +531,9 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   typed error remains primary with only
   `provider_client_cleanup_failed=true` attached.
 - Successful result metadata records `provider`, `model`,
-  `prompt_version="board.v5"`, `profile`, `image_count`, `provider_region`,
-  `enable_thinking`, and `vl_high_resolution_images`. It never records the API
+  `prompt_version="board.v6"`, `profile`, `image_count`, `provider_region`,
+  `review_passes`, `provider_call_count`, `enable_thinking`, and
+  `vl_high_resolution_images`. It never records the API
   key or request body.
 - The historical adapter-only implementation checkpoint is commit `a6a8b18`.
   Its final offline gate passed `283` tests, `compileall`, and
@@ -571,7 +572,9 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   No provider/API call was made.
 - The runner freezes exactly 13 zero-retry invocations: one clean-slide smoke,
   then six manifest dispatches in run A and the same six independently
-  dispatched in run B. The live entrypoint closes over real dependencies and
+  dispatched in run B. V6 explicitly performs two same-model provider calls per
+  recognition, so its paid-call confirmation is 26 while the dispatch order
+  remains 13. The live entrypoint closes over real dependencies and
   cannot accept test injections. The private simulated path records its injected
   dependencies and can pass only `simulated_plan_passed`, never
   `phase1_gate_passed`.
@@ -880,6 +883,31 @@ those digits as optional truth. Add a generic hatch/fill/texture exclusion to
 the prompt and test it without splitting `board` or weakening the gate. See
 `docs/phase1_live_quality_result_v5_2026-07-11.md`.
 
+Post-v5 diagnostics are recorded comprehensively in
+`docs/phase1_v6_review_workflow_debug_2026-07-11.md`: 28 provider calls, 27
+complete results, and one timeout. Single-pass hatch wording removed the
+`111110` hallucination but still missed the center `+` stochastically. Broad and
+focused crops were inconsistent; explicit glyph counting did not fix recall;
+seeds 1234, 42, 3407, and 20260711 reproducibly missed the same `+`. Those paths
+are rejected.
+
+Three readable draft-to-review trials all passed, including one that repaired a
+failing draft. JSON-string framing was too opaque and failed twice. The final
+line-by-line quoted framing is both injection-resistant and readable; two actual
+production `RecognitionPreferences(review_passes=1)` probes passed with 30/30
+recall, 6/6 critical tokens, zero unexpected critical tokens, and metadata
+reporting two provider calls.
+
+`board.v6` implements that explicit one-model workflow. Review defaults off;
+only an exact `RecognitionPreferences(review_passes=1)` enables one review. A
+review failure fails the whole request, and only reviewed Markdown can be
+returned or atomically written. The manifest is 37,685 bytes with SHA-256
+`c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`.
+The gate remains 13 ordered recognition invocations but precommits 26 provider
+calls and requires all 26 to be reported before GO. The isolated suite passes
+599 tests; generated fixtures, compilation, Ruff, and diff checks pass. Commit
+and push v6, then run a new clean 26-call evidence path.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 
@@ -896,7 +924,7 @@ Office, social, GPU, and offline-model work are not the next task.
 - Do not begin or claim HarmonyOS/ArkTS compatibility.
 - Do not claim support from code existence, mocks, installed dependencies, or
   historical logs alone.
-- Do not make a paid provider call outside the confirmed fixed 13-call plan, or
+- Do not make a paid provider call outside the versioned confirmed call plan, or
   before the intended Git/import/manifest/artifact preflight is clean and the
   new evidence path is proven absent.
 - Do not pass fake callables or clocks into the public live runner or relabel

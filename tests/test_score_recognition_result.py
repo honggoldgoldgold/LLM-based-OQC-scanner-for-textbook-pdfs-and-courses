@@ -208,6 +208,66 @@ R-DNA / Replasmid.
 RG
 Amp RG
 OR""",
+        """MCS
+RG
+OR
+Amp RG
+
+Plasmid Vector
+Sticky End
+ATCG
+
+Blunt End
+AC...
+TGCA
+
+Enzymens
+-> Nuclease: Cut
+-> Ligase: join
+
+foreign gene
+TAG...
+TA...
+
++
+
+I:V
+3:1 Ratio
+
+Transformation.
++
+Validation
+- Selection
+- Screening.
+
+R-DNA / Replasmid.""",
+        """MCS
+Plasmid Vector
+Sticky End
+Blunt End
+ATCG
+TGCA
+RG
+OR
+Amp RG
+
+Enzymens
+-> Nuclease: Cut
+-> Ligase: join
+
+foreign gene
+TAG...
+TA...
++
+I:V 3:1 Ratio
+
+Transformation.
++
+Validation
+- Selection
+- Screening.
+
+R-DNA/Replasmid.""",
     ),
 )
 def test_region_verified_outputs_pass_the_unified_board_contract(recognized):

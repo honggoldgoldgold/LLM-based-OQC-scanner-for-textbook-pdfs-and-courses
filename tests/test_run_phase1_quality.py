@@ -13,6 +13,7 @@ from ocrllm import RecognitionResult
 from ocrllm.errors import RateLimited
 from tests.quality.build_phase1_dispatch_plan import (
     CONFIRMED_PAID_CALL_COUNT,
+    RECOGNITION_INVOCATION_COUNT,
     build_phase1_dispatch_plan,
 )
 from tests.quality.capture_quality_repository_identity import (
@@ -119,7 +120,9 @@ class FakeRecognizer:
             metadata={
                 "image_count": len(paths),
                 "model": config.model,
-                "prompt_version": "board.v5",
+                "prompt_version": "board.v6",
+                "provider_call_count": 1 + config.preferences.review_passes,
+                "review_passes": config.preferences.review_passes,
                 "provider": "dashscope",
                 "profile": "board",
                 "provider_region": config.dashscope.region,
@@ -152,11 +155,11 @@ def test_fake_runner_executes_exact_plan_with_fresh_configs_and_safe_evidence(
 
     manifest = load_fixture_manifest()
     expected_plan = build_phase1_dispatch_plan(manifest)
-    assert len(fake.calls) == CONFIRMED_PAID_CALL_COUNT
+    assert len(fake.calls) == RECOGNITION_INVOCATION_COUNT
     assert tuple(call[0] for call in fake.calls) == tuple(
         entry.fixture_ids for entry in expected_plan
     )
-    assert len(set(fake.config_ids)) == CONFIRMED_PAID_CALL_COUNT
+    assert len(set(fake.config_ids)) == RECOGNITION_INVOCATION_COUNT
     for (fixture_ids, config), entry in zip(fake.calls, expected_plan, strict=True):
         expected_languages = tuple(
             dict.fromkeys(
@@ -170,11 +173,14 @@ def test_fake_runner_executes_exact_plan_with_fresh_configs_and_safe_evidence(
         assert config.input_languages == expected_languages
         assert config.api_key is None
         assert config.timeout_seconds == 120.0
+        assert config.preferences.review_passes == 1
         assert entry.fixture_ids == fixture_ids
 
     assert evidence["state"] == "complete"
     assert evidence["active_attempt"] is None
     assert evidence["summary"]["recognize_invocations"] == 13
+    assert evidence["summary"]["planned_provider_calls"] == 26
+    assert evidence["summary"]["reported_provider_calls"] == 26
     assert evidence["summary"]["completed_full_runs"] == 2
     assert evidence["summary"]["passed_full_runs"] == 2
     assert evidence["summary"]["simulated_plan_passed"] is True
@@ -191,7 +197,7 @@ def test_fake_runner_executes_exact_plan_with_fresh_configs_and_safe_evidence(
             region=REGION,
             base_url=BASE_URL,
             evidence_path=tmp_path / "public-injection.json",
-            confirm_paid_calls=13,
+            confirm_paid_calls=CONFIRMED_PAID_CALL_COUNT,
             recognize_callable=fake,  # type: ignore[call-arg]
         )
     assert evidence["execution"] == {
@@ -457,13 +463,13 @@ def test_existing_evidence_and_wrong_confirmation_fail_before_recognition(
 
     with pytest.raises(Phase1QualityRunnerError, match="must not already exist"):
         _run(fake, existing)
-    with pytest.raises(Phase1QualityRunnerError, match="must equal 13"):
+    with pytest.raises(Phase1QualityRunnerError, match="must equal 26"):
         clock = DeterministicClock()
         _run_phase1_quality_simulated(
             region=REGION,
             base_url=BASE_URL,
             evidence_path=tmp_path / "wrong-confirmation.json",
-            confirm_paid_calls=12,
+            confirm_paid_calls=25,
             environment={"DASHSCOPE_API_KEY": SECRET},
             recognize_callable=fake,
             utc_now=clock.utc_now,
@@ -488,7 +494,7 @@ def _run(
         region=REGION,
         base_url=BASE_URL,
         evidence_path=evidence_path,
-        confirm_paid_calls=13,
+        confirm_paid_calls=CONFIRMED_PAID_CALL_COUNT,
         environment=source_environment,
         recognize_callable=fake,
         utc_now=clock.utc_now,

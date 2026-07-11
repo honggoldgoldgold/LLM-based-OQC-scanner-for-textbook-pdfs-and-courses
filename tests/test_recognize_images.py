@@ -8,7 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from ocrllm import Config, ConfigError, ProviderError, recognize, recognize_batch
+from ocrllm import (
+    Config,
+    ConfigError,
+    ProviderError,
+    RecognitionPreferences,
+    recognize,
+    recognize_batch,
+)
 
 from write_test_image import write_test_image
 
@@ -88,7 +95,77 @@ def test_ordered_image_group_reaches_provider_once_in_caller_order(tmp_path):
     assert result.source_type == "image"
     assert result.profile == "board"
     assert result.metadata["image_count"] == 3
+    assert result.metadata["provider_call_count"] == 1
+    assert result.metadata["review_passes"] == 0
     assert all(not path.exists() for path in called_paths)
+
+
+def test_review_pass_corrects_draft_and_writes_only_final_markdown(tmp_path):
+    source = write_test_image(tmp_path / "board.png")
+
+    class SequentialProvider(RecordingProvider):
+        def __init__(self):
+            super().__init__()
+            self.responses = ["# Draft\nMissing mark", "# Final\nComplete + mark"]
+
+        def recognize_images(self, image_paths, *, prompt, config):
+            paths = tuple(image_paths)
+            self.calls.append((paths, prompt, config))
+            return self.responses[len(self.calls) - 1]
+
+    provider = SequentialProvider()
+    config = Config(
+        provider=provider,
+        preferences=RecognitionPreferences(review_passes=1),
+        output_dir=tmp_path / "output",
+    )
+
+    result = recognize(source, config=config)
+
+    assert result.markdown == "# Final\nComplete + mark"
+    assert result.metadata["provider_call_count"] == 2
+    assert result.metadata["review_passes"] == 1
+    assert len(provider.calls) == 2
+    assert provider.calls[0][2] is config
+    assert provider.calls[1][2] is config
+    assert provider.calls[0][0] == provider.calls[1][0]
+    assert "> # Draft\n> Missing mark" in provider.calls[1][1]
+    assert "fallible" in provider.calls[1][1]
+    assert result.output_path is not None
+    assert result.output_path.read_text(encoding="utf-8") == result.markdown
+    assert tuple(result.output_path.parent.glob("*.md")) == (result.output_path,)
+
+
+def test_review_failure_rejects_draft_and_writes_no_output(tmp_path):
+    source = write_test_image(tmp_path / "board.png")
+
+    class FailingReviewProvider(RecordingProvider):
+        def recognize_images(self, image_paths, *, prompt, config):
+            paths = tuple(image_paths)
+            self.calls.append((paths, prompt, config))
+            if len(self.calls) == 1:
+                return "# Draft that must not escape\n"
+            raise TimeoutError("review timed out with private provider detail")
+
+    provider = FailingReviewProvider()
+    output_dir = tmp_path / "output"
+
+    with pytest.raises(ProviderError) as captured:
+        recognize(
+            source,
+            config=Config(
+                provider=provider,
+                preferences=RecognitionPreferences(review_passes=1),
+                output_dir=output_dir,
+            ),
+        )
+
+    assert captured.value.code == "PROVIDER_TIMEOUT"
+    assert captured.value.details["workflow_pass"] == "review"
+    assert captured.value.details["provider_calls_attempted"] == 2
+    assert len(provider.calls) == 2
+    assert output_dir.is_dir()
+    assert tuple(output_dir.iterdir()) == ()
 
 
 def test_recognize_batch_preserves_request_call_and_result_order(tmp_path):
@@ -242,6 +319,8 @@ def test_provider_failures_are_typed_and_redacted(
     )
     assert public_error.code == expected_code
     assert public_error.retryable is expected_retryable
+    assert public_error.details["workflow_pass"] == "draft"
+    assert public_error.details["provider_calls_attempted"] == 1
     assert provider.calls == 1
     assert error_sentinel not in str(public_error)
     assert error_sentinel not in repr(public_error.details)

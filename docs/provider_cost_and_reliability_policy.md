@@ -18,6 +18,9 @@ does not replace the phase gates in `ocrllm_library_go_no_go.md`.
   user authorized unrestricted API use for implementation and robustness
   testing. Each comparable gate still declares its complete call plan before
   dispatch; never selectively retry one fixture or hide failed evidence.
+- A review-enabled configuration makes two same-model provider calls per
+  recognition. The v6 gate therefore precommits 13 recognition invocations and
+  26 provider calls. Review is explicit quality work, not retry or fallback.
 - The Phase 1 model remains `qwen3.7-plus-2026-05-26` unless the authoritative
   decision is changed before collecting a new complete evidence set.
 

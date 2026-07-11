@@ -19,6 +19,7 @@ from .errors import (
 )
 from .recognize import recognize
 from .recognize_batch import recognize_batch
+from .recognition_preferences import RecognitionPreferences
 from .result import RecognitionResult
 
 __all__ = [
@@ -37,6 +38,7 @@ __all__ = [
     "QuotaExhausted",
     "RateLimited",
     "RecognitionResult",
+    "RecognitionPreferences",
     "UnsupportedFormat",
     "recognize",
     "recognize_batch",

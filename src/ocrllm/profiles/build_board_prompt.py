@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 
-BOARD_PROMPT_VERSION = "board.v5"
+BOARD_PROMPT_VERSION = "board.v6"
 
 
 def build_board_prompt(
@@ -35,6 +35,10 @@ def build_board_prompt(
         "operator or connector mark before rendering the Markdown. Count repeated standalone "
         "marks as separate visible occurrences, including marks between diagrams; preserve "
         "each exactly once and do not infer new marks."
+        " Do not interpret repeated hatch marks, fill strokes, shading, line texture, or "
+        "unlabeled drawing decoration as letters or digits. A standalone mark counts as "
+        "text only when it has a conventional textual shape and is spatially distinct from "
+        "drawing strokes."
     )
     if input_languages:
         prompt += f" Expected input languages: {', '.join(input_languages)}."

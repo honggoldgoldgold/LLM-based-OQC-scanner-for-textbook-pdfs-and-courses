@@ -40,6 +40,8 @@ def validate_phase1_recognition_result(
         "image_count": len(plan_entry.fixture_ids),
         "model": contract.model,
         "prompt_version": contract.prompt_version,
+        "provider_call_count": 1 + contract.review_passes,
+        "review_passes": contract.review_passes,
         "provider": contract.provider,
         "profile": contract.profile,
         "provider_region": provider_region,

@@ -131,14 +131,14 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   or `object.__setattr__` cannot diverge the request from its metadata or smuggle
   an endpoint past the allowlist.
 - The original offline quality checkpoint is commit `e328253`. The current
-  versioned `board.v5` manifest is exactly `37,661` bytes with SHA-256
-  `d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
+  versioned `board.v6` manifest is exactly `37,685` bytes with SHA-256
+  `c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`.
   It authenticates 20 committed artifacts, including 5 images, totaling
   `17,914,515` bytes with `8,299,885` bytes of headroom below the 25 MiB corpus
   ceiling. The checkpoint contains the exact licensed corpus, deterministic
   generators, provenance, per-language/token, critical-slot, formula, table,
   and ordered-anchor scorers, and integrated manifest-authenticated
-  live-scoring gate. V5 keeps one unified board capability, corrects the
+  live-scoring gate. V6 keeps one unified board capability, corrects the
   source-derived handwriting truth, and separates required recall content from
   optional faint source content used only to avoid false precision penalties.
 - The scorer entrypoint authenticates the caller's manifest against a freshly
@@ -708,7 +708,7 @@ misread their quality contracts below as current files.
 
 ### Phase 1 evidence runner checkpoint
 
-Commit `fb23d1e` freezes one 13-call plan: dispatch 0 is the clean-slide smoke,
+Commit `fb23d1e` originally froze one 13-call plan: dispatch 0 is the clean-slide smoke,
 then run A executes all six manifest dispatches, then run B independently
 executes the same six. Both runner and SDK retry counts are zero. A provider,
 identity, result-contract, or internal scorer failure aborts without another
@@ -732,10 +732,13 @@ call it rechecks the applicable manifest, input, code/Git, and credential
 invariants; final postflight repeats full artifact and import-origin checks. The
 committed direct preflight at full commit
 `fb23d1e40d4594ed1da8e244945ae7ccb9568efd` authenticated 98 tracked relevant
-files and made no provider/API call. The CLI confirmation guard also rejects
-any value other than 13 before settings or preflight; the recorded `12` check
+files and made no provider/API call. At that checkpoint, the CLI confirmation
+guard rejected any value other than 13 before settings or preflight; the recorded `12` check
 exited safely, created no evidence, and made no call. An example shared endpoint
-used by offline tests is not evidence of the caller's region or `base_url`.
+used by offline tests is not evidence of the caller's region or `base_url`. V6
+keeps those 13 recognition invocations but explicitly makes two provider calls
+per recognition; its confirmation guard is 26 and its result metadata plus
+summary must report all 26 before GO.
 
 The runner writes an initial checkpoint, a pre-call checkpoint naming the active
 attempt and incremented invocation count, and a post-call checkpoint containing
@@ -1677,6 +1680,22 @@ the 95,483-byte evidence at
 `0ceb74a7f05ed2ca5cbcac8eb3eb1c340dfac4bf43ceb84e6883cbe4c40e2343`).
 Do not accept the digits or weaken the hard gate. Test a generic hatch/fill/
 texture exclusion while keeping one `board` capability.
+
+Post-v5 diagnostics reject prompt-only, crop, glyph-count, and seed-tuning
+paths. Four explicit seeds all reproducibly missed the center `+`. Three
+readable draft-to-review trials passed, including repair of one failing draft;
+two actual production blockquote-framed reviews also passed. JSON-string review
+framing failed and is not used. See
+`phase1_v6_review_workflow_debug_2026-07-11.md` for all 28 calls.
+
+`board.v6` adds an exact immutable `RecognitionPreferences` object. Review is
+off by default; `review_passes=1` makes one additional same-provider/same-model
+call, never fallback or best-of-N. Only reviewed Markdown is returned/written,
+and review failure fails the request. Metadata records both passes and provider
+calls. The v6 gate is 13 ordered recognition invocations and 26 provider calls,
+with 26 required in evidence before GO. The isolated suite passes 599 tests;
+fixture generation, compilation, Ruff, and diff checks pass. Fresh v6 evidence
+is still required.
 
 ### Phase 2: JSON contract and Electron worker
 

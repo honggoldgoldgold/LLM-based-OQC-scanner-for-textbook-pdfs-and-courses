@@ -45,12 +45,12 @@ Phase 0 GO is a contract result, not a real recognition-capability claim. The
 active library has an offline-tested built-in DashScope adapter. Offline
 checkpoint `e328253` also committed the licensed five-class Phase 1 corpus,
 deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v5` manifest is `37,661` bytes
+live-scoring gate. The current versioned `board.v6` manifest is `37,685` bytes
 with SHA-256
-`d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`;
+`c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`;
 the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
 with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `588` tests; the generator byte-identity check and `compileall` pass.
+now passes `599` tests; the generator byte-identity check and `compileall` pass.
 Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
 group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
 integration paths proving zero provider calls.
@@ -60,8 +60,9 @@ call.
 
 The runner's live entrypoint is non-injectable; fake dependencies enter only a
 separately labeled simulated path that cannot pass the live gate. Its immutable
-plan is exactly 13 zero-retry calls: one clean-slide smoke, then all six
-dispatches in run A and all six independently dispatched entries in run B.
+plan is exactly 13 recognition invocations: one clean-slide smoke, then all six
+dispatches in run A and all six independently dispatched entries in run B. V6
+pins one same-model review pass, so the confirmation covers 26 provider calls.
 On 2026-07-11 the user confirmed `region="cn-beijing"` and the stored Beijing
 endpoint. The runner then completed all 13 fixed zero-retry calls. Both full
 runs completed, but neither passed, so Phase 1 remains NO-GO. No provider
@@ -71,14 +72,15 @@ scorer; a new billed run requires a new explicit decision. Local user
 screenshots under `docs/` remain untracked, non-redistributable supplemental
 material and are not gate evidence.
 
-The v2 gate is also preserved. The source-corrected unified `board.v5` contract
+The v2 gate is also preserved. The source-corrected unified `board.v6` contract
 shows that six of its seven handwriting failure codes came from defective
 annotation; only the genuinely missed second `+` remains. The v5 generic
-region-verification prompt captured both plus signs in two targeted calls; both
-clear the unchanged gate after source-complete optional labels and a strictly
-line-leading ASCII-arrow equivalence. Fresh repeated v5 live
+region-verification prompt plus one explicit same-model review pass produced
+five passing reviewed probes, including one repaired draft. Fresh repeated v6 live
 evidence is still required, so Phase 1 remains NO-GO. Read
 `docs/phase1_unified_board_handwriting_debug_2026-07-11.md`.
+The workflow design and 28-call diagnostic audit are in
+`docs/phase1_v6_review_workflow_debug_2026-07-11.md`.
 
 Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
 the existing secret filename-ignore rules no longer exclude that source module;

@@ -42,12 +42,12 @@ Base64 data URLs rather than local paths.
 
 Offline checkpoint `e328253` committed the licensed five-class corpus,
 deterministic generators, exact scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v5` manifest is `37,661` bytes
+live-scoring gate. The current versioned `board.v6` manifest is `37,685` bytes
 with SHA-256
-`d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
+`c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`.
 Its 20 artifacts include 5 images and total `17,914,515` bytes, leaving
 `8,299,885` bytes under the 25 MiB corpus limit. The pinned full suite passed
-`588` tests; regenerated fixtures were byte-identical and `compileall` passed.
+`599` tests; regenerated fixtures were byte-identical and `compileall` passed.
 The boundary suite now hits exact one-below, at, and one-above values for every
 per-source byte, decoded-pixel, group-count, aggregate-source-byte, and
 aggregate-pixel cap; every rejecting integration case proves zero provider
@@ -65,13 +65,13 @@ Both full runs completed, but neither passed; Phase 1 remains NO-GO. There were
 no provider request failures. The live record separates a real handwriting
 quality miss from a deterministic mismatch between reasonable Qwen
 Markdown/LaTeX presentation variants and the frozen v1 scorer grammar. The
-evidence remains unchanged. The source-corrected unified `board.v5` contract
+evidence remains unchanged. The source-corrected unified `board.v6` contract
 shows that six handwriting failures were annotation defects and leaves only a
 genuinely missed second `+` in the preserved non-thinking output. Its generic
-region-verification prompt captured both plus signs in two targeted calls; both
-clear the unchanged gate after source-complete optional labels and strict
-line-leading ASCII-arrow normalization. Two fresh live v5 runs are still required. See
-`docs/phase1_unified_board_handwriting_debug_2026-07-11.md`. The local user screenshots
+region-verification prompt plus one explicit same-model review pass produced
+five passing reviewed probes, including one repaired draft. The v6 gate has 13
+recognition invocations and 26 provider calls. See
+`docs/phase1_v6_review_workflow_debug_2026-07-11.md`. The local user screenshots
 under `docs/` remain untracked, supplemental, and non-redistributable; they are
 not part of pass/fail evidence.
 

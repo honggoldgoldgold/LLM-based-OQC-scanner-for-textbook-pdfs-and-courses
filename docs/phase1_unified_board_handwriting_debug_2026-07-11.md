@@ -132,3 +132,14 @@ manifest is 37,661 bytes with SHA-256
 `d602d38cbaf6433338d371fbe0d42e8dd4fd3be55811ee428f2333127c0f276d`.
 The full isolated suite passes 588 tests; fixture generation is byte-identical,
 compilation passes, and changed Python files pass Ruff.
+
+## V6 Review Workflow
+
+The complete v5 gate passed one full run and failed the other only because hatch
+strokes became hallucinated digits. Subsequent single-pass calls remained
+stochastic on the center `+`; crops and explicit seeds did not fix it. V6 keeps
+one unified board capability and adds an explicit same-model review preference,
+not handwriting routing. Five readable reviewed probes passed, including one
+that repaired a failing draft. The full call inventory, rejected paths, framing
+security, cost, implementation files, and 599-test proof are in
+`phase1_v6_review_workflow_debug_2026-07-11.md`.
