@@ -164,6 +164,16 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   commit `3414f47e5b44a6d5fe2023012ebf2cf361f96a61` produced a `50,094`-byte
   wheel; its isolated no-deps install passed an explicit test-key resolver
   round-trip without a provider network call.
+- The current packaged-README proof archives full commit
+  `72667e545e3f09fb3c6781999ed574fd6a4b8d91`. Its wheel is `50,945` bytes with
+  SHA-256
+  `192696f35f3bc3962006d5094833aa8294a18667c20ddc4b07330f66c1fcf4a4` and 52
+  entries, with zero base runtime requirements and no native or bytecode
+  payload. The isolated no-deps target contains 103 files totaling `233,835`
+  bytes. Plain import leaves Pillow, OpenAI, and HTTPX unloaded, and the
+  explicit test-key credential resolver passes without a provider/API call.
+  Result-recording edits limited to this decision file and
+  `MIGRATION_STATUS.md` do not change the wheel inputs.
 - The historical Phase 1 adapter-only implementation checkpoint is commit
   `a6a8b18`. Its final offline gate passed `283` tests, `compileall`, and
   `git diff --check`. The wheel was `50,970` bytes with SHA-256
@@ -1780,7 +1790,9 @@ if ($LASTEXITCODE -ne 0) { throw "compileall failed" }
 git archive --format=zip --output=$sourceArchive HEAD
 if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
 Expand-Archive -LiteralPath $sourceArchive -DestinationPath $sourceRoot
-& D:\Anaconda\python.exe -m build --wheel --outdir $wheelDir $sourceRoot
+uv run --no-project --isolated --with 'build>=1.2' `
+  --python 'D:\Anaconda\envs\OCRLLM\python.exe' `
+  python -m build --wheel --outdir $wheelDir $sourceRoot
 if ($LASTEXITCODE -ne 0) { throw "wheel build failed" }
 $wheel = Get-ChildItem -LiteralPath $wheelDir -Filter *.whl | Select-Object -First 1
 if ($null -eq $wheel) { throw "wheel build produced no wheel" }

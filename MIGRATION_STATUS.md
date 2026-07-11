@@ -592,6 +592,17 @@ is not a claim that the recognition-quality or live-provider gate has passed:
   `3414f47e5b44a6d5fe2023012ebf2cf361f96a61` produced a `50,094`-byte wheel.
   Its isolated no-deps install imported `Config` and the resolver and passed an
   explicit test-key round-trip. No provider network call was made.
+- The current packaged-README proof uses a clean Git archive from full commit
+  `72667e545e3f09fb3c6781999ed574fd6a4b8d91`, not the working directory. It
+  produced a `50,945`-byte wheel with SHA-256
+  `192696f35f3bc3962006d5094833aa8294a18667c20ddc4b07330f66c1fcf4a4` and 52
+  entries. The wheel has zero base runtime requirements and no native or
+  bytecode payload. Its isolated no-deps target has 103 files totaling
+  `233,835` bytes; plain import leaves Pillow, OpenAI, and HTTPX unloaded, and
+  the explicit test-key credential-resolver round-trip passes. No provider/API
+  call was made. Later edits that only record this result in
+  `MIGRATION_STATUS.md` and `docs/ocrllm_library_go_no_go.md` do not alter the
+  wheel inputs.
 - The user-supplied screenshots currently present under `docs/` are local,
   supplemental, and non-redistributable. They may help manual development, but
   they remain untracked and cannot enter pass/fail evidence. They are not part
