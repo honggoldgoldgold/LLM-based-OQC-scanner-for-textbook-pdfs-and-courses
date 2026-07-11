@@ -25,6 +25,11 @@ does not replace the phase gates in `ocrllm_library_go_no_go.md`.
   consensus review: 13 recognition invocations and 39 provider calls. Consensus
   is quality work, not retry or provider fallback; ordinary library recognition
   remains one call by default.
+- The v10 gate keeps the same 39-call maximum and exact plan but changes its
+  composition to one Qwen3.7 primary plus two `qwen-vl-max` visual-sign scouts
+  per recognition. Scout mode is explicit and defaults off. Qwen-VL scout prose
+  is never returned; only a bounded two-scout standalone-sign quorum can alter
+  primary Markdown locally.
 - The Phase 1 model remains `qwen3.7-plus-2026-05-26` unless the authoritative
   decision is changed before collecting a new complete evidence set.
 

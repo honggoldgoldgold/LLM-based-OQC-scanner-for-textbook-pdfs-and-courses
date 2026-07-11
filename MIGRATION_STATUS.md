@@ -952,6 +952,27 @@ attempt without retry. Consensus solved destructive formula mutation but not
 the stochastic small-mark omission. See
 `docs/phase1_live_quality_result_v8_attempt1_2026-07-11.md`.
 
+Post-v8 experiments reject v9 generative disagreement review, Qwen3.7 Max, and
+heterogeneous generative rewriting. V9 could repair one handwriting trial but
+mutated byte-identical perfect formula drafts and could not recover a plus
+omitted by both inputs. Qwen3.7 Max missed the same plus. The exact legacy
+`qwen-vl-max` model consistently captured both plus signs but was weaker on
+source spelling.
+
+`board.v10` uses one Qwen3.7 symbol-audited transcript plus two explicit
+Qwen-VL Max visual-sign scouts, then restores only standalone sign events agreed
+by both scouts at matching text anchors. Scout prose never enters output, and
+there is no generative final rewrite. Two handwriting trials pass after zero
+and one deterministic restoration respectively; the formula draft stays
+byte-identical and perfect. Defaults remain one call; the workflow requires
+explicit `standalone_sign_scout_model="qwen-vl-max"`.
+
+The v10 manifest is 37,853 bytes with SHA-256
+`15a7018084cd1d53c82acbf260bb19095ccb29664cc357beaaaefd9044b8f971`.
+The isolated suite passes 628 tests. Commit/push, repeat clean preflight, then
+run the fixed 13-recognition/39-call Beijing gate with 180-second per-call
+timeouts. See `docs/phase1_v10_sign_scout_workflow_debug_2026-07-11.md`.
+
 PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
 Office, social, GPU, and offline-model work are not the next task.
 

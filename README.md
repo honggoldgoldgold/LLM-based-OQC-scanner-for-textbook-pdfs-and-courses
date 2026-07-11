@@ -75,6 +75,14 @@ recognition invocations and 26 provider calls. See
 under `docs/` remain untracked, supplemental, and non-redistributable; they are
 not part of pass/fail evidence.
 
+V8 later proved that generative consensus preserves formula case only
+stochastically and still misses the plus. The current offline contract is
+`board.v10`: one Qwen3.7 text transcript plus two explicit Qwen-VL Max
+standalone-sign scouts and a deterministic, prose-isolating quorum merge. Two
+handwriting trials and the formula regression pass; the 628-test suite passes.
+Fresh complete v10 evidence is still pending, so Phase 1 remains NO-GO. See
+`docs/phase1_v10_sign_scout_workflow_debug_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

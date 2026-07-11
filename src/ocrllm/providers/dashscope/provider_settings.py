@@ -39,6 +39,7 @@ class DashScopeSettings:
     base_url: str
     enable_thinking: bool = False
     vl_high_resolution_images: bool = True
+    standalone_sign_scout_model: str | None = None
 
     def __post_init__(self) -> None:
         _validate_region(self.region)
@@ -48,6 +49,11 @@ class DashScopeSettings:
             self.vl_high_resolution_images,
             field_name="vl_high_resolution_images",
         )
+        if self.standalone_sign_scout_model not in {None, "qwen-vl-max"}:
+            raise ConfigError(
+                "DashScopeSettings.standalone_sign_scout_model must be None or "
+                "'qwen-vl-max'."
+            ) from None
 
 
 def _validate_region(region: object) -> None:

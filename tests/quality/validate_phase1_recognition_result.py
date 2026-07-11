@@ -40,15 +40,30 @@ def validate_phase1_recognition_result(
         "image_count": len(plan_entry.fixture_ids),
         "model": contract.model,
         "prompt_version": contract.prompt_version,
-        "provider_call_count": contract.draft_candidates + contract.review_passes,
+        "provider_call_count": (
+            contract.draft_candidates
+            + contract.review_passes
+            + contract.standalone_sign_scout_count
+        ),
         "draft_candidates": contract.draft_candidates,
         "review_passes": contract.review_passes,
+        "standalone_sign_scout_model": contract.standalone_sign_scout_model,
+        "standalone_sign_scout_count": contract.standalone_sign_scout_count,
+        "standalone_sign_scout_enable_thinking": (
+            contract.standalone_sign_scout_enable_thinking
+        ),
+        "standalone_signs_restored": result.metadata.get(
+            "standalone_signs_restored"
+        ),
         "provider": contract.provider,
         "profile": contract.profile,
         "provider_region": provider_region,
         "enable_thinking": contract.enable_thinking,
         "vl_high_resolution_images": contract.vl_high_resolution_images,
     }
+    restored_count = expected_metadata["standalone_signs_restored"]
+    if type(restored_count) is not int or restored_count < 0:
+        raise ValueError("recognition result has an invalid restored-sign count")
     if dict(result.metadata) != expected_metadata:
         raise ValueError(
             "recognition result metadata differs from the frozen request contract"

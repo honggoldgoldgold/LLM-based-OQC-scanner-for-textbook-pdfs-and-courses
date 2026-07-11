@@ -349,3 +349,19 @@ The 59,675-byte evidence SHA-256 is
 Preserve it; do not retry the failed dispatch. The next generic workflow must
 adjudicate one-sided sign disagreements explicitly rather than rewriting whole
 drafts without a difference checklist.
+
+V9 difference-checklist review is rejected. It repaired one handwriting trial
+but changed `s_4` to `S_4` even when both formula drafts were byte-identical and
+perfect; a second handwriting trial omitted the plus in every Qwen3.7 draft.
+Qwen3.7 Max repeated the omission. Two independent legacy-default
+`qwen-vl-max` calls consistently captured both plus signs but remained weaker
+on exact prose.
+
+V10 therefore makes one Qwen3.7 symbol-audited transcript authoritative for
+text and uses two explicit Qwen-VL Max outputs only as untrusted standalone-sign
+scouts. A bounded deterministic anchor quorum restored zero signs in an
+already-passing handwriting trial, exactly one in a failing trial, and zero in
+the perfect formula draft; all three final outputs pass and the formula bytes
+are unchanged. The 37,853-byte manifest SHA-256 is
+`15a7018084cd1d53c82acbf260bb19095ccb29664cc357beaaaefd9044b8f971`.
+The isolated suite passes 628 tests. Full v10 live evidence remains required.

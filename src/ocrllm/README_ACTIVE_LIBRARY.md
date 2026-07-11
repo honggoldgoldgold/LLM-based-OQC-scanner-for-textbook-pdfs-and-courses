@@ -55,9 +55,12 @@ deterministic scorers, and guarded evidence runner now exist. Required live
 provider evidence does not: Phase 1 remains NO-GO and no image/provider
 capability is `available` until the clean smoke, both independently dispatched
 full-corpus runs, final clean profiles, and explicit GO-decision update pass.
-The adapter requires an explicit matching region and endpoint, accepts only
-`qwen3.7-plus` and the default pinned `qwen3.7-plus-2026-05-26`, disables OpenAI
-SDK retries, and builds Base64 data URLs rather than sending local paths. There
+The adapter requires an explicit matching region and endpoint, accepts
+`qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
+`qwen-vl-max` scout work, disables OpenAI SDK retries, and builds Base64 data
+URLs rather than sending local paths. The v10 evidence candidate uses one
+Qwen3.7 transcript and two Qwen-VL Max outputs only as deterministic
+standalone-sign quorum evidence; scout prose cannot enter the result. There
 is still no local OCR backend, key pool, automatic retry/model fallback, or
 image resume; PDF, audio, and video remain unavailable. Local user screenshots
 are uncommitted supplemental material and never replace the committed corpus in

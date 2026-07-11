@@ -131,13 +131,16 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     assert result.markdown == "# Recognized board\n"
     assert result.metadata["provider"] == "dashscope"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
-    assert result.metadata["prompt_version"] == "board.v8"
+    assert result.metadata["prompt_version"] == "board.v10"
     assert result.metadata["provider_region"] == "ap-southeast-1"
     assert result.metadata["enable_thinking"] is False
     assert result.metadata["vl_high_resolution_images"] is True
     assert result.metadata["provider_call_count"] == 1
     assert result.metadata["draft_candidates"] == 1
     assert result.metadata["review_passes"] == 0
+    assert result.metadata["standalone_sign_scout_model"] is None
+    assert result.metadata["standalone_sign_scout_count"] == 0
+    assert result.metadata["standalone_signs_restored"] == 0
     assert api_key_sentinel not in repr(result)
     assert api_key_sentinel not in repr(result.metadata)
 
@@ -254,6 +257,121 @@ def test_builtin_consensus_review_makes_three_no_retry_requests(
     assert "BEGIN FALLIBLE DRAFT TWO" in consensus_prompt
     assert consensus_prompt.count("> # Candidate board") == 2
     assert all(call["temperature"] == 0 for call in client.calls)
+
+
+def test_builtin_sign_scout_workflow_uses_one_primary_and_two_nonthinking_scouts(
+    tmp_path,
+    monkeypatch,
+):
+    class RequestedModelClient(FakeClient):
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            response = _response(content="# Exact board\n", model=kwargs["model"])
+            return SimpleNamespace(headers={}, parse=lambda: response)
+
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = RequestedModelClient()
+    fake_openai = _install_fake_openai(monkeypatch, client)
+    ordinary = _settings()
+    settings = DashScopeSettings(
+        region=ordinary.region,
+        base_url=ordinary.base_url,
+        enable_thinking=True,
+        vl_high_resolution_images=True,
+        standalone_sign_scout_model="qwen-vl-max",
+    )
+
+    result = recognize(
+        source,
+        config=Config(
+            provider="dashscope",
+            dashscope=settings,
+            api_key="test-key",
+        ),
+    )
+
+    assert result.markdown == "# Exact board\n"
+    assert len(fake_openai.constructor_calls) == 3
+    assert [call["model"] for call in client.calls] == [
+        "qwen3.7-plus-2026-05-26",
+        "qwen-vl-max",
+        "qwen-vl-max",
+    ]
+    prompts = [call["messages"][0]["content"][-1]["text"] for call in client.calls]
+    assert "silently inventory every text-bearing region" in prompts[0]
+    assert "silently inventory every text-bearing region" not in prompts[1]
+    assert prompts[1] == prompts[2]
+    assert client.calls[0]["extra_body"]["enable_thinking"] is True
+    assert client.calls[1]["extra_body"]["enable_thinking"] is False
+    assert client.calls[2]["extra_body"]["enable_thinking"] is False
+    assert result.metadata["provider_call_count"] == 3
+    assert result.metadata["draft_candidates"] == 1
+    assert result.metadata["review_passes"] == 0
+    assert result.metadata["standalone_sign_scout_model"] == "qwen-vl-max"
+    assert result.metadata["standalone_sign_scout_count"] == 2
+    assert result.metadata["standalone_signs_restored"] == 0
+    assert result.metadata["standalone_sign_scout_enable_thinking"] is False
+
+
+def test_builtin_sign_scout_workflow_restores_only_two_scout_quorum_sign(
+    tmp_path,
+    monkeypatch,
+):
+    class SequentialResponseClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.responses = (
+                _response(
+                    content=(
+                        "foreign gene\nI:V 3:1 Ratio\nTransformation.\n"
+                        "+\nValidation\n"
+                    )
+                ),
+                _response(
+                    content=(
+                        "foreign gene\n+\nI:V\nTransformation\n+\nValidation\n"
+                    ),
+                    model="qwen-vl-max",
+                ),
+                _response(
+                    content=(
+                        "Ligase join\n+\nI:V 3:1 Ratio\nTransformation.\n"
+                        "+\nValidation\n"
+                    ),
+                    model="qwen-vl-max",
+                ),
+            )
+
+        def create(self, **kwargs):
+            self.calls.append(kwargs)
+            response = self.responses[len(self.calls) - 1]
+            return SimpleNamespace(headers={}, parse=lambda: response)
+
+    source = write_test_image(tmp_path / "board.png", size=(12, 13))
+    client = SequentialResponseClient()
+    _install_fake_openai(monkeypatch, client)
+    ordinary = _settings()
+    settings = DashScopeSettings(
+        region=ordinary.region,
+        base_url=ordinary.base_url,
+        enable_thinking=True,
+        standalone_sign_scout_model="qwen-vl-max",
+    )
+
+    result = recognize(
+        source,
+        config=Config(
+            provider="dashscope",
+            dashscope=settings,
+            api_key="test-key",
+        ),
+    )
+
+    assert result.markdown == (
+        "foreign gene\n+\nI:V 3:1 Ratio\nTransformation.\n+\nValidation\n"
+    )
+    assert result.metadata["provider_call_count"] == 3
+    assert result.metadata["standalone_signs_restored"] == 1
 
 
 def test_mutated_review_preferences_fail_before_builtin_provider_work(

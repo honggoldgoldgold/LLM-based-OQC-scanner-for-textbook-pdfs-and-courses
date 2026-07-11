@@ -53,6 +53,11 @@ class Config:
         _validate_optional_text(self.pdf_password, field_name="pdf_password")
         dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
         preferences = _normalize_preferences(self.preferences)
+        _validate_dashscope_scout_workflow(
+            model=self.model,
+            dashscope=dashscope,
+            preferences=preferences,
+        )
 
         input_languages = _normalize_input_languages(self.input_languages)
         output_language = _normalize_output_language(self.output_language)
@@ -162,7 +167,29 @@ def _normalize_dashscope_pair(
         base_url=dashscope.base_url,
         enable_thinking=dashscope.enable_thinking,
         vl_high_resolution_images=dashscope.vl_high_resolution_images,
+        standalone_sign_scout_model=dashscope.standalone_sign_scout_model,
     )
+
+
+def _validate_dashscope_scout_workflow(
+    *,
+    model: str | None,
+    dashscope: DashScopeSettings | None,
+    preferences: RecognitionPreferences,
+) -> None:
+    if dashscope is None or dashscope.standalone_sign_scout_model is None:
+        return
+    if preferences != RecognitionPreferences():
+        raise ConfigError(
+            "DashScope standalone-sign scouting requires default "
+            "RecognitionPreferences",
+            code="CONFIG_INVALID",
+        ) from None
+    if model == dashscope.standalone_sign_scout_model:
+        raise ConfigError(
+            "The primary and standalone-sign scout models must differ",
+            code="CONFIG_INVALID",
+        ) from None
 
 
 def _normalize_input_languages(value: object) -> tuple[str, ...]:

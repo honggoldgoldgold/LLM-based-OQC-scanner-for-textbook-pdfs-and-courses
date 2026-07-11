@@ -3,17 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from dataclasses import replace
 from pathlib import Path
 
 from ..config import Config
-from ..errors import OCRLLMError
+from ..errors import OCRLLMError, ProviderError
 from ..processor_output import ProcessorOutput
 from ..profiles.build_board_consensus_prompt import build_board_consensus_prompt
 from ..profiles.build_board_prompt import BOARD_PROMPT_VERSION, build_board_prompt
 from ..profiles.build_board_review_prompt import build_board_review_prompt
+from ..profiles.build_board_symbol_audit_prompt import build_board_symbol_audit_prompt
 from ..providers.call_vision_provider import call_vision_provider
 from ..providers.resolve_vision_provider import resolve_vision_provider
 from ..snapshot_config import snapshot_config
+from .restore_quorum_standalone_signs import restore_quorum_standalone_signs
 
 
 def recognize_images(
@@ -27,13 +30,23 @@ def recognize_images(
         config = snapshot_config(config)
     resolved_provider = resolve_vision_provider(config)
     base_prompt = build_board_prompt(config.input_languages, config.output_language)
+    scout_model = (
+        config.dashscope.standalone_sign_scout_model
+        if config.dashscope is not None
+        else None
+    )
+    primary_prompt = (
+        build_board_symbol_audit_prompt(base_prompt)
+        if scout_model is not None
+        else base_prompt
+    )
     drafts: list[str] = []
     for candidate_index in range(config.preferences.draft_candidates):
         try:
             drafts.append(call_vision_provider(
                 resolved_provider,
                 image_paths,
-                prompt=base_prompt,
+                prompt=primary_prompt,
                 config=config,
             ))
         except OCRLLMError as error:
@@ -73,6 +86,61 @@ def recognize_images(
     provider_call_count = (
         config.preferences.draft_candidates + config.preferences.review_passes
     )
+    restored_sign_count = 0
+    if scout_model is not None:
+        assert config.dashscope is not None
+        scout_config = replace(
+            config,
+            model=scout_model,
+            dashscope=replace(
+                config.dashscope,
+                enable_thinking=False,
+                standalone_sign_scout_model=None,
+            ),
+        )
+        resolved_scout = resolve_vision_provider(scout_config)
+        scouts: list[str] = []
+        for scout_index in range(2):
+            try:
+                scouts.append(
+                    call_vision_provider(
+                        resolved_scout,
+                        image_paths,
+                        prompt=base_prompt,
+                        config=scout_config,
+                    )
+                )
+            except OCRLLMError as error:
+                error._add_safe_detail(
+                    "workflow_pass",
+                    f"standalone_sign_scout_{scout_index + 1}",
+                )
+                error._add_safe_detail(
+                    "provider_calls_attempted",
+                    provider_call_count + scout_index + 1,
+                )
+                raise
+        try:
+            restored = restore_quorum_standalone_signs(
+                markdown,
+                scouts[0],
+                scouts[1],
+            )
+        except ValueError:
+            raise ProviderError(
+                "The standalone-sign scout responses could not be merged safely.",
+                code="PROVIDER_RESPONSE_INVALID",
+                details={
+                    "model": scout_model,
+                    "provider": resolved_scout.name,
+                    "provider_calls_attempted": provider_call_count + 2,
+                    "workflow_pass": "standalone_sign_merge",
+                },
+            ) from None
+        markdown = restored.markdown
+        restored_sign_count = restored.restored_count
+        provider_call_count += 2
+
     metadata: dict[str, str | int | bool | None] = {
         "image_count": len(image_paths),
         "model": resolved_provider.model,
@@ -82,6 +150,9 @@ def recognize_images(
         "provider_call_count": provider_call_count,
         "draft_candidates": config.preferences.draft_candidates,
         "review_passes": config.preferences.review_passes,
+        "standalone_sign_scout_model": scout_model,
+        "standalone_sign_scout_count": 2 if scout_model is not None else 0,
+        "standalone_signs_restored": restored_sign_count,
     }
     if resolved_provider.name == "dashscope" and config.dashscope is not None:
         metadata.update(
@@ -90,6 +161,9 @@ def recognize_images(
                 "enable_thinking": config.dashscope.enable_thinking,
                 "vl_high_resolution_images": (
                     config.dashscope.vl_high_resolution_images
+                ),
+                "standalone_sign_scout_enable_thinking": (
+                    False if scout_model is not None else None
                 ),
             }
         )

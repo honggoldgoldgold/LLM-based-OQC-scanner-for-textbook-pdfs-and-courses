@@ -25,6 +25,9 @@ from ocrllm import (
     recognize,
 )
 from ocrllm.profiles.build_board_prompt import build_board_prompt
+from ocrllm.profiles.build_board_symbol_audit_prompt import (
+    build_board_symbol_audit_prompt,
+)
 from ocrllm.providers.dashscope.build_dashscope_image_request import (
     MAX_COMPLETION_TOKENS,
 )
@@ -70,9 +73,9 @@ from tests.quality.write_quality_evidence_atomically import (
 
 
 DEFAULT_REPOSITORY_ROOT = Path(__file__).parents[2]
-PHASE1_TIMEOUT_SECONDS = 120.0
+PHASE1_TIMEOUT_SECONDS = 180.0
 _TEMPERATURE = 0
-_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v8"
+_SCHEMA_VERSION = "ocrllm.phase1-quality-evidence.v10"
 _MANIFEST_RELATIVE_PATH = "tests/fixtures/phase1/manifest.json"
 _BOUND_OUTPUT_ROOTS = (
     "src/ocrllm",
@@ -178,9 +181,11 @@ def _run_phase1_quality_engine(
         source_paths = tuple(root / artifact.path for artifact in source_artifacts)
         input_languages = _input_languages(entry, fixture_by_id=fixture_by_id)
         try:
-            prompt = build_board_prompt(
-                input_languages,
-                manifest.evidence_contract.output_language,
+            prompt = build_board_symbol_audit_prompt(
+                build_board_prompt(
+                    input_languages,
+                    manifest.evidence_contract.output_language,
+                )
             )
             _verify_unchanged_manifest(root, manifest)
             _verify_unchanged_code(root, code_identity)
@@ -508,6 +513,15 @@ def _initial_evidence(
             "prompt_version": manifest.evidence_contract.prompt_version,
             "draft_candidates": manifest.evidence_contract.draft_candidates,
             "review_passes": manifest.evidence_contract.review_passes,
+            "standalone_sign_scout_model": (
+                manifest.evidence_contract.standalone_sign_scout_model
+            ),
+            "standalone_sign_scout_count": (
+                manifest.evidence_contract.standalone_sign_scout_count
+            ),
+            "standalone_sign_scout_enable_thinking": (
+                manifest.evidence_contract.standalone_sign_scout_enable_thinking
+            ),
             "provider_calls_per_recognition": PROVIDER_CALLS_PER_RECOGNITION,
             "provider_region": region,
             "base_url_sha256": hashlib.sha256(base_url.encode("utf-8")).hexdigest(),
@@ -780,6 +794,7 @@ def _build_config(
             base_url=settings.base_url,
             enable_thinking=contract.enable_thinking,
             vl_high_resolution_images=contract.vl_high_resolution_images,
+            standalone_sign_scout_model=contract.standalone_sign_scout_model,
         ),
         profile=contract.profile,
         input_languages=input_languages,

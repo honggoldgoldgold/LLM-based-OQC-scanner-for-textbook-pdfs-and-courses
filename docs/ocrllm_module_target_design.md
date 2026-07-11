@@ -386,6 +386,7 @@ class DashScopeSettings:
     base_url: str
     enable_thinking: bool = False
     vl_high_resolution_images: bool = True
+    standalone_sign_scout_model: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

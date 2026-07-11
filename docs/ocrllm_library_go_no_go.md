@@ -2223,6 +2223,23 @@ evidence with SHA-256
 Phase 1 remains NO-GO. See
 `phase1_live_quality_result_v8_attempt1_2026-07-11.md`.
 
+Post-v8 diagnostics reject generative v9 disagreement review: it mutated
+byte-identical perfect formula drafts and could not repair handwriting when all
+Qwen3.7 candidates omitted the plus. Qwen3.7 Max repeated the omission. The
+legacy-default `qwen-vl-max` consistently captured both plus signs but was
+weaker on prose. V10 uses one Qwen3.7 symbol-audited transcript, two explicit
+Qwen-VL Max sign scouts, and a bounded deterministic anchor quorum. Scout prose
+cannot enter output and no generative final rewrite occurs.
+
+Two independent handwriting trials pass after zero and one restored signs; the
+formula draft remains byte-identical and perfect. The v10 manifest is 37,853
+bytes with SHA-256
+`15a7018084cd1d53c82acbf260bb19095ccb29664cc357beaaaefd9044b8f971`;
+628 isolated tests pass. The clean live plan is still 13 recognitions and 39
+provider calls, now with a 180-second timeout. Phase 1 remains NO-GO until that
+gate and clean packaging profiles pass. See
+`phase1_v10_sign_scout_workflow_debug_2026-07-11.md`.
+
 ## Change Rejection Checklist
 
 Reject a proposed change when any answer is yes:

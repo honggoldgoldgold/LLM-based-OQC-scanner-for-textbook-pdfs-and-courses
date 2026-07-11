@@ -16,6 +16,9 @@ class EvidenceContract:
     prompt_version: str
     draft_candidates: int
     review_passes: int
+    standalone_sign_scout_model: str
+    standalone_sign_scout_count: int
+    standalone_sign_scout_enable_thinking: bool
     enable_thinking: bool
     vl_high_resolution_images: bool
     output_language: str | None

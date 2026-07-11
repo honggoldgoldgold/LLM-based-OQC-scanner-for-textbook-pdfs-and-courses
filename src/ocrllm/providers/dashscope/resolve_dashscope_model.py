@@ -10,6 +10,7 @@ SUPPORTED_DASHSCOPE_MODELS = frozenset(
     {
         "qwen3.7-plus",
         DEFAULT_DASHSCOPE_MODEL,
+        "qwen-vl-max",
     }
 )
 
@@ -24,8 +25,8 @@ def resolve_dashscope_model(configured_model: str | None) -> str:
     model = DEFAULT_DASHSCOPE_MODEL if configured_model is None else configured_model
     if model not in SUPPORTED_DASHSCOPE_MODELS:
         raise ConfigError(
-            "The Phase 1 DashScope adapter supports only qwen3.7-plus and its "
-            "2026-05-26 snapshot.",
+            "The Phase 1 DashScope adapter supports qwen3.7-plus, its "
+            "2026-05-26 snapshot, and qwen-vl-max.",
             code="CONFIG_INVALID",
         ) from None
     return model

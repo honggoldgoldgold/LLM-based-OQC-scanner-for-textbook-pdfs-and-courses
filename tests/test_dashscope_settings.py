@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from ocrllm import Config, DashScopeSettings, recognize
+from ocrllm import Config, DashScopeSettings, RecognitionPreferences, recognize
 from ocrllm.errors import ConfigError
 
 
@@ -58,6 +58,45 @@ def test_dashscope_settings_accept_documented_region_endpoint_pairs(region, base
     assert settings.base_url == base_url
     assert settings.enable_thinking is False
     assert settings.vl_high_resolution_images is True
+    assert settings.standalone_sign_scout_model is None
+
+
+@pytest.mark.parametrize("bad_value", ("", "qwen3.7-plus", 2, True, object()))
+def test_dashscope_settings_reject_unsupported_sign_scout_models(bad_value):
+    with pytest.raises(ConfigError, match="standalone_sign_scout_model"):
+        DashScopeSettings(
+            region="cn-beijing",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            standalone_sign_scout_model=bad_value,  # type: ignore[arg-type]
+        )
+
+
+def test_config_accepts_exact_sign_scout_only_with_default_workflow():
+    settings = DashScopeSettings(
+        region="cn-beijing",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        enable_thinking=True,
+        standalone_sign_scout_model="qwen-vl-max",
+    )
+
+    config = Config(provider="dashscope", dashscope=settings)
+
+    assert config.dashscope is not settings
+    assert config.dashscope is not None
+    assert config.dashscope.standalone_sign_scout_model == "qwen-vl-max"
+
+    with pytest.raises(ConfigError, match="default RecognitionPreferences"):
+        Config(
+            provider="dashscope",
+            dashscope=settings,
+            preferences=RecognitionPreferences(review_passes=1),
+        )
+    with pytest.raises(ConfigError, match="primary and standalone-sign scout"):
+        Config(
+            provider="dashscope",
+            model="qwen-vl-max",
+            dashscope=settings,
+        )
 
 
 def test_dashscope_settings_are_frozen_slotted_and_require_explicit_routing():
