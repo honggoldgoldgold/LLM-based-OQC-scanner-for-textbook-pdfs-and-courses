@@ -1802,7 +1802,8 @@ recognized Markdown are not redistributed. The clean checkpoint proof passes.
 Every Phase 2 condition above is satisfied, so Phase 2 is **GO** and public
 `worker.jsonl.v1alpha1` status is `available`. This means the development worker
 with an explicitly configured Python executable; packaged Electron compatibility
-remains gated in Phase 6. See
+remains gated in Phase 6. The formal GO commit is `2db456a` and its clean
+Git-archive proof passes. See
 `phase2_live_worker_result_2026-07-12.md`.
 
 ### Phase 3: PDFium PDF

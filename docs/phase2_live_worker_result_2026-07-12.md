@@ -109,3 +109,14 @@ socket modules. Python 3.10 wall median/p95/max is
 Every Phase 2 gate is satisfied. Phase 2 is **GO**, scoped to a development
 worker with an explicitly configured Python executable. Packaged Electron
 compatibility remains a Phase 6 gate, and Phase 3 has not started.
+
+The formal registry/decision commit
+`2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` also passes a clean Git-archive
+audit. Fifteen capability, Node, and production-entrypoint tests pass from the
+archive. The installed registry reports `worker.jsonl.v1alpha1=available` and
+`worker.jsonl.v1alpha2=deferred`. The archive builds a 106,214-byte wheel with
+SHA-256
+`7aeafb72473f47abbb7394c73a87910d7b658a1513a53c6e38538c3e093e748b`;
+its isolated target contains 485,757 bytes. Plain root import remains clean;
+wall median/p95/max is 35.2927/39.3324/39.597 ms and CPU median/p95/max is
+31.25/46.875/46.875 ms.

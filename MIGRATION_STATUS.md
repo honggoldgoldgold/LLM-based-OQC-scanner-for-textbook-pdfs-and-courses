@@ -729,7 +729,8 @@ legacy_app/environment.yml
 ## What To Do Next
 
 Current gate: **Phase 2 -- versioned JSON contract and Electron JSONL worker --
-GO**. No later phase is active.
+GO** at `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf`. Its clean Git-archive
+proof passes. No later phase is active.
 
 Phase 2 recovery rules:
 

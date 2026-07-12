@@ -42,7 +42,8 @@ from ocrllm import Config, DashScopeSettings, recognize
 
 Current gate: **Phase 2 -- versioned JSON contract and Electron JSONL worker --
 GO**. Phase 0 contract honesty and Phase 1 real board/image are also GO. No
-later phase is active; Phase 3 PDFium work requires a new explicit start.
+later phase is active; Phase 3 PDFium work requires a new explicit start. The
+formal GO commit is `2db456a` and its clean Git-archive proof passes.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
 passes request-scoped validated snapshots isolated from later caller-path
 changes to one synchronous injected provider,
