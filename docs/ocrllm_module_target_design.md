@@ -1258,9 +1258,13 @@ current phase's offline and required real gates pass and `MIGRATION_STATUS.md`
 records the evidence.
 
 Phase 2 checkpoint 1 implements the three command DTOs plus strict parsing and
-serialization. The six event DTOs and worker process boundary remain pending;
-the existing direct-Python `RecognitionResult` stays unchanged until an
-explicit wire-result adapter is designed and tested.
+serialization. It deliberately left the six event DTOs and worker process
+boundary for later slices and kept the existing direct-Python
+`RecognitionResult` unchanged.
+
+Phase 2 checkpoint 2 implements that adapter and all six event DTOs. The event
+envelope is the single owner of protocol/request identity; the nested worker
+result contains result data only. Worker I/O and process control remain pending.
 
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;

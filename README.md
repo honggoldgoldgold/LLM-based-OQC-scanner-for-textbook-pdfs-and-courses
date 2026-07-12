@@ -167,8 +167,16 @@ Phase 2 checkpoint 1 now freezes all three `ocrllm.v1alpha1` input commands as
 immutable DTOs with strict JSON, canonical UUID/file-URI, exact-field, option
 default, redaction, and canonical-serialization tests. The frozen command
 fixture includes Chinese, emoji, spaces, and all command literals. Event DTOs,
-the control loop, cancellation, and the Node harness remain pending; Phase 2 is
-not GO. See `docs/phase2_worker_command_contract_2026-07-11.md`.
+the control loop, cancellation, and the Node harness were deliberately outside
+that first checkpoint. See
+`docs/phase2_worker_command_contract_2026-07-11.md`.
+
+Phase 2 checkpoint 2 freezes all six output event shapes and corrects duplicated
+result-envelope identity. An explicit fail-closed adapter preserves the direct
+Phase 1 result while producing JSON-safe worker payloads; sensitive warning and
+error details are recursively redacted. Worker stdin/stdout, child isolation,
+cancellation, and the Node harness remain pending. See
+`docs/phase2_worker_event_contract_2026-07-11.md`.
 
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,

@@ -1,0 +1,6 @@
+{"protocol_version":"ocrllm.v1alpha1","event":"capabilities","request_id":"11111111-1111-4111-8111-111111111111","capabilities":[{"name":"image.board.png","status":"available","reason":"Phase 1 live and packaging gates passed."}]}
+{"protocol_version":"ocrllm.v1alpha1","event":"accepted","request_id":"22222222-2222-4222-8222-222222222222"}
+{"protocol_version":"ocrllm.v1alpha1","event":"progress","request_id":"22222222-2222-4222-8222-222222222222","stage":"recognition","completed":1,"total":2,"unit":"image"}
+{"protocol_version":"ocrllm.v1alpha1","event":"warning","request_id":"22222222-2222-4222-8222-222222222222","code":"SIGN_RESTORED","message":"One source-visible sign was restored by quorum.","details":{"count":1}}
+{"protocol_version":"ocrllm.v1alpha1","event":"result","request_id":"22222222-2222-4222-8222-222222222222","result":{"markdown":"# 识别结果\n","source_type":"image","profile":"board","status":"complete","output_uri":null,"artifacts":[],"hotwords":["遗传"],"warnings":[],"metadata":{"provider":"dashscope","restored_signs":1}}}
+{"protocol_version":"ocrllm.v1alpha1","event":"error","request_id":null,"code":"COMMAND_INVALID","message":"Worker command is invalid.","retryable":false,"details":{}}

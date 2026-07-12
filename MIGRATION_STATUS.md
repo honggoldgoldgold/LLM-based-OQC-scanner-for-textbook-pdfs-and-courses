@@ -752,6 +752,13 @@ suite. The next checkpoint is the six event shapes and the explicit wire-result
 adapter; do not start the process control loop on an unfrozen output contract.
 See `docs/phase2_worker_command_contract_2026-07-11.md`.
 
+Checkpoint 2 completes the six event DTOs and frozen event JSONL fixture. It
+keeps protocol/request identity only in the event envelope and uses an explicit
+adapter rather than mutating the direct Phase 1 result. Command plus event tests
+pass 51 cases; the full suite passes 763. The next checkpoint owns bounded
+stdin reading and protocol-only flushed stdout writing, not the process control
+loop yet. See `docs/phase2_worker_event_contract_2026-07-11.md`.
+
 Preserve every earlier Phase 1 evidence file unchanged. The passing decision is
 bound to v17 evidence SHA-256
 `6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`

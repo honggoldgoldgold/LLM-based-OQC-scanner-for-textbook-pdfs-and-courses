@@ -1732,6 +1732,15 @@ Event DTOs, the wire-result adapter, worker I/O/control loop, cancellation, Node
 harness, and live smoke remain required, so Phase 2 is not GO. See
 `phase2_worker_command_contract_2026-07-11.md`.
 
+Phase 2 checkpoint 2 freezes the six event DTOs and event JSONL fixture. It
+removes duplicated version/request identity from the nested result payload,
+adapts the direct Phase 1 result explicitly, rejects untyped assets, requires an
+existing output file before advertising its URI, and reuses recursive detail
+redaction. All 51 command/event tests and the 763-test full suite pass. Worker
+I/O, process isolation/control, cancellation, Node harness, and live smoke still
+remain; Phase 2 is not GO. See
+`phase2_worker_event_contract_2026-07-11.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:
