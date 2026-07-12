@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
@@ -9,7 +10,7 @@ import { WorkerJsonlHarness } from "./worker_jsonl_harness.mjs";
 const CAPABILITY_ID = "11111111-1111-4111-8111-111111111111";
 const RECOGNITION_ID = "22222222-2222-4222-8222-222222222222";
 
-function recognizeCommand(sourceUri) {
+function recognizeCommand(sourceUri, options = {}) {
   return {
     protocol_version: "ocrllm.v1alpha1",
     command: "recognize",
@@ -20,7 +21,7 @@ function recognizeCommand(sourceUri) {
     input_languages: ["zh-Hans", "en"],
     output_language: "zh-Hans",
     profile: "board",
-    options: {},
+    options,
   };
 }
 
@@ -140,15 +141,73 @@ async function verifyCancellation(python, entrypoint, temporaryRoot) {
   }
 }
 
+async function verifyLive(python, sourceRoot, temporaryRoot, sourcePath) {
+  if (!process.env.DASHSCOPE_API_KEY) throw new Error("DASHSCOPE_API_KEY is required for the opt-in live gate");
+  if (!sourcePath || !(await fileExists(sourcePath))) throw new Error("live source image does not exist");
+  const environment = { ...process.env, PYTHONPATH: sourceRoot };
+  const harness = new WorkerJsonlHarness(python, ["-m", "ocrllm.worker"], {
+    cwd: temporaryRoot,
+    env: environment,
+  });
+  try {
+    harness.send(recognizeCommand(pathToFileURL(sourcePath).href, { timeout_seconds: 180 }));
+    const terminal = await harness.waitForEvent(
+      (event) => event.event === "result" || event.event === "error",
+      600000,
+    );
+    if (terminal.event === "error") {
+      throw new Error(`live worker returned ${terminal.code}: ${JSON.stringify(terminal.details)}`);
+    }
+    const exit = await harness.closeAndWait(30000);
+    if (exit.code !== 0 || exit.signal !== null) throw new Error(`live worker exited ${exit.code}/${exit.signal}`);
+    if (harness.stderr !== "") throw new Error(`live worker wrote stderr: ${harness.stderr}`);
+    const kinds = harness.events.map((event) => event.event);
+    if (JSON.stringify(kinds) !== JSON.stringify(["accepted", "progress", "progress", "result"])) {
+      throw new Error(`unexpected live events: ${kinds.join(",")}`);
+    }
+    const { result } = terminal;
+    if (result.source_type !== "image" || result.profile !== "board" || result.status !== "complete") {
+      throw new Error("live worker result identity is not the unified image/board contract");
+    }
+    const expectedMetadata = {
+      provider: "dashscope",
+      provider_region: "cn-beijing",
+      model: "qwen3.7-plus-2026-05-26",
+      profile: "board",
+      provider_call_count: 4,
+      standalone_sign_scout_count: 3,
+      enable_thinking: true,
+      vl_high_resolution_images: true,
+    };
+    for (const [key, value] of Object.entries(expectedMetadata)) {
+      if (result.metadata[key] !== value) throw new Error(`live metadata mismatch: ${key}`);
+    }
+    return {
+      scenario: "live",
+      lines_validated: harness.events.length,
+      markdown_utf8_bytes: Buffer.byteLength(result.markdown, "utf8"),
+      markdown_sha256: createHash("sha256").update(result.markdown, "utf8").digest("hex"),
+      provider_call_count: result.metadata.provider_call_count,
+      standalone_signs_restored: result.metadata.standalone_signs_restored,
+      standalone_sign_scout_abstention_count: result.metadata.standalone_sign_scout_abstention_count,
+      model: result.metadata.model,
+      provider_region: result.metadata.provider_region,
+    };
+  } finally {
+    await harness.terminateTree();
+  }
+}
+
 async function main() {
-  const [scenario, python, entrypoint, temporaryRoot] = process.argv.slice(2);
-  if (!["fixture", "cancellation"].includes(scenario) || !python || !entrypoint || !temporaryRoot) {
-    throw new Error("usage: verify_worker_protocol.mjs <fixture|cancellation> <python> <entrypoint> <temporary-root>");
+  const [scenario, python, target, temporaryRoot, liveSourcePath] = process.argv.slice(2);
+  if (!["fixture", "cancellation", "live"].includes(scenario) || !python || !target || !temporaryRoot) {
+    throw new Error("usage: verify_worker_protocol.mjs <fixture|cancellation|live> <python> <entrypoint|source-root> <temporary-root> [live-source]");
   }
   await mkdir(temporaryRoot, { recursive: true });
-  const result = scenario === "fixture"
-    ? await verifyFixture(python, entrypoint, temporaryRoot)
-    : await verifyCancellation(python, entrypoint, temporaryRoot);
+  let result;
+  if (scenario === "fixture") result = await verifyFixture(python, target, temporaryRoot);
+  else if (scenario === "cancellation") result = await verifyCancellation(python, target, temporaryRoot);
+  else result = await verifyLive(python, target, temporaryRoot, liveSourcePath);
   process.stdout.write(`${JSON.stringify(result)}\n`);
 }
 

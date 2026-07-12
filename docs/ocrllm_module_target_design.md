@@ -1290,6 +1290,10 @@ Phase 2 checkpoint 8 implements the shell-free Node harness, cross-language
 event validation, Unicode path proof, and descendant cancellation. Only the
 live worker smoke remains pending.
 
+Phase 2 checkpoint 9 passes the opt-in Beijing production-worker smoke after
+preserving two typed timeout attempts. Only the clean checkpoint proof and
+formal GO decision remain pending.
+
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;
 each requires a new explicit decision after Phase 6 or an approved product

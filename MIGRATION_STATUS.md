@@ -767,6 +767,13 @@ about 3.32 seconds. Only the opt-in Beijing live production-worker smoke remains
 before the Phase 2 GO decision. See
 `docs/phase2_node_worker_harness_2026-07-12.md`.
 
+Checkpoint 9 implements and runs the opt-in live Node scenario against the
+production module. Two typed provider timeouts are preserved; the successful
+independent run completed the exact pinned Beijing four-call `board` workflow,
+validated four stdout events, and stored only non-private hashes/counts. A clean
+proof of the checkpoint commit remains before the formal Phase 2 GO decision.
+See `docs/phase2_live_worker_result_2026-07-12.md`.
+
 Checkpoint 1 completes the input side of item 1: all three v1alpha1 commands
 have immutable DTOs, strict parsing, explicit defaults, canonical serialization,
 and one frozen JSONL fixture. It passes 33 focused tests and the 745-test full

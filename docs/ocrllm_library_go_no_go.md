@@ -1790,6 +1790,14 @@ contract and proves the descendant PID is gone. The full suite passes 826. The
 opt-in Beijing live production-worker smoke remains; Phase 2 is not GO. See
 `phase2_node_worker_harness_2026-07-12.md`.
 
+Phase 2 checkpoint 9 implements and passes the opt-in Beijing live production
+worker scenario. Two typed timeouts are recorded without automatic retry; the
+final independent job validates `accepted`, both progress events, and a complete
+result from the pinned four-call unified `board` workflow. Private input and
+recognized Markdown are not redistributed. The clean checkpoint proof and
+formal decision remain; Phase 2 is not yet recorded as GO. See
+`phase2_live_worker_result_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

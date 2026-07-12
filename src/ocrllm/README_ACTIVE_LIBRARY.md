@@ -67,7 +67,9 @@ adapter now reuses this same unified facade once per ordered group, fixes the
 Beijing v17 configuration, and adds no handwriting route, fallback, or retry.
 `python -m ocrllm.worker` now composes that adapter with the isolated manager;
 the shell-free Node JSONL, Unicode-path, and descendant-cancellation gates pass.
-It remains a development worker until the Beijing live gate passes.
+The Beijing live production-worker smoke also passes; a clean proof and formal
+Phase 2 decision remain. This is still a development worker, not packaged
+Electron compatibility.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data

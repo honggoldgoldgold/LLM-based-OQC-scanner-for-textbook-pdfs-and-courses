@@ -1,0 +1,77 @@
+{
+  "schema_version": "ocrllm.phase2-live-worker.v1",
+  "date": "2026-07-12",
+  "worker_commit": "b313d3efec65f32026d60e9c2135e8f20c30b55f",
+  "live_harness_sha256": "c6801fc842d42044cf684e6e2b865fe845d8c22e62124e09e972791ce827f77a",
+  "provider": "dashscope",
+  "provider_region": "cn-beijing",
+  "base_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "model": "qwen3.7-plus-2026-05-26",
+  "profile": "board",
+  "workflow": {
+    "enable_thinking": true,
+    "vl_high_resolution_images": true,
+    "sdk_retries": 0,
+    "primary_calls": 1,
+    "standalone_sign_scout_calls": 3
+  },
+  "private_input_policy": {
+    "tracked": false,
+    "redistributed": false,
+    "recognized_markdown_stored": false,
+    "note": "Local user-authorized screenshots were used only as untracked smoke inputs."
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "input_category": "dense formula and table screenshot",
+      "input_bytes": 168837,
+      "input_dimensions": [922, 1197],
+      "timeout_seconds_per_call": 120,
+      "elapsed_seconds": 245.2,
+      "status": "typed_error",
+      "error_code": "PROVIDER_TIMEOUT",
+      "error_details_captured": false,
+      "automatic_retry": false
+    },
+    {
+      "attempt": 2,
+      "input_category": "dense formula and table screenshot",
+      "input_bytes": 168837,
+      "input_dimensions": [922, 1197],
+      "timeout_seconds_per_call": 180,
+      "elapsed_seconds": 185.2,
+      "status": "typed_error",
+      "error_code": "PROVIDER_TIMEOUT",
+      "error_details": {
+        "provider": "dashscope",
+        "model": "qwen3.7-plus-2026-05-26",
+        "workflow_pass": "draft",
+        "provider_calls_attempted": 1
+      },
+      "automatic_retry": false
+    },
+    {
+      "attempt": 3,
+      "input_category": "formula and prose screenshot",
+      "input_bytes": 208014,
+      "input_dimensions": [879, 1114],
+      "timeout_seconds_per_call": 180,
+      "elapsed_seconds": 560.3,
+      "status": "complete",
+      "events": ["accepted", "progress", "progress", "result"],
+      "stdout_lines_validated_by_node": 4,
+      "source_type": "image",
+      "result_profile": "board",
+      "result_status": "complete",
+      "markdown_utf8_bytes": 2439,
+      "markdown_sha256": "d56184357c69848b94d4d9d00eeaaa4c99c00004b4bdb449a182028e99275e03",
+      "provider_call_count": 4,
+      "standalone_signs_restored": 0,
+      "standalone_sign_scout_abstention_count": 0,
+      "automatic_retry": false
+    }
+  ],
+  "gate_result": "pass",
+  "quality_scope": "Operational worker smoke only; Phase 1 v17 remains the recognition-quality authority."
+}

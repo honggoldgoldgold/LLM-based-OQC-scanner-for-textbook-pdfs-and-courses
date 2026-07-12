@@ -222,6 +222,13 @@ and proven gone within the five-second contract. Only the Beijing live worker
 smoke remains before the Phase 2 GO decision. See
 `docs/phase2_node_worker_harness_2026-07-12.md`.
 
+Phase 2 checkpoint 9 adds the opt-in production-worker live scenario and a
+machine-readable result record. Two provider timeouts are preserved rather than
+hidden; a final independent Beijing job completed the pinned four-call unified
+`board` workflow with all four stdout events validated by Node. The clean
+committed-source proof and formal GO decision remain. See
+`docs/phase2_live_worker_result_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in
