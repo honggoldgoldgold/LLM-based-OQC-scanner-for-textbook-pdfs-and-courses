@@ -58,6 +58,8 @@ credentials*
 secrets*
 api_key*
 *_api_key*
+# Source validator contains no credential; keep it in source distributions.
+!src/ocrllm/providers/dashscope/validate_dashscope_api_key.py
 access_token*
 refresh_token*
 token.txt
