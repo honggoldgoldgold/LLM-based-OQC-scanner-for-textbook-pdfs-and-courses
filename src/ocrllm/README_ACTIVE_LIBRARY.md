@@ -14,6 +14,7 @@ from ocrllm import (
     DashScopeSettings,
     DependencyMissing,
     InvalidSource,
+    LocalOCRSettings,
     NoSpeechDetected,
     OCRLLMError,
     OutputError,
@@ -22,6 +23,8 @@ from ocrllm import (
     ProviderUnavailable,
     QuotaExhausted,
     RateLimited,
+    RecognitionExecutionPolicy,
+    RecognitionPreferences,
     RecognitionResult,
     UnsupportedFormat,
     recognize,
@@ -31,9 +34,9 @@ from ocrllm import (
 ```
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. Phase 2A image-library completion is active; local OCR through
-the direct facade is the current slice, while Phase 3 PDFium remains not
-started.
+worker are GO. Phase 2A image-library completion is active; local OCR and the
+shared execution policy are GO, provider transport/model configuration is
+current, and Phase 3 PDFium remains not started.
 
 The current image facade:
 
@@ -52,6 +55,10 @@ The current image facade:
 - freshly revalidates an exact public `Config`; injected providers retain the
   caller's config identity, while the built-in adapter uses an isolated,
   revalidated copy.
+- rejects groups above `Config.execution.maximum_images_per_request` before
+  source/provider work and bounds ordered, fail-fast `recognize_batch()` jobs;
+- applies one monotonic provider-start interval to every draft/review/scout
+  call in a direct operation or across one concurrent batch.
 
 The built-in DashScope board/image capability is available under the bounded
 Phase 1 contract. The v17 Beijing gate completed exactly 52 provider calls with
@@ -88,8 +95,8 @@ cannot enter the result. Directional-arrow insertion is forbidden while
 complete primary transcription remains unchanged. Exact dynamic scout-prompt
 hashes and byte counts are returned in metadata.
 Qwen-VL Max remains an explicit supported scout option but is not the Phase 1
-evidence baseline. There is still no local OCR backend, key pool, automatic
-retry/model fallback, or image resume; PDF, audio, and video remain unavailable.
+evidence baseline. There is still no key pool, automatic retry/model fallback,
+or image resume; PDF, audio, and video remain unavailable.
 Local user screenshots are uncommitted
 supplemental material and never replace the committed corpus in pass/fail
 evidence.

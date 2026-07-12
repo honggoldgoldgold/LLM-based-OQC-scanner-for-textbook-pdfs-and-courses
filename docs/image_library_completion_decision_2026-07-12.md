@@ -2,7 +2,8 @@
 
 Date: 2026-07-12.
 
-Status: active. Local OCR is GO; provider workflow configuration is current.
+Status: active. Local OCR and shared execution policy are GO; provider
+transport/model configuration is current.
 
 ## Why The Roadmap Changes
 
@@ -26,11 +27,13 @@ Phase 2A is implemented as independent vertical slices:
    strategy, a maintained RapidOCR/ONNX Runtime adapter, typed local-OCR errors,
    deterministic Markdown, ordered multi-image handling, optional installation,
    and real offline screenshot evidence.
-2. **Provider workflow configuration -- current.** Separate immutable provider transport,
-   model, execution, and recognition-preference policies. Do not freeze the
-   user's four examples as an exhaustive enum: OpenAI-compatible APIs, provider
-   SDKs, Google SDKs, and Codex subprocess/session execution have different
-   credential and lifecycle contracts.
+2. **Provider workflow configuration -- current.** Separate immutable provider
+   transport, model, execution, and recognition-preference policies. The shared
+   `RecognitionExecutionPolicy` checkpoint is GO; provider transport and model
+   configuration are next. Do not freeze the user's four examples as an
+   exhaustive enum: OpenAI-compatible APIs, provider SDKs, Google SDKs, and
+   Codex subprocess/session execution have different credential and lifecycle
+   contracts.
 3. **Credential pools.** Add stateful fair rotation/cooldown only after each
    enabled provider category maps authentication, quota, rate limit,
    concurrency, invalid request, timeout, network, suspension, and malformed
@@ -106,6 +109,16 @@ The Phase 2 v1alpha1 worker remains DashScope-image-only. Adding OCR to the wire
 contract requires a separately versioned command update after the direct API is
 proven; it is not smuggled into the frozen v1alpha1 `provider="dashscope"`
 shape.
+
+## Recognition Execution Policy Checkpoint
+
+`Config.execution` now owns immutable per-request image, parallel-job, and
+provider-start cadence limits. Over-limit groups fail before source/provider
+work, `recognize_batch()` bounds active futures and preserves result order, and
+one monotonic gate covers every draft/review/scout call across a batch. The
+first failure aborts provider calls that have not started. See
+`phase2a_recognition_execution_policy_2026-07-12.md` for exact semantics,
+verification, import budgets, and the next provider-configuration boundary.
 
 ## Explicit Do-Not-Do Items
 

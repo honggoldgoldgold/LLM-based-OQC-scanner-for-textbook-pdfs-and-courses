@@ -113,14 +113,15 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
   explicitly configured Python executable. Packaged Electron compatibility
   remains a Phase 6 gate.
 - Phase 2A image-library completion is active before PDF. Its current and only
-  slice is provider workflow configuration; local OCR through the direct
-  `recognize()` facade is GO. See
+  slice is provider workflow configuration; local OCR and shared execution
+  policy are GO, and provider transport/model configuration is next. See
   `image_library_completion_decision_2026-07-12.md`.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
-  and advertised exactly `dev,image`. The current Phase 1 tree still has no base
-  requirements and now advertises exactly `dev,image,dashscope`; `image`
-  installs `Pillow>=10.4,<13`, and `dashscope` installs `openai>=2.30,<3`. No
+  and advertised exactly `dev,image`. The current tree still has no base
+  requirements and now advertises exactly `dev,image,dashscope,ocr`; `image`
+  installs `Pillow>=10.4,<13`, `dashscope` installs `openai>=2.30,<3`, and `ocr`
+  installs maintained RapidOCR plus ONNX Runtime. No
   empty PDF, audio, video, or `all` extra is published. The Phase 0 wheel
   measurements below predate the `dashscope` extra and remain historical
   Phase 0 evidence.
@@ -133,9 +134,10 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
   provider, image processing snapshots config as its first action, before
   provider/model resolution, prompt construction, or cancellation inspection;
   the adapter revalidates that isolated snapshot again. Nested
-  `DashScopeSettings` are reconstructed at each snapshot, so callback mutation
-  or `object.__setattr__` cannot diverge the request from its metadata or smuggle
-  an endpoint past the allowlist.
+  `DashScopeSettings` and `RecognitionExecutionPolicy` are reconstructed at
+  each snapshot, so callback mutation or `object.__setattr__` cannot diverge the
+  request from its metadata, smuggle an endpoint past the allowlist, or bypass
+  execution limits.
 - The original offline quality checkpoint is commit `e328253`. The current
   versioned `board.v6` manifest is exactly `37,685` bytes with SHA-256
   `c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`.
@@ -290,9 +292,10 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
 - Legacy behavior is evidence only; it is not an active import or service
   boundary.
 
-Therefore contract honesty and real board/image work are complete. The current
-phase is the versioned JSON contract and one-job JSONL worker. It is not PDF,
-audio, video, HTTP service, local-OCR, or native work.
+Therefore contract honesty, real board/image work, and the versioned JSONL
+worker are complete. Phase 2A image-library completion is current. Local OCR
+and shared execution policy are GO; provider transport/model configuration is
+next. It is not PDF, audio, video, HTTP service, or native work.
 
 Capability status vocabulary is fixed:
 
@@ -857,9 +860,9 @@ src/ocrllm/providers/dashscope/map_dashscope_error.py
     public errors.
 ```
 
-Provider model queues and key pools remain NO-GO during the local-OCR slice.
-They become a later Phase 2A slice only after enabled provider categories have
-stable error taxonomies and tests prove the pool policy.
+Provider model queues and key pools remain NO-GO during provider workflow
+configuration. They become a later Phase 2A slice only after enabled provider
+categories have stable error taxonomies and tests prove the pool policy.
 
 Future provider architecture is recorded here without authorizing it:
 
@@ -876,7 +879,7 @@ Future provider architecture is recorded here without authorizing it:
   field.
 - A future credential pool requires an explicit decision covering fair
   selection, cooldown, and provider/model quota and error domains. It remains
-  outside the current local-OCR slice.
+  outside the current provider transport/model configuration slice.
 
 Phase 1 provider policy is concrete:
 
@@ -1826,6 +1829,15 @@ offline generated/private-input probes. The base suite passes 870 tests with
 one optional-profile skip. Committed clean-wheel and fresh `ocr`-extra gates
 pass; `image.ocr.rapidocr` is `available`. See
 `local_ocr_implementation_checkpoint_2026-07-12.md`.
+
+Phase 2A checkpoint 2 implements immutable `RecognitionExecutionPolicy`, one
+shared hard image-group limit, pre-provider configured-limit rejection,
+bounded ordered `recognize_batch()` concurrency, and monotonic all-provider-call
+cadence. Parallel failure prevents waiting calls from reaching the provider.
+The pinned full suite, fixture identity, static checks, and clean wheel/import
+budgets pass. Provider transport/model configuration is next; pools and resume
+remain later gates. See
+`phase2a_recognition_execution_policy_2026-07-12.md`.
 
 ### Phase 3: PDFium PDF
 

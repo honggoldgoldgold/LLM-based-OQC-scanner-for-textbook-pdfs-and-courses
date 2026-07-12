@@ -17,8 +17,9 @@ dependency surface for new projects.
 The active package is `src/ocrllm`.
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. Phase 2A image-library completion is active, beginning with local
-OCR through the same facade. Phase 3 PDFium work has not started.
+worker are GO. Phase 2A image-library completion is active. Local OCR and the
+shared recognition execution policy are GO; provider transport/model
+configuration is current. Phase 3 PDFium work has not started.
 
 The current verified contract:
 
@@ -34,6 +35,9 @@ The current verified contract:
 - The built-in DashScope adapter is installed only through
   `ocrllm[dashscope]`; plain `import ocrllm` imports neither `openai` nor
   transitive `httpx`.
+- `Config.execution` bounds per-request image count, independent batch
+  concurrency, and monotonic provider-call starts. `recognize_batch()` remains
+  fail-fast and returns results in caller order.
 
 Phase 1 now contains one lazy DashScope vision adapter with offline boundary
 tests. It requires immutable `DashScopeSettings` with an explicit region and
@@ -251,8 +255,8 @@ without weakening secret protection. A clean Git-archive build from the hotfix
 produced a `50,094`-byte wheel and passed an isolated explicit-key resolver
 round-trip without a provider call.
 
-The active library also has no local OCR mode, API-key pools, automatic retries
-or model fallback, resume/checkpoint support, PDF recognition, audio
+The active library has no API-key pools, automatic retries or model fallback,
+resume/checkpoint support, PDF recognition, audio
 recognition, or video recognition. Those features must enter through their own
 approved phases rather than through the injected-provider scaffold.
 

@@ -7,7 +7,8 @@ This file is the project memory aid. Read it before changing the repo.
 The old OCRLLM app has been moved to `legacy_app/`; the active project is an
 importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
 versioned JSON/JSONL worker GO. Phase 2A image-library completion is active;
-local OCR is the current slice and Phase 3 PDFium has not started.
+local OCR and shared execution policy are GO, provider transport/model
+configuration is current, and Phase 3 PDFium has not started.
 
 ## First Files To Read
 
@@ -156,14 +157,15 @@ complete. V17 ran in `cn-beijing`: all 13 recognitions and 52 provider calls
 completed without retry, both independent full runs passed, and Run B repaired
 exactly one missing handwriting sign without a handwriting-specific route. The
 clean committed-wheel gate at `0278b66` also passed. The immutable result is
-summarized in `docs/phase1_live_quality_result_v17_2026-07-11.md`. Google,
-Codex, local-OCR, PDF, audio, and video adapters do not exist in the active
-library.
+summarized in `docs/phase1_live_quality_result_v17_2026-07-11.md`. Local OCR is
+now available through the same facade. Google, Codex, PDF, audio, and video
+adapters do not exist in the active library.
 
 Current package metadata still has no base runtime requirements. It declares
-exactly `dev`, `image`, and `dashscope`; `image` installs `Pillow>=10.4,<13`, and
-`dashscope` installs `openai>=2.30,<3`. Plain `import ocrllm` must leave `PIL`,
-`openai`, and transitive `httpx` absent from `sys.modules`.
+exactly `dev`, `image`, `dashscope`, and `ocr`; `image` installs
+`Pillow>=10.4,<13`, `dashscope` installs `openai>=2.30,<3`, and `ocr` installs
+the maintained RapidOCR plus ONNX Runtime path. Plain `import ocrllm` must leave
+all optional/heavy modules absent from `sys.modules`.
 
 Active PDF policy is decided now even though PDF implementation is not
 authorized yet:
@@ -421,15 +423,15 @@ The documents are useful for rebuilding context after memory loss. The
 GO/NO-GO record defines allowed boundaries; tests and real downstream imports
 provide the evidence for advancing a gate.
 
-## Future Provider, Preference, Pool, And Local-OCR Decision
+## Provider, Preference, Pool, And Local-OCR Decision
 
 The 2026-07-10 implementation brief is accepted as product direction, but its
 configuration and pooling sketch is not accepted literally:
 
-- `board` is a recognition profile. A future local-OCR path is an execution
-  engine/capability orthogonal to that profile, reached through the same public
-  `recognize()` facade only after an engine, optional dependency, fixtures,
-  quality threshold, and capability name are approved.
+- `board` is a recognition profile. Local OCR is an execution
+  engine/capability orthogonal to that profile and now reaches the same public
+  `recognize()` facade after its engine, optional dependency, fixtures, quality
+  threshold, and capability name passed their gates.
 - A universal `category + api_key` requirement is invalid because Codex is a
   local authenticated CLI and has no per-call API key. Future provider config
   must be discriminated by adapter category and validate only applicable fields.
@@ -450,8 +452,8 @@ configuration and pooling sketch is not accepted literally:
   long PDF/audio/video jobs. Phase 0 image snapshots are validation isolation,
   not resume state.
 
-Provider pools, model queues, automatic retry/switching, and local OCR remain
-NO-GO until the one-provider Phase 1 error and quality gates establish evidence.
+Local OCR and shared execution policy are GO. Provider pools, model queues, and
+automatic retry/switching remain NO-GO until their own later Phase 2A gates.
 
 ## Phase 1 DashScope Decision (2026-07-10)
 
@@ -731,8 +733,8 @@ legacy_app/environment.yml
 
 Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
 `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
-passes. Local OCR is GO; provider workflow configuration is the current slice.
-Phase 3 has not started.
+passes. Local OCR and shared execution policy are GO; provider transport/model
+configuration is the current slice. Phase 3 has not started.
 
 Phase 2A recovery rules:
 
@@ -743,8 +745,9 @@ Phase 2A recovery rules:
 3. Preserve the Phase 2 live evidence and Node cancellation fixtures.
 4. Keep the worker development-only with an explicitly configured Python
    executable. Do not claim packaged Electron compatibility before Phase 6.
-5. Implement local OCR first, then provider workflow configuration, provider
-   error taxonomies/credential pools, and image resume as separate gates. Do
+5. Preserve the completed local-OCR and shared execution-policy checkpoints;
+   implement provider transport/model configuration next, then provider error
+   taxonomies/credential pools and image resume as separate gates. Do
    not start Phase 3 PDFium, Phase 4 audio/FileTrans, or another deferred
    capability.
 
@@ -761,6 +764,14 @@ engine test, two authorized screenshot probes, clean committed wheel, and fresh
 
 Formal local-OCR graduation commit `2b87d34` also passes its clean archive,
 installed capability, base dependency/import, and timing proof.
+
+Phase 2A checkpoint 2 adds public immutable `RecognitionExecutionPolicy`,
+pre-upload configurable image limits, bounded ordered `recognize_batch()`
+parallelism, and one monotonic start gate covering every provider call in a
+direct operation or batch. Parallel failure aborts work that has not reached
+the provider. Pushed commits `12c221b` and `40df1a9` pass the 895-test pinned
+suite, fixture identity, static checks, and a clean 117,093-byte wheel/import
+budget. See `docs/phase2a_recognition_execution_policy_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
@@ -1216,9 +1227,9 @@ quorum remain. The 37,864-byte manifest SHA-256 is
 89 focused and all 712 isolated tests pass. See
 `docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
 
-The bounded JSONL worker is now GO. Local OCR through the direct `recognize()`
-facade is the next task under Phase 2A. Provider workflow configuration,
-credential pools, and image resume follow as separate slices. PDF, audio, video,
+The bounded JSONL worker, direct local OCR, and shared recognition execution
+policy are now GO. Provider transport/model configuration is the next Phase 2A
+task; credential pools and image resume follow as separate slices. PDF, audio, video,
 HTTP service, HarmonyOS, Rust, Office, social, GPU, and offline-model work remain
 outside the current slice.
 

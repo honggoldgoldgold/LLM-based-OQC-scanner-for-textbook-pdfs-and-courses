@@ -35,17 +35,18 @@ Read next:
 - `docs/phase2_live_worker_result_2026-07-12.md`
 - `docs/image_library_completion_decision_2026-07-12.md`
 - `docs/local_ocr_implementation_checkpoint_2026-07-12.md`
+- `docs/phase2a_recognition_execution_policy_2026-07-12.md`
 
 Public import shape:
 
 ```python
-from ocrllm import Config, DashScopeSettings, recognize
+from ocrllm import Config, RecognitionExecutionPolicy, recognize
 ```
 
 Current phase: **Phase 2A -- image library completion**. Phase 0 contract
 honesty, Phase 1 real board/image, and Phase 2 JSONL worker are GO. The current
-slice is generalized provider workflow configuration; local OCR through the same
-`recognize()` facade is GO. Phase 3 PDFium remains not started. The Phase 2
+slice is provider transport/model configuration; local OCR and the shared
+recognition execution policy are GO. Phase 3 PDFium remains not started. The Phase 2
 formal GO commit is `2db456a` and its clean Git-archive proof passes.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
 passes request-scoped validated snapshots isolated from later caller-path
@@ -73,8 +74,8 @@ image recognition, and fresh `image` plus Beijing `image,dashscope` profiles.
 The image/provider and v1alpha1 worker capabilities are available. The active
 post-Phase-2 decision now authorizes only the Phase 2A provider-workflow slice.
 
-The active library still has no local OCR path, API-key pool,
-retry/model-fallback policy, resume support, PDF, audio, or video support. Local
+The active library still has no API-key pool, retry/model-fallback policy,
+resume support, PDF, audio, or video support. Local
 user PDFs/screenshots under `docs/` remain untracked supplemental test material,
 not redistributable gate evidence. Read
 `MIGRATION_STATUS.md` for current evidence and next steps, and
