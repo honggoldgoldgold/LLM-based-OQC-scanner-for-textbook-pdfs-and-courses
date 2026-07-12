@@ -9,11 +9,16 @@ import pytest
 
 from ocrllm import (
     Cancelled,
+    ConcurrencyLimited,
     ConfigError,
     DashScopeSettings,
     DependencyMissing,
     InvalidSource,
     ProviderError,
+    ProviderAccountSuspended,
+    ProviderContentBlocked,
+    ProviderPermissionDenied,
+    ProviderRequestInvalid,
     ProviderUnavailable,
     QuotaExhausted,
     RateLimited,
@@ -255,7 +260,12 @@ def test_dashscope_raw_response_accepts_absent_or_false_partial_header():
             "PROVIDER_AUTHENTICATION",
             False,
         ),
-        (SdkPermission(), ProviderError, "PROVIDER_AUTHENTICATION", False),
+        (
+            SdkPermission(),
+            ProviderPermissionDenied,
+            "PROVIDER_PERMISSION_DENIED",
+            False,
+        ),
         (SdkRateLimit(), RateLimited, "PROVIDER_RATE_LIMITED", True),
         (SdkInternal(), ProviderUnavailable, "PROVIDER_UNAVAILABLE", True),
     ],
@@ -300,26 +310,39 @@ def test_dashscope_billing_quota_failure_is_nonretryable():
     assert mapped.retryable is False
 
 
-@pytest.mark.parametrize(
-    ("status", "provider_code"),
-    [
-        (403, "AllocationQuota.FreeTierOnly"),
-        (400, "Arrearage"),
-    ],
-)
+@pytest.mark.parametrize("status", [400, 403, 429])
 def test_dashscope_provider_code_precedes_generic_http_classification(
     status,
-    provider_code,
 ):
     error = RuntimeError("raw provider body")
     error.status_code = status
-    error.body = {"code": provider_code}
+    error.body = {"code": "AllocationQuota.FreeTierOnly"}
 
     mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
 
     assert isinstance(mapped, QuotaExhausted)
     assert mapped.code == "PROVIDER_QUOTA_EXHAUSTED"
     assert mapped.retryable is False
+    assert mapped.details["failure_scope"] == "account"
+
+
+@pytest.mark.parametrize(
+    "provider_code",
+    ["Arrearage", "PrepaidBillOverdue", "PostpaidBillOverdue", "AccountSuspended"],
+)
+def test_dashscope_account_state_failures_are_not_quota_or_authentication(
+    provider_code,
+):
+    error = RuntimeError("raw provider body")
+    error.status_code = 400
+    error.body = {"code": provider_code}
+
+    mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
+
+    assert isinstance(mapped, ProviderAccountSuspended)
+    assert mapped.code == "PROVIDER_ACCOUNT_SUSPENDED"
+    assert mapped.retryable is False
+    assert mapped.details["failure_scope"] == "account"
 
 
 def test_dashscope_data_inspection_failure_is_not_mislabeled_as_config():
@@ -329,9 +352,10 @@ def test_dashscope_data_inspection_failure_is_not_mislabeled_as_config():
 
     mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
 
-    assert isinstance(mapped, ProviderError)
-    assert not isinstance(mapped, ConfigError)
-    assert mapped.code == "PROVIDER_RESPONSE_INVALID"
+    assert isinstance(mapped, ProviderContentBlocked)
+    assert mapped.code == "PROVIDER_CONTENT_BLOCKED"
+    assert mapped.retryable is False
+    assert mapped.details["failure_scope"] == "request"
 
 
 @pytest.mark.parametrize(
@@ -353,7 +377,7 @@ def test_dashscope_documented_timeout_codes_precede_generic_http_500(
     assert mapped.details["provider_code"] == provider_code
 
 
-def test_dashscope_bad_model_or_endpoint_is_configuration_error():
+def test_dashscope_bad_model_or_endpoint_is_provider_request_error():
     error = RuntimeError("raw provider body must not escape")
     error.status_code = 404
     error.code = "ModelNotFound"
@@ -361,11 +385,88 @@ def test_dashscope_bad_model_or_endpoint_is_configuration_error():
 
     mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
 
-    assert isinstance(mapped, ConfigError)
-    assert mapped.code == "CONFIG_INVALID"
+    assert isinstance(mapped, ProviderRequestInvalid)
+    assert mapped.code == "PROVIDER_REQUEST_INVALID"
     assert mapped.details["http_status"] == 404
     assert mapped.details["request_id"] == "req-safe-123"
     assert "raw provider body" not in str(mapped)
+
+
+@pytest.mark.parametrize(
+    ("provider_code", "failure_scope"),
+    [
+        ("AccessDenied", "credential"),
+        ("AccessDenied.Unpurchased", "account"),
+        ("Model.AccessDenied", "model"),
+        ("Workspace.AccessDenied", "credential"),
+        ("Endpoint.AccessDenied", "model"),
+        ("NotAuthorized", "credential"),
+    ],
+)
+def test_dashscope_permission_codes_are_not_mislabeled_as_authentication(
+    provider_code,
+    failure_scope,
+):
+    error = RuntimeError("raw provider body")
+    error.status_code = 403
+    error.body = {"code": provider_code}
+
+    mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
+
+    assert isinstance(mapped, ProviderPermissionDenied)
+    assert mapped.code == "PROVIDER_PERMISSION_DENIED"
+    assert mapped.details["failure_scope"] == failure_scope
+
+
+@pytest.mark.parametrize(
+    "provider_code",
+    [
+        "Throttling.RateQuota",
+        "Throttling.BurstRate",
+        "LimitRequests",
+        "insufficient_quota",
+    ],
+)
+def test_dashscope_rate_codes_cool_down_the_shared_account(provider_code):
+    error = SdkRateLimit()
+    error.status_code = 429
+    error.body = {"code": provider_code}
+
+    mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
+
+    assert isinstance(mapped, RateLimited)
+    assert mapped.details["failure_scope"] == "account"
+    assert mapped.details["limit_kind"] == "rate"
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"code": "ConcurrencyLimitExceeded"},
+        {
+            "code": "Throttling.AllocationQuota",
+            "message": "concurrency allocated quota exceeded",
+        },
+        {
+            "error": {
+                "code": "Throttling",
+                "message": "Too many concurrent requests; limit exceeded",
+            }
+        },
+    ],
+)
+def test_dashscope_concurrency_failures_are_distinct_from_rate(body):
+    error = SdkRateLimit()
+    error.status_code = 429
+    error.body = body
+
+    mapped = map_dashscope_error(error, openai_module=OPENAI_SHAPE, model=MODEL)
+
+    assert isinstance(mapped, ConcurrencyLimited)
+    assert mapped.code == "PROVIDER_CONCURRENCY_LIMITED"
+    assert mapped.retryable is True
+    assert mapped.details["failure_scope"] == "account"
+    assert mapped.details["limit_kind"] == "concurrency"
 
 
 @pytest.mark.parametrize(
@@ -400,6 +501,10 @@ def test_dashscope_hostile_error_properties_cannot_cross_boundary():
 
         @property
         def request_id(self):
+            raise RuntimeError(sentinel)
+
+        @property
+        def message(self):
             raise RuntimeError(sentinel)
 
     mapped = map_dashscope_error(

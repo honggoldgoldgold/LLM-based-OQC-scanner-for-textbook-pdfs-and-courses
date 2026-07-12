@@ -171,6 +171,28 @@ def test_warning_and_error_details_redact_sensitive_keys_recursively() -> None:
     assert encoded.count("[REDACTED]") == 2
 
 
+@pytest.mark.parametrize(
+    ("code", "retryable"),
+    [
+        ("PROVIDER_PERMISSION_DENIED", False),
+        ("PROVIDER_ACCOUNT_SUSPENDED", False),
+        ("PROVIDER_CONCURRENCY_LIMITED", True),
+        ("PROVIDER_REQUEST_INVALID", False),
+        ("PROVIDER_CONTENT_BLOCKED", False),
+    ],
+)
+def test_worker_error_event_accepts_new_provider_taxonomy(code, retryable) -> None:
+    event = ErrorEvent(
+        request_id=REQUEST_ID,
+        code=code,
+        message="Provider workflow failed.",
+        retryable=retryable,
+    )
+
+    assert event.code == code
+    assert event.retryable is retryable
+
+
 def test_direct_result_adapter_preserves_phase1_values_without_mutation() -> None:
     metadata = {"provider": "dashscope", "nested": [1, 2]}
     direct = RecognitionResult(

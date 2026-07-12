@@ -466,6 +466,41 @@ def test_hostile_provider_error_code_cannot_escape_the_redaction_boundary(tmp_pa
             "PROVIDER_AUTHENTICATION",
             False,
         ),
+        (
+            type("PermissionFailure", (Exception,), {"code": "PROVIDER_PERMISSION_DENIED"})(
+                "raw permission detail"
+            ),
+            "PROVIDER_PERMISSION_DENIED",
+            False,
+        ),
+        (
+            type("SuspendedFailure", (Exception,), {"code": "PROVIDER_ACCOUNT_SUSPENDED"})(
+                "raw suspension detail"
+            ),
+            "PROVIDER_ACCOUNT_SUSPENDED",
+            False,
+        ),
+        (
+            type("ConcurrencyFailure", (Exception,), {"code": "PROVIDER_CONCURRENCY_LIMITED"})(
+                "raw concurrency detail"
+            ),
+            "PROVIDER_CONCURRENCY_LIMITED",
+            True,
+        ),
+        (
+            type("RequestFailure", (Exception,), {"code": "PROVIDER_REQUEST_INVALID"})(
+                "raw request detail"
+            ),
+            "PROVIDER_REQUEST_INVALID",
+            False,
+        ),
+        (
+            type("ContentFailure", (Exception,), {"code": "PROVIDER_CONTENT_BLOCKED"})(
+                "raw content detail"
+            ),
+            "PROVIDER_CONTENT_BLOCKED",
+            False,
+        ),
         (FileNotFoundError("local provider file missing"), "PROVIDER_RESPONSE_INVALID", False),
     ],
 )

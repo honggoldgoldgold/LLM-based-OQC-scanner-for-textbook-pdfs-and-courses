@@ -20,11 +20,16 @@ STABLE_ERROR_CODES = frozenset(
         "CONFIG_MISSING",
         "CONFIG_INVALID",
         "PROVIDER_AUTHENTICATION",
+        "PROVIDER_PERMISSION_DENIED",
+        "PROVIDER_ACCOUNT_SUSPENDED",
         "PROVIDER_RATE_LIMITED",
+        "PROVIDER_CONCURRENCY_LIMITED",
         "PROVIDER_QUOTA_EXHAUSTED",
         "PROVIDER_TIMEOUT",
         "PROVIDER_NETWORK",
         "PROVIDER_UNAVAILABLE",
+        "PROVIDER_REQUEST_INVALID",
+        "PROVIDER_CONTENT_BLOCKED",
         "PROVIDER_RESPONSE_INVALID",
         "OCR_BACKEND_FAILED",
         "OCR_RESULT_INVALID",
@@ -52,6 +57,7 @@ STABLE_ERROR_CODES = frozenset(
 _RETRYABLE_BY_DEFAULT = frozenset(
     {
         "PROVIDER_RATE_LIMITED",
+        "PROVIDER_CONCURRENCY_LIMITED",
         "PROVIDER_TIMEOUT",
         "PROVIDER_NETWORK",
         "PROVIDER_UNAVAILABLE",
@@ -174,11 +180,16 @@ class ProviderError(OCRLLMError):
     allowed_codes = frozenset(
         {
             "PROVIDER_AUTHENTICATION",
+            "PROVIDER_PERMISSION_DENIED",
+            "PROVIDER_ACCOUNT_SUSPENDED",
             "PROVIDER_RATE_LIMITED",
+            "PROVIDER_CONCURRENCY_LIMITED",
             "PROVIDER_QUOTA_EXHAUSTED",
             "PROVIDER_TIMEOUT",
             "PROVIDER_NETWORK",
             "PROVIDER_UNAVAILABLE",
+            "PROVIDER_REQUEST_INVALID",
+            "PROVIDER_CONTENT_BLOCKED",
             "PROVIDER_RESPONSE_INVALID",
         }
     )
@@ -192,6 +203,22 @@ class QuotaExhausted(ProviderError):
     allowed_codes = frozenset({default_code})
 
 
+class ProviderPermissionDenied(ProviderError):
+    """A valid provider credential lacks permission for this workflow."""
+
+    default_code = "PROVIDER_PERMISSION_DENIED"
+    default_message = "The provider denied permission for this workflow."
+    allowed_codes = frozenset({default_code})
+
+
+class ProviderAccountSuspended(ProviderError):
+    """The provider account cannot run work until external account recovery."""
+
+    default_code = "PROVIDER_ACCOUNT_SUSPENDED"
+    default_message = "The provider account is suspended."
+    allowed_codes = frozenset({default_code})
+
+
 class RateLimited(ProviderError):
     """The provider temporarily throttled this request."""
 
@@ -200,11 +227,35 @@ class RateLimited(ProviderError):
     allowed_codes = frozenset({default_code})
 
 
+class ConcurrencyLimited(ProviderError):
+    """The provider temporarily rejected excess concurrent work."""
+
+    default_code = "PROVIDER_CONCURRENCY_LIMITED"
+    default_message = "The provider concurrency limit is active."
+    allowed_codes = frozenset({default_code})
+
+
 class ProviderUnavailable(ProviderError):
     """The provider service was temporarily unavailable."""
 
     default_code = "PROVIDER_UNAVAILABLE"
     default_message = "The provider service is temporarily unavailable."
+    allowed_codes = frozenset({default_code})
+
+
+class ProviderRequestInvalid(ProviderError):
+    """The provider rejected model, endpoint, or request parameters."""
+
+    default_code = "PROVIDER_REQUEST_INVALID"
+    default_message = "The provider rejected the request parameters."
+    allowed_codes = frozenset({default_code})
+
+
+class ProviderContentBlocked(ProviderError):
+    """The provider rejected the submitted content under its policy."""
+
+    default_code = "PROVIDER_CONTENT_BLOCKED"
+    default_message = "The provider blocked the submitted content."
     allowed_codes = frozenset({default_code})
 
 

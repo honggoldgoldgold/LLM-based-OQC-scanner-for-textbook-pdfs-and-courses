@@ -4,6 +4,7 @@ import pytest
 
 from ocrllm.errors import (
     Cancelled,
+    ConcurrencyLimited,
     ConfigError,
     DependencyMissing,
     InvalidSource,
@@ -12,6 +13,10 @@ from ocrllm.errors import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderAccountSuspended,
+    ProviderContentBlocked,
+    ProviderPermissionDenied,
+    ProviderRequestInvalid,
     ProviderUnavailable,
     QuotaExhausted,
     RateLimited,
@@ -29,6 +34,10 @@ from ocrllm.errors import (
         (OutputExists(), "OUTPUT_EXISTS"),
         (ProviderError(), "PROVIDER_RESPONSE_INVALID"),
         (QuotaExhausted(), "PROVIDER_QUOTA_EXHAUSTED"),
+        (ProviderPermissionDenied(), "PROVIDER_PERMISSION_DENIED"),
+        (ProviderAccountSuspended(), "PROVIDER_ACCOUNT_SUSPENDED"),
+        (ProviderRequestInvalid(), "PROVIDER_REQUEST_INVALID"),
+        (ProviderContentBlocked(), "PROVIDER_CONTENT_BLOCKED"),
         (NoSpeechDetected(), "NO_SPEECH_DETECTED"),
         (UnsupportedFormat(), "UNSUPPORTED_FORMAT"),
         (Cancelled(), "CANCELLED"),
@@ -45,9 +54,14 @@ def test_provider_retryability_defaults_follow_stable_failure_category():
     assert ProviderError(code="PROVIDER_NETWORK").retryable is True
     assert ProviderError(code="PROVIDER_TIMEOUT").retryable is True
     assert RateLimited().retryable is True
+    assert ConcurrencyLimited().retryable is True
     assert ProviderUnavailable().retryable is True
     assert ProviderError(code="PROVIDER_AUTHENTICATION").retryable is False
     assert QuotaExhausted().retryable is False
+    assert ProviderPermissionDenied().retryable is False
+    assert ProviderAccountSuspended().retryable is False
+    assert ProviderRequestInvalid().retryable is False
+    assert ProviderContentBlocked().retryable is False
 
 
 def test_existing_error_names_still_accept_redacted_public_messages():
