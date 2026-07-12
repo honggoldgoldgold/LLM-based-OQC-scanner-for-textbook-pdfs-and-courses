@@ -1061,8 +1061,11 @@ When `output_dir` is set:
 - Return the Markdown URI in `RecognitionResult.output_uri`.
 - Store only final user-meaningful files in `RecognitionResult.artifacts`.
 
-Resume support applies only to these long-running processors:
+Resume support applies to a completed image recognition unit and these
+long-running processors:
 
+- Image groups, after the complete processor output exists but before final
+  publication.
 - PDF.
 - Audio.
 - Video.

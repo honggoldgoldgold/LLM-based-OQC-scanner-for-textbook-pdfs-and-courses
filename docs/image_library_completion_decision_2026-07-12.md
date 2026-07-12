@@ -3,8 +3,8 @@
 Date: 2026-07-12.
 
 Status: active. Local OCR, shared execution policy, adapter-owned
-DashScope/model configuration, and provider error disposition are GO;
-credential scheduling is current.
+DashScope/model configuration, provider error disposition, and credential
+scheduling are GO; image resume is current.
 
 ## Why The Roadmap Changes
 
@@ -35,7 +35,7 @@ Phase 2A is implemented as independent vertical slices:
    exhaustive enum: OpenAI-compatible APIs, provider SDKs, Google SDKs, and
    Codex subprocess/session execution have different credential and lifecycle
    contracts.
-3. **Credential pools -- current.** Add stateful fair rotation/cooldown only after each
+3. **Credential pools -- GO.** Add stateful fair rotation/cooldown only after each
    enabled provider category maps authentication, quota, rate limit,
    concurrency, invalid request, timeout, network, suspension, and malformed
    response failures into stable policy decisions. Do not broaden one immutable
@@ -130,10 +130,10 @@ The implemented result and clean proof are in
 
 Provider error taxonomy and pool-facing disposition are GO, frozen in
 `provider_error_disposition_decision_2026-07-12.md` and proven in
-`provider_error_disposition_checkpoint_2026-07-12.md`. Credential scheduling
-is the active checkpoint; no retry runtime is authorized by those decisions.
-The concrete scheduler boundary is frozen in
-`dashscope_credential_pool_decision_2026-07-12.md`.
+`provider_error_disposition_checkpoint_2026-07-12.md`. Credential scheduling is
+also GO in `dashscope_credential_pool_checkpoint_2026-07-12.md`; no retry
+runtime is authorized by those decisions. Image resume is frozen in
+`image_resume_decision_2026-07-12.md`.
 
 ## Explicit Do-Not-Do Items
 
