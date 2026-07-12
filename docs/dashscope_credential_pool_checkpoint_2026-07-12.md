@@ -115,4 +115,3 @@ The credential scheduler checkpoint is complete. The next mandatory Phase 2A
 slice is image resume/checkpointing. Resume must compose the same `board.v17`
 workflow and atomic final writer; it must not introduce handwriting-specific
 state, prompt routing, automatic provider retry, PDF work, or legacy-app edits.
-

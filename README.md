@@ -18,9 +18,9 @@ The active package is `src/ocrllm`.
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
 worker are GO. Phase 2A image-library completion is active. Local OCR, shared
-recognition execution policy, adapter-owned DashScope/model configuration, and
-provider error disposition are GO; credential scheduling is current. Phase 3
-PDFium work has not started.
+recognition execution policy, adapter-owned DashScope/model configuration,
+provider error disposition, and credential scheduling are GO; image resume is
+current. Phase 3 PDFium work has not started.
 
 The current verified contract:
 
