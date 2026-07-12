@@ -92,6 +92,16 @@ tests/test_node_worker_harness.py
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
+Clean distribution proof for full commit
+`480d00aaf4ebe0d0c4b799e4d454191a895943e5` also passes. The two Node tests
+rerun from the extracted Git archive, not the working tree, and pass in about
+3.82 seconds. The archive builds a 106,058-byte wheel with SHA-256
+`30f2258a4b52b49ddc526c9b231aa9eb3fd9de7809bb2b5ac8bdde6a433a9cfc`;
+its isolated no-dependency target contains 485,285 bytes. Plain root import
+loads no optional media, provider, PDF, HTTP, or socket modules. Python 3.10
+root-import wall median/p95/max is 47.3868/52.2511/53.1599 ms and CPU
+median/p95/max is 46.875/62.5/62.5 ms.
+
 ## Next Gate
 
 Commit and clean-build-prove this checkpoint, then run one opt-in live smoke
