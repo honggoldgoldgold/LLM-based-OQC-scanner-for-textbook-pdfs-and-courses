@@ -8,16 +8,13 @@ from pathlib import Path
 import pytest
 
 from ocrllm.errors import DependencyMissing, InvalidSource, UnsupportedFormat
-from ocrllm.imaging.decode_image import (
-    MAX_IMAGE_PIXELS,
-    DecodedImageInfo,
-    decode_image,
-)
+from ocrllm.imaging.decode_image import decode_image
+from ocrllm.imaging.decode_image_bytes import MAX_IMAGE_PIXELS
+from ocrllm.imaging.decoded_image_info import DecodedImageInfo
 from ocrllm.validate_image_group import (
     MAX_AGGREGATE_PIXELS,
     MAX_AGGREGATE_SOURCE_BYTES,
     MAX_IMAGE_GROUP_COUNT,
-    validate_image_group,
 )
 from ocrllm.validate_source import MAX_SOURCE_BYTES, validate_source
 from write_test_image import write_test_image

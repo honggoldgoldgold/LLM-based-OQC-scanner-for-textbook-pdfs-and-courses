@@ -1723,6 +1723,15 @@ GO when all are true:
   executable. Do not claim end-user Electron compatibility until the Phase 6
   clean-machine packaged-worker gate passes.
 
+Phase 2 checkpoint 1 freezes all three v1alpha1 command DTOs and their strict
+JSON parser/serializer. The frozen fixture covers `capabilities`, `recognize`,
+and `cancel`; exact defaults, duplicate keys, non-finite numbers, canonical
+UUID/file URIs, languages, unknown fields/options, and secret-safe failures have
+direct boundary tests. The direct-Python Phase 1 result remains unchanged.
+Event DTOs, the wire-result adapter, worker I/O/control loop, cancellation, Node
+harness, and live smoke remain required, so Phase 2 is not GO. See
+`phase2_worker_command_contract_2026-07-11.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

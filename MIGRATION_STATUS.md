@@ -745,6 +745,13 @@ Implement only this bounded slice next:
 5. Keep Phase 2 development-only. Do not claim packaged end-user Electron
    compatibility before the Phase 6 clean-machine gate.
 
+Checkpoint 1 completes the input side of item 1: all three v1alpha1 commands
+have immutable DTOs, strict parsing, explicit defaults, canonical serialization,
+and one frozen JSONL fixture. It passes 33 focused tests and the 745-test full
+suite. The next checkpoint is the six event shapes and the explicit wire-result
+adapter; do not start the process control loop on an unfrozen output contract.
+See `docs/phase2_worker_command_contract_2026-07-11.md`.
+
 Preserve every earlier Phase 1 evidence file unchanged. The passing decision is
 bound to v17 evidence SHA-256
 `6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`

@@ -163,6 +163,13 @@ The clean Git-archive gate at `0278b66` then passed 712 tests, built a 67,266-by
 wheel, and passed base, `image`, and Beijing `image,dashscope` profiles. Phase 1
 is GO; see `docs/phase1_live_quality_result_v17_2026-07-11.md`.
 
+Phase 2 checkpoint 1 now freezes all three `ocrllm.v1alpha1` input commands as
+immutable DTOs with strict JSON, canonical UUID/file-URI, exact-field, option
+default, redaction, and canonical-serialization tests. The frozen command
+fixture includes Chinese, emoji, spaces, and all command literals. Event DTOs,
+the control loop, cancellation, and the Node harness remain pending; Phase 2 is
+not GO. See `docs/phase2_worker_command_contract_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

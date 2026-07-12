@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from ocrllm import Config, RecognitionResult, recognize, recognize_batch
 from ocrllm.errors import ConfigError, UnsupportedFormat
 

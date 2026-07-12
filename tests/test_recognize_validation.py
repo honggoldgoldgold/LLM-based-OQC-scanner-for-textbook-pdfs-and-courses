@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 
 from ocrllm import Config, InvalidSource, UnsupportedFormat, recognize
-from ocrllm.imaging.decode_image import DecodedImageInfo, MAX_IMAGE_PIXELS
+from ocrllm.imaging.decode_image_bytes import MAX_IMAGE_PIXELS
+from ocrllm.imaging.decoded_image_info import DecodedImageInfo
 from ocrllm.validate_image_group import (
     MAX_AGGREGATE_PIXELS,
     MAX_AGGREGATE_SOURCE_BYTES,

@@ -6,7 +6,7 @@ from pathlib import Path
 
 from ..errors import InvalidSource
 from ..validate_source import MAX_SOURCE_BYTES
-from .decode_image_bytes import MAX_IMAGE_PIXELS, decode_image_bytes
+from .decode_image_bytes import decode_image_bytes
 from .decoded_image_info import DecodedImageInfo
 
 

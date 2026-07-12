@@ -24,6 +24,7 @@ Read next:
 - `docs/provider_cost_and_reliability_policy.md`
 - `docs/phase1_implementation_record.md`
 - `docs/phase1_live_quality_result_v17_2026-07-11.md`
+- `docs/phase2_worker_command_contract_2026-07-11.md`
 
 Public import shape:
 
