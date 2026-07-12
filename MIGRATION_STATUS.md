@@ -776,6 +776,15 @@ manager and five-second descendant cancellation; do not expose a production
 entrypoint before that boundary passes. See
 `docs/phase2_capability_control_loop_2026-07-12.md`.
 
+Checkpoint 5 implements the spawned one-job manager and five-second process-tree
+cancellation. The first Windows attempt proved immutable mapping proxies cannot
+cross spawn by pickle; the accepted design serializes/reparses canonical JSON at
+both command and event boundaries. Normal, typed failure, internal failure,
+mismatched ID, missing terminal, busy, wrong cancel, matching cancel, and EOF
+tree cleanup tests pass. The full suite passes 807. Next add only the production
+image-job adapter; keep the entrypoint and live smoke separate. See
+`docs/phase2_isolated_job_manager_2026-07-12.md`.
+
 Preserve every earlier Phase 1 evidence file unchanged. The passing decision is
 bound to v17 evidence SHA-256
 `6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`

@@ -87,7 +87,8 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
                     status="experimental",
                     reason=(
                         "Command, event, and JSONL I/O contracts pass; process control, "
-                        "cancellation, Node, and live gates remain."
+                        "process isolation, and cancellation pass; Node, production, "
+                        "and live gates remain."
                     ),
                 )
             )

@@ -19,6 +19,7 @@ from ocrllm.contracts import (
     WarningEvent,
     WorkerRecognitionResult,
     build_worker_recognition_result,
+    parse_worker_event,
     serialize_worker_event,
 )
 
@@ -82,6 +83,42 @@ def test_frozen_event_fixture_covers_all_six_event_shapes() -> None:
     ]
     for event in events:
         json.dumps(serialize_worker_event(event), ensure_ascii=False, allow_nan=False)
+
+
+def test_every_frozen_event_round_trips_through_strict_parser() -> None:
+    for event in _events():
+        serialized = serialize_worker_event(event)
+        parsed = parse_worker_event(serialized)
+        assert type(parsed) is type(event)
+        assert serialize_worker_event(parsed) == serialized
+
+
+@pytest.mark.parametrize(
+    "value",
+    [
+        [],
+        {
+            "protocol_version": "ocrllm.v9",
+            "event": "accepted",
+            "request_id": REQUEST_ID,
+        },
+        {
+            "protocol_version": "ocrllm.v1alpha1",
+            "event": "accepted",
+            "request_id": REQUEST_ID,
+            "extra": True,
+        },
+        {
+            "protocol_version": "ocrllm.v1alpha1",
+            "event": "result",
+            "request_id": REQUEST_ID,
+            "result": {},
+        },
+    ],
+)
+def test_event_parser_rejects_invalid_envelopes_and_payloads(value: object) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        parse_worker_event(value)
 
 
 def test_event_payloads_copy_and_freeze_nested_json() -> None:

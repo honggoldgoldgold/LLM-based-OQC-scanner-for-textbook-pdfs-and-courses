@@ -11,6 +11,7 @@ from .error_event import ErrorEvent
 from .image_recognition_request import ImageRecognitionRequest
 from .parse_jsonl_command import parse_jsonl_command
 from .parse_worker_command import parse_worker_command
+from .parse_worker_event import parse_worker_event
 from .progress_event import ProgressEvent
 from .result_event import ResultEvent
 from .serialize_worker_command import serialize_worker_command
@@ -46,6 +47,7 @@ __all__ = [
     "build_worker_recognition_result",
     "parse_jsonl_command",
     "parse_worker_command",
+    "parse_worker_event",
     "serialize_worker_command",
     "serialize_worker_event",
 ]

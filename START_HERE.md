@@ -28,6 +28,7 @@ Read next:
 - `docs/phase2_worker_event_contract_2026-07-11.md`
 - `docs/phase2_worker_jsonl_io_2026-07-11.md`
 - `docs/phase2_capability_control_loop_2026-07-12.md`
+- `docs/phase2_isolated_job_manager_2026-07-12.md`
 
 Public import shape:
 

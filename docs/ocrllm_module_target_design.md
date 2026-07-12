@@ -1274,6 +1274,10 @@ Phase 2 checkpoint 4 implements public atomic capability reporting and the
 control loop over a nonblocking injected job-manager protocol. The real isolated
 process manager and production entrypoint remain pending.
 
+Phase 2 checkpoint 5 implements that isolated one-job manager and five-second
+descendant cancellation. The production image job, entrypoint, Node harness,
+and live smoke remain pending.
+
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;
 each requires a new explicit decision after Phase 6 or an approved product

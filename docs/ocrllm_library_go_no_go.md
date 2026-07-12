@@ -1758,6 +1758,15 @@ child manager, five-second process-tree cancellation, production entrypoint,
 Node harness, and live smoke remain; Phase 2 is not GO. See
 `phase2_capability_control_loop_2026-07-12.md`.
 
+Phase 2 checkpoint 5 implements a spawned one-job manager and proves matching
+cancel/EOF cleanup terminate a real child plus grandchild within five seconds.
+Commands and events cross spawn/pipe only as canonical JSON-compatible values;
+both sides strictly reconstruct immutable DTOs. Busy, wrong-ID, typed/internal,
+mismatched-event, missing-terminal, and bounded-event tests pass. The full suite
+passes 807. Production recognition adaptation, module entrypoint, Node harness,
+and live smoke remain; Phase 2 is not GO. See
+`phase2_isolated_job_manager_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

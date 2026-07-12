@@ -193,6 +193,13 @@ manager, five-second process-tree cancellation, production entrypoint, Node
 harness, and live smoke remain. See
 `docs/phase2_capability_control_loop_2026-07-12.md`.
 
+Phase 2 checkpoint 5 adds the real one-job spawned manager. Only canonical JSON
+values cross the Windows spawn/pipe boundary; the child reparses commands and
+the parent reparses bounded events. Busy, wrong cancel, child failures, terminal
+invariants, EOF cleanup, and real child-plus-grandchild cancellation within five
+seconds pass. The production image child, module entrypoint, Node harness, and
+live smoke remain. See `docs/phase2_isolated_job_manager_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in
