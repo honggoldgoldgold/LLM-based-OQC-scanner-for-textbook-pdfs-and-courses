@@ -38,6 +38,7 @@ Read next:
 - `docs/phase2a_recognition_execution_policy_2026-07-12.md`
 - `docs/provider_workflow_configuration_decision_2026-07-12.md`
 - `docs/provider_workflow_configuration_checkpoint_2026-07-12.md`
+- `docs/provider_error_disposition_decision_2026-07-12.md`
 
 Public import shape:
 

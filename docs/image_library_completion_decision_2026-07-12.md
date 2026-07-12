@@ -127,6 +127,10 @@ plus `VisionModelSettings`; it does not add a second provider or content route.
 The implemented result and clean proof are in
 `provider_workflow_configuration_checkpoint_2026-07-12.md`.
 
+Provider error taxonomy and pool-facing disposition are the active checkpoint,
+frozen in `provider_error_disposition_decision_2026-07-12.md`. No pool or retry
+runtime is authorized by that decision.
+
 ## Explicit Do-Not-Do Items
 
 - Do not start PDF, audio, video, UI, HarmonyOS, service, or Rust work.
