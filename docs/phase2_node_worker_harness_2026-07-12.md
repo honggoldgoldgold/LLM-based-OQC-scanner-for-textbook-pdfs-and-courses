@@ -102,10 +102,8 @@ loads no optional media, provider, PDF, HTTP, or socket modules. Python 3.10
 root-import wall median/p95/max is 47.3868/52.2511/53.1599 ms and CPU
 median/p95/max is 46.875/62.5/62.5 ms.
 
-## Next Gate
+## Gate Continuation
 
-Commit and clean-build-prove this checkpoint, then run one opt-in live smoke
-through the production `python -m ocrllm.worker` process using the Beijing
-DashScope configuration and authorized local screenshot test data. Validate
-every stdout line with the same Node harness. Do not declare Phase 2 GO until
-that real worker result and its provider-call evidence are recorded.
+The later opt-in live smoke and final clean proof pass. See
+`phase2_live_worker_result_2026-07-12.md`. Phase 2 is GO; this checkpoint remains
+the deterministic Node/cancellation evidence.

@@ -30,8 +30,8 @@ from ocrllm import (
 )
 ```
 
-Phase 0 contract honesty and Phase 1 real board/image are GO. The current phase
-is **Phase 2 -- versioned JSON contract and Electron JSONL worker**.
+Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
+worker are GO. No later phase is active.
 
 The current image facade:
 
@@ -60,16 +60,15 @@ passed base, `image`, and `image,dashscope` clean profiles.
 `get_capabilities()` reports every known atomic capability without a network
 call or optional import. With an explicit config, it reports that exact
 workflow's proven status rather than treating installed code as sufficient.
-Phase 2 also has an experimental spawned one-job manager with bounded JSON event
-bridging and verified five-second descendant cancellation. It is not exposed as
-a production worker until the remaining gates pass. The production image job
-adapter now reuses this same unified facade once per ordered group, fixes the
-Beijing v17 configuration, and adds no handwriting route, fallback, or retry.
+Phase 2 exposes a spawned one-job manager with bounded JSON event bridging and
+verified five-second descendant cancellation. The production image job adapter
+reuses the same unified facade once per ordered group, fixes the Beijing v17
+configuration, and adds no handwriting route, fallback, or retry.
 `python -m ocrllm.worker` now composes that adapter with the isolated manager;
 the shell-free Node JSONL, Unicode-path, and descendant-cancellation gates pass.
-The Beijing live production-worker smoke also passes; a clean proof and formal
-Phase 2 decision remain. This is still a development worker, not packaged
-Electron compatibility.
+The Beijing live production-worker smoke and clean committed-source proof also
+pass; `worker.jsonl.v1alpha1` is available. This remains a development worker,
+not packaged Electron compatibility.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data

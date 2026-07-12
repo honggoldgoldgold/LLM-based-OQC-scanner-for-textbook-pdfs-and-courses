@@ -16,8 +16,8 @@ dependency surface for new projects.
 
 The active package is `src/ocrllm`.
 
-Phase 0 contract honesty and Phase 1 real board/image are GO. The current phase
-is **Phase 2 -- versioned JSON contract and Electron JSONL worker**.
+Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
+worker are GO. No later phase is active; Phase 3 PDFium work has not started.
 
 The current verified contract:
 
@@ -226,7 +226,7 @@ Phase 2 checkpoint 9 adds the opt-in production-worker live scenario and a
 machine-readable result record. Two provider timeouts are preserved rather than
 hidden; a final independent Beijing job completed the pinned four-call unified
 `board` workflow with all four stdout events validated by Node. The clean
-committed-source proof and formal GO decision remain. See
+committed-source proof passes and the Phase 2 gate is GO. See
 `docs/phase2_live_worker_result_2026-07-12.md`.
 
 Provider cost/reliability assumptions are recorded in

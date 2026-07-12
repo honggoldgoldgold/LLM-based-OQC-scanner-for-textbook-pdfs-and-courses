@@ -40,8 +40,9 @@ Public import shape:
 from ocrllm import Config, DashScopeSettings, recognize
 ```
 
-Current phase: **Phase 2 -- versioned JSON contract and Electron JSONL
-worker**. Phase 0 contract honesty and Phase 1 real board/image are GO.
+Current gate: **Phase 2 -- versioned JSON contract and Electron JSONL worker --
+GO**. Phase 0 contract honesty and Phase 1 real board/image are also GO. No
+later phase is active; Phase 3 PDFium work requires a new explicit start.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
 passes request-scoped validated snapshots isolated from later caller-path
 changes to one synchronous injected provider,

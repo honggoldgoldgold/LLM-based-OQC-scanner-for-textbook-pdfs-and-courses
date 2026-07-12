@@ -5,8 +5,8 @@ This file is the project memory aid. Read it before changing the repo.
 ## One-Sentence Summary
 
 The old OCRLLM app has been moved to `legacy_app/`; the active project is an
-importable Python library in `src/ocrllm`, with Phase 0 and Phase 1 GO and Phase
-2 versioned JSON/JSONL worker work now current.
+importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
+versioned JSON/JSONL worker GO. No later phase is active.
 
 ## First Files To Read
 
@@ -728,22 +728,20 @@ legacy_app/environment.yml
 
 ## What To Do Next
 
-Current phase: **Phase 2 -- versioned JSON contract and Electron JSONL
-worker**.
+Current gate: **Phase 2 -- versioned JSON contract and Electron JSONL worker --
+GO**. No later phase is active.
 
-Implement only this bounded slice next:
+Phase 2 recovery rules:
 
-1. Freeze JSON fixtures for all three worker commands and all six event shapes,
-   including literals, defaults, nullable invalid-command IDs, unknown-option
-   rejection, and fallback protocol versions.
-2. Add one `python -m ocrllm.worker` entrypoint with one job at a time. Keep GUI,
-   Electron, server, and provider imports out of base `import ocrllm`.
-3. Add the Node harness that launches Python without a shell and validates every
-   stdout line. Use the offline fixture entrypoint for deterministic tests.
-4. Prove Chinese, emoji, spaces, and long Windows paths round-trip, and prove
-   cancellation terminates the job process tree within five seconds.
-5. Keep Phase 2 development-only. Do not claim packaged end-user Electron
-   compatibility before the Phase 6 clean-machine gate.
+1. New callers use `python -m ocrllm.worker` and the frozen
+   `ocrllm.v1alpha1` JSONL contract.
+2. Printed, projected, and handwritten content remain one `board` workflow; do
+   not add a handwriting route to address test or prompt quality gaps.
+3. Preserve the Phase 2 live evidence and Node cancellation fixtures.
+4. Keep the worker development-only with an explicitly configured Python
+   executable. Do not claim packaged Electron compatibility before Phase 6.
+5. Do not start Phase 3 PDFium, Phase 4 audio/FileTrans, or another deferred
+   capability without a new explicit start decision.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
@@ -771,8 +769,9 @@ Checkpoint 9 implements and runs the opt-in live Node scenario against the
 production module. Two typed provider timeouts are preserved; the successful
 independent run completed the exact pinned Beijing four-call `board` workflow,
 validated four stdout events, and stored only non-private hashes/counts. A clean
-proof of the checkpoint commit remains before the formal Phase 2 GO decision.
-See `docs/phase2_live_worker_result_2026-07-12.md`.
+proof of full commit `60ce473eb4f177f7c382dc5db7cc6bbca6ea63b0` passes.
+All Phase 2 gates are satisfied and `worker.jsonl.v1alpha1` is available. See
+`docs/phase2_live_worker_result_2026-07-12.md`.
 
 Checkpoint 1 completes the input side of item 1: all three v1alpha1 commands
 have immutable DTOs, strict parsing, explicit defaults, canonical serialization,

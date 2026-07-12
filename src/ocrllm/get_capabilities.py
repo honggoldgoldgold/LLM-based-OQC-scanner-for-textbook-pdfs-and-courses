@@ -84,11 +84,11 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
             reports.append(
                 CapabilityReport(
                     name=name,
-                    status="experimental",
+                    status="available",
                     reason=(
-                        "Command, event, and JSONL I/O contracts pass; process control, "
-                        "process isolation, and cancellation pass; Node, production, "
-                        "and live gates remain."
+                        "The Phase 2 command, event, process isolation, Node, "
+                        "cancellation, production, live, and packaging gates passed. "
+                        "Packaged Electron compatibility remains a Phase 6 gate."
                     ),
                 )
             )

@@ -88,12 +88,13 @@ DEFERRED:
 
 ## Current Truth
 
-Phase 0/1 transition evidence and current Phase 2 implementation truth, as of
-2026-07-11:
+Phase 0/1/2 transition evidence and current implementation truth, as of
+2026-07-12:
 
 - Phase 0 is GO at commit `5018ad0`. Phase 1 is GO after the passing v17 live
-  gate and the clean committed-wheel proof at `0278b66`. Phase 2 is the current
-  and only authorized implementation phase.
+  gate and the clean committed-wheel proof at `0278b66`. Phase 2 is GO after
+  the production live worker gate and clean proof at `60ce473` plus the formal
+  decision. No later phase is active.
 - The active package validates and decodes PNG/JPEG sources before invoking an
   injected provider, rejects empty provider output, returns canonical
   `source_type="image"`, and represents board recognition as `profile="board"`.
@@ -108,6 +109,9 @@ Phase 0/1 transition evidence and current Phase 2 implementation truth, as of
   board workflow passed both independent Beijing full-corpus runs and the clean
   base, image, and image-plus-DashScope packaging profiles. Earlier failed gates
   remain immutable historical evidence.
+- `worker.jsonl.v1alpha1` is `available` as a development worker with an
+  explicitly configured Python executable. Packaged Electron compatibility
+  remains a Phase 6 gate.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
   and advertised exactly `dev,image`. The current Phase 1 tree still has no base
@@ -1794,8 +1798,11 @@ Phase 2 checkpoint 9 implements and passes the opt-in Beijing live production
 worker scenario. Two typed timeouts are recorded without automatic retry; the
 final independent job validates `accepted`, both progress events, and a complete
 result from the pinned four-call unified `board` workflow. Private input and
-recognized Markdown are not redistributed. The clean checkpoint proof and
-formal decision remain; Phase 2 is not yet recorded as GO. See
+recognized Markdown are not redistributed. The clean checkpoint proof passes.
+Every Phase 2 condition above is satisfied, so Phase 2 is **GO** and public
+`worker.jsonl.v1alpha1` status is `available`. This means the development worker
+with an explicitly configured Python executable; packaged Electron compatibility
+remains gated in Phase 6. See
 `phase2_live_worker_result_2026-07-12.md`.
 
 ### Phase 3: PDFium PDF

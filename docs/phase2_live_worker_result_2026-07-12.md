@@ -2,8 +2,8 @@
 
 Date: 2026-07-12.
 
-Status: the opt-in production-worker smoke passes; the formal Phase 2 GO
-decision follows the clean committed-source proof.
+Status: the opt-in production-worker smoke and clean committed-source proof
+pass; Phase 2 is GO.
 
 ## Scope
 
@@ -93,9 +93,19 @@ The successful worker source was full commit
 SHA-256 `c6801fc842d42044cf684e6e2b865fe845d8c22e62124e09e972791ce827f77a`;
 they become immutable in the checkpoint commit that adds this record.
 
-## Remaining Decision Step
+## Clean Proof And Decision
 
-Run the full offline suite and clean Git-archive proof for the checkpoint commit.
-If both pass, every Phase 2 GO condition is satisfied. Keep the result scoped to
-a development worker with an explicitly configured Python executable; it does
-not claim packaged Electron compatibility.
+Full commit `60ce473eb4f177f7c382dc5db7cc6bbca6ea63b0` passes its clean Git-archive
+audit. The committed verifier hash matches the hash used by the live run; the
+evidence JSON parses; five production/Node tests pass from the archive. The
+archive builds a 106,237-byte wheel with SHA-256
+`845af902762ae6e85f5a52f0895b18bcf2560aea11848d12e78fb3b09c5699d7`;
+its isolated target contains 485,809 bytes. Installed capabilities return all 19
+reports. Plain root import loads no optional media, provider, PDF, HTTP, or
+socket modules. Python 3.10 wall median/p95/max is
+35.9823/38.5955/39.2566 ms and CPU median/p95/max is
+31.25/46.875/46.875 ms.
+
+Every Phase 2 gate is satisfied. Phase 2 is **GO**, scoped to a development
+worker with an explicitly configured Python executable. Packaged Electron
+compatibility remains a Phase 6 gate, and Phase 3 has not started.

@@ -16,8 +16,7 @@ The active implementation remains the Python-first package in `src/ocrllm`.
 The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
 Phase 0 contract honesty is GO at commit `5018ad0` on the exact clean evidence
 recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is GO,
-and Phase 2 JSON/JSONL worker work is the current and only authorized
-implementation phase.
+and Phase 2 JSON/JSONL worker is GO. No later phase is active.
 
 ## One-Sentence Goal
 
@@ -1246,8 +1245,8 @@ mandatory:
 ```text
 Phase 0  Contract honesty                         GO at 5018ad0
 Phase 1  Real board/image and one provider        GO at 0278b66 plus decision
-Phase 2  Versioned JSON contract and Electron JSONL worker  CURRENT
-Phase 3  PDFium text/vision PDF slice
+Phase 2  Versioned JSON contract and Electron JSONL worker  GO
+Phase 3  PDFium text/vision PDF slice                    NOT STARTED
 Phase 4  Short ASR and resumable FileTrans audio
 Phase 5  Video composed from image and audio
 Phase 6  Distribution, SBOM, and downstream proof
@@ -1292,7 +1291,8 @@ live worker smoke remains pending.
 
 Phase 2 checkpoint 9 passes the opt-in Beijing production-worker smoke after
 preserving two typed timeout attempts. Only the clean checkpoint proof and
-formal GO decision remain pending.
+formal GO decision remain pending in that historical checkpoint. The clean proof
+now passes and Phase 2 is GO; Phase 3 has not started.
 
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;

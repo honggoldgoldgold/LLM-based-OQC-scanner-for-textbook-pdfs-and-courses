@@ -123,10 +123,12 @@ def test_explicit_providerless_config_is_unavailable() -> None:
     assert reports["provider.dashscope.vision"].status == "unavailable"
 
 
-def test_current_worker_is_experimental_and_later_phases_are_deferred() -> None:
+def test_v1alpha1_worker_is_available_and_later_phases_are_deferred() -> None:
     reports = _by_name()
 
-    assert reports["worker.jsonl.v1alpha1"].status == "experimental"
+    assert reports["worker.jsonl.v1alpha1"].status == "available"
+    assert "Phase 2" in reports["worker.jsonl.v1alpha1"].reason
+    assert "Phase 6" in reports["worker.jsonl.v1alpha1"].reason
     for name in EXPECTED_NAMES[6:]:
         assert reports[name].status == "deferred"
 
