@@ -17,9 +17,10 @@ dependency surface for new projects.
 The active package is `src/ocrllm`.
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. Phase 2A image-library completion is active. Local OCR and the
-shared recognition execution policy are GO; provider transport/model
-configuration is current. Phase 3 PDFium work has not started.
+worker are GO. Phase 2A image-library completion is active. Local OCR, shared
+recognition execution policy, and adapter-owned DashScope/model configuration
+are GO; provider workflow completion is current. Phase 3 PDFium work has not
+started.
 
 The current verified contract:
 
@@ -278,21 +279,27 @@ pip install "ocrllm[image,dashscope]"
 The built-in call shape is explicit about its regional endpoint:
 
 ```python
-from ocrllm import Config, DashScopeSettings, recognize
+from ocrllm import Config, DashScopeSettings, VisionModelSettings, recognize
 
 
 settings = DashScopeSettings(
     region="cn-beijing",
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    # api_key="...",  # Or set DASHSCOPE_API_KEY.
 )
 result = recognize(
     "board.jpg",
-    config=Config(provider="dashscope", dashscope=settings),
+    config=Config(
+        provider=settings,
+        vision_model=VisionModelSettings(
+            name="qwen3.7-plus-2026-05-26",
+        ),
+    ),
 )
 print(result.markdown)
 ```
 
-Supply the key through `Config.api_key` or `DASHSCOPE_API_KEY`; Coding Plan
+Supply the key through `DashScopeSettings.api_key` or `DASHSCOPE_API_KEY`; Coding Plan
 `sk-sp-` credentials are not accepted. This account uses Beijing; do not
 substitute another region. Only the floating alias `qwen3.7-plus` and the
 default pinned snapshot `qwen3.7-plus-2026-05-26` belong to the proven Phase 1
@@ -336,6 +343,8 @@ legacy_app/README_LEGACY.md           Local legacy-app boundary.
 legacy_app/AGENTS.md                  Local legacy-app agent rules.
 docs/                                 Active migration decisions.
 docs/ocrllm_library_go_no_go.md       Authoritative execution decision.
+docs/provider_workflow_configuration_checkpoint_2026-07-12.md
+                                      Current provider/model API checkpoint.
 docs/phase1_live_quality_result_2026-07-11.md
                                       First Beijing live-gate result.
 Architecture.md                       Suspended future architecture reference.

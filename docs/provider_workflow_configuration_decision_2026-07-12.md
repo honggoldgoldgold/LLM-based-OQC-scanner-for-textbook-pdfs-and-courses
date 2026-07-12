@@ -2,8 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: active implementation decision. This checkpoint is a deliberate
-pre-1.0 API migration.
+Status: implemented at `3dd1ba3`. This checkpoint is a deliberate pre-1.0 API
+migration; see `provider_workflow_configuration_checkpoint_2026-07-12.md` for
+verification.
 
 ## Goal
 

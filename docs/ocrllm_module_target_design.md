@@ -66,18 +66,17 @@ prove the boundary before optimizing internals.
 The completed package must be boring to import and predictable to call:
 
 ```python
-from ocrllm import Config, DashScopeSettings, recognize
+from ocrllm import Config, DashScopeSettings, VisionModelSettings, recognize
 
 result = recognize(
     "lecture_board.png",
     config=Config(
-        provider="dashscope",
-        api_key="sk-...",
-        model="qwen3.7-plus-2026-05-26",
-        dashscope=DashScopeSettings(
+        provider=DashScopeSettings(
             region="cn-beijing",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api_key="sk-...",
         ),
+        vision_model=VisionModelSettings(name="qwen3.7-plus-2026-05-26"),
     ),
 )
 
@@ -92,8 +91,7 @@ from ocrllm import Config, DashScopeSettings, recognize_batch
 results = recognize_batch(
     ["board.png", "slides.pdf", "lecture.mp4"],
     config=Config(
-        provider="dashscope",
-        dashscope=DashScopeSettings(
+        provider=DashScopeSettings(
             region="cn-beijing",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ),
@@ -311,7 +309,7 @@ For `ocrllm.v1alpha1`, every source is an image and every `uri` is an absolute
 RFC 8089 `file:` URI. HTTP(S), relative paths, and provider credentials are
 rejected. Phase 3 adds PDF fields under `ocrllm.v1alpha2`; it does not silently
 widen `v1alpha1`. `v1alpha2` carries one PDF file URI with `profile=null`;
-text mode requires `provider=null` and `model=null`, while vision requires
+text mode requires `provider=None` and default `vision_model`, while vision requires
 `provider="dashscope"` and permits a model or its documented default. Added
 options are exactly `pdf_mode`, `pdf_pages`, `pdf_password`,
 `pdf_allow_partial`, and `resume`; resume defaults false, requires output, and
@@ -420,14 +418,15 @@ Design rules:
 - `output_dir=None` means memory-only result.
 - `temp_dir=None` means a safe OS temp location, not a package directory.
 - `cache_dir=None` means a platform cache location, not a package directory.
-- API keys come from explicit config or environment variables.
+- API keys belong to adapter settings or their documented environment variable.
 - `provider=None` is valid only for local PDF `text` mode. Image, PDF `vision`,
   audio, and video requests raise `ConfigError` without a required provider;
   the library never triggers an implicit paid call.
-- Phase 1 accepts an injected provider object or the exact built-in name
-  `"dashscope"`. The built-in adapter requires immutable `DashScopeSettings`
-  with explicit `region` and full OpenAI-compatible `base_url`. It uses
-  `Config.model` when set and otherwise pins `qwen3.7-plus-2026-05-26`. The
+- Phase 1 accepts an injected provider object or exact `DashScopeSettings`
+  selecting the built-in adapter. String provider categories are invalid. The
+  settings require explicit `region` and full OpenAI-compatible `base_url`.
+  The adapter uses `Config.vision_model.name` when set and otherwise pins
+  `qwen3.7-plus-2026-05-26`. The
   exact model allowlist is that snapshot plus `qwen3.7-plus`; every other value
   is `CONFIG_INVALID`.
 - API keys are region-specific. Validate the `DashScopeSettings.region` and
@@ -1128,7 +1127,7 @@ state reuse; store only whether a password was supplied, never its value.
 Secret lookup order:
 
 ```text
-Explicit Config.api_key
+Explicit DashScopeSettings.api_key
 DASHSCOPE_API_KEY for the Phase 1 built-in adapter
 ConfigError
 ```

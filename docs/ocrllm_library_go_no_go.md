@@ -113,8 +113,8 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
   explicitly configured Python executable. Packaged Electron compatibility
   remains a Phase 6 gate.
 - Phase 2A image-library completion is active before PDF. Its current and only
-  slice is provider workflow configuration; local OCR and shared execution
-  policy are GO, and provider transport/model configuration is next. See
+  slice is provider workflow completion; local OCR, shared execution policy,
+  and adapter-owned DashScope/model configuration are GO. See
   `image_library_completion_decision_2026-07-12.md`.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
@@ -800,7 +800,7 @@ src/ocrllm/providers/long_audio_provider.py
     in Phase 4.
 
 src/ocrllm/providers/resolve_vision_provider.py
-    Resolve an injected object or a documented built-in provider name. Never
+    Resolve an injected object or an exact built-in adapter-settings value. Never
     silently switch to a different paid provider.
 
 src/ocrllm/providers/resolved_vision_provider.py
@@ -813,15 +813,17 @@ src/ocrllm/providers/validate_provider_markdown.py
     Require nonempty non-control-only text from any vision provider.
 
 src/ocrllm/providers/dashscope/provider_settings.py
-    Validate immutable routing and evidence-affecting settings without loading
-    a credential, dependency, or network client.
+    Validate immutable routing, optional secret credential, and
+    evidence-affecting settings without environment lookup, dependency load, or
+    network client.
 
 src/ocrllm/providers/dashscope/resolve_dashscope_credential.py
-    Resolve Config.api_key, then DASHSCOPE_API_KEY, and reject Coding Plan keys.
+    Resolve DashScopeSettings.api_key, then DASHSCOPE_API_KEY, and reject Coding
+    Plan keys.
 
 src/ocrllm/providers/dashscope/resolve_dashscope_model.py
     Accept only the Phase 1 floating alias or pinned snapshot and choose the
-    pinned snapshot when Config.model is omitted.
+    pinned snapshot when Config.vision_model.name is omitted.
 
 src/ocrllm/providers/dashscope/build_dashscope_image_request.py
     Read exact snapshot bytes, validate provider limits, build ordered Base64
@@ -861,7 +863,7 @@ src/ocrllm/providers/dashscope/map_dashscope_error.py
 ```
 
 Provider model queues and key pools remain NO-GO during provider workflow
-configuration. They become a later Phase 2A slice only after enabled provider
+completion. They become a later Phase 2A slice only after enabled provider
 categories have stable error taxonomies and tests prove the pool policy.
 
 Future provider architecture is recorded here without authorizing it:
@@ -873,10 +875,9 @@ Future provider architecture is recorded here without authorizing it:
   direct provider SDKs, local engines, and subprocess/session tools have
   different contracts and are not a closed current enum. In particular, a
   future Codex session/subprocess adapter cannot require an API key.
-- If measured need later justifies richer configuration, immutable provider,
-  model, execution, retry, and recognition-preferences policies stay separate
-  from a stateful credential pool. Do not broaden `api_key` to a scalar-or-tuple
-  field.
+- Immutable provider, model, execution, retry, and recognition-preferences
+  policies stay separate from a stateful credential pool. Credentials belong
+  to adapter settings; never broaden one credential to a scalar-or-tuple field.
 - A future credential pool requires an explicit decision covering fair
   selection, cooldown, and provider/model quota and error domains. It remains
   outside the current provider transport/model configuration slice.
@@ -887,17 +888,19 @@ Phase 1 provider policy is concrete:
   API through lazy `openai>=2.30,<3`. Do not add the DashScope SDK to the image
   path.
 - For image recognition, `Config.provider` accepts an injected vision-capable
-  object or the exact built-in name `"dashscope"`. `None` raises `ConfigError`;
-  the library never initiates an implicit paid request. PDF `text` mode is local
-  and requires no provider or API key.
-- `Config(provider="dashscope")` requires an immutable `DashScopeSettings` with
-  explicit `region` and full OpenAI-compatible `base_url`. Prefer the
+  object or exact `DashScopeSettings` selecting the built-in
+  OpenAI-compatible adapter. String provider categories are invalid. `None`
+  raises `ConfigError` at resolution; the library never initiates an implicit
+  paid request. PDF `text` mode is local and requires no provider settings.
+- Built-in `DashScopeSettings` requires explicit `region` and full
+  OpenAI-compatible `base_url`. Prefer the
   workspace-dedicated endpoint for that region. Validate the endpoint/region
   pair because API keys are region-specific; never infer a region or endpoint.
   Existing shared DashScope domains are accepted only when the caller explicitly
   selects the matching legacy endpoint.
-- `DashScopeSettings` has exactly these Phase 1 fields: `region`, `base_url`,
-  `enable_thinking=False`, and `vl_high_resolution_images=True`. Supported
+- `DashScopeSettings` owns `region`, `base_url`, optional secret `api_key`,
+  `enable_thinking=False`, `vl_high_resolution_images=True`, and optional
+  fixed `standalone_sign_scout_model`. Supported
   workspace regions are `ap-northeast-1`, `ap-southeast-1`, `cn-beijing`,
   `cn-hongkong`, and `eu-central-1`, using exact URL shape
   `https://{workspace-id}.{region}.maas.aliyuncs.com/compatible-mode/v1`.
@@ -912,11 +915,12 @@ Phase 1 provider policy is concrete:
 
   Reject non-HTTPS URLs, ports, credentials, query/fragment text, alternate
   paths, unknown regions, and mismatched region/host pairs.
-- Credential order is explicit `Config.api_key`, then `DASHSCOPE_API_KEY`, then
-  `ConfigError`. Reject `sk-sp-` Coding Plan credentials because they cannot
+- Credential order is explicit `DashScopeSettings.api_key`, then
+  `DASHSCOPE_API_KEY`, then `ConfigError`. Reject `sk-sp-` Coding Plan
+  credentials because they cannot
   authorize this adapter.
-- The built-in DashScope adapter uses `Config.model` when set and otherwise uses
-  the pinned `qwen3.7-plus-2026-05-26` baseline. The exact allowlist is that
+- The built-in DashScope adapter uses `Config.vision_model.name` when set and
+  otherwise uses the pinned `qwen3.7-plus-2026-05-26` baseline. The exact allowlist is that
   snapshot plus the explicit floating alias `qwen3.7-plus`; every other model is
   `CONFIG_INVALID`. `qwen-vl-max` is legacy and must not be the default. Evidence
   for the pinned snapshot does not transfer to the floating alias. Invalid model
@@ -1839,6 +1843,16 @@ budgets pass. Provider transport/model configuration is next; pools and resume
 remain later gates. See
 `phase2a_recognition_execution_policy_2026-07-12.md`.
 
+Phase 2A checkpoint 3 makes adapter-owned configuration the only pre-1.0
+built-in shape. Exact `DashScopeSettings` selects the current adapter and owns
+its optional secret credential; exact `VisionModelSettings` owns model identity
+and a stricter image cap. String categories plus duplicated Config key/model/
+DashScope fields are removed. The worker wire format is unchanged. The
+912-test pinned suite, fixture identity, static/lazy checks, clean wheel, and
+fresh installed mock-transport adapter request pass. Provider workflow
+completion remains active; pools and resume stay later gates. See
+`provider_workflow_configuration_checkpoint_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:
@@ -2237,7 +2251,7 @@ foreach ($profile in $profilesByPhase[$phase]) {
         $dashscopeProbe = @'
 import sys
 
-from ocrllm import Config, DashScopeSettings
+from ocrllm import Config, DashScopeSettings, VisionModelSettings
 
 loaded = {name.split(".")[0] for name in sys.modules}
 forbidden = {"PIL", "openai", "httpx"}
@@ -2246,15 +2260,14 @@ assert not loaded & forbidden, loaded & forbidden
 settings = DashScopeSettings(
     region="cn-beijing",
     base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    api_key="offline-package-probe",
 )
 config = Config(
-    provider="dashscope",
-    api_key="offline-package-probe",
-    model="qwen3.7-plus-2026-05-26",
-    dashscope=settings,
+    provider=settings,
+    vision_model=VisionModelSettings(name="qwen3.7-plus-2026-05-26"),
 )
-assert config.dashscope == settings
-assert config.dashscope is not settings
+assert config.provider == settings
+assert config.provider is not settings
 
 from ocrllm.providers.dashscope.create_dashscope_openai_client import (
     create_dashscope_openai_client,

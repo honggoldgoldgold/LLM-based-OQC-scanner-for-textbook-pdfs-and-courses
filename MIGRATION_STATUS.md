@@ -8,7 +8,8 @@ The old OCRLLM app has been moved to `legacy_app/`; the active project is an
 importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
 versioned JSON/JSONL worker GO. Phase 2A image-library completion is active;
 local OCR and shared execution policy are GO, provider transport/model
-configuration is current, and Phase 3 PDFium has not started.
+configuration foundation is GO, provider workflow completion is current, and
+Phase 3 PDFium has not started.
 
 ## First Files To Read
 
@@ -28,6 +29,8 @@ legacy_app/AGENTS.md                  Legacy app editing rules.
 docs/ocrllm_module_target_design.md   Target-state module design map.
 docs/provider_cost_and_reliability_policy.md
                                       Account-specific provider policy.
+docs/provider_workflow_configuration_checkpoint_2026-07-12.md
+                                      Current provider/model API and proof.
 docs/phase1_implementation_record.md  Phase 1 commits, agent work, atomic writer,
                                       verification, and resume point.
 docs/legacy_bilibili_social_long_debug_record.md
@@ -77,6 +80,7 @@ The current public API is:
 from ocrllm import (
     Config,
     DashScopeSettings,
+    VisionModelSettings,
     RecognitionResult,
     recognize,
     recognize_batch,
@@ -116,16 +120,18 @@ The built-in route requires explicit regional settings and never guesses an
 endpoint from a credential:
 
 ```python
-from ocrllm import Config, DashScopeSettings, recognize
+from ocrllm import Config, DashScopeSettings, VisionModelSettings, recognize
 
 
 result = recognize(
     "board.png",
     config=Config(
-        provider="dashscope",
-        dashscope=DashScopeSettings(
+        provider=DashScopeSettings(
             region="cn-beijing",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        ),
+        vision_model=VisionModelSettings(
+            name="qwen3.7-plus-2026-05-26",
         ),
     ),
 )
@@ -462,32 +468,34 @@ is not a claim that the recognition-quality or live-provider gate has passed:
 
 - `qwen-vl-max` is now a legacy model and is not the implementation baseline.
   The exact Phase 1 allowlist is `qwen3.7-plus` and
-  `qwen3.7-plus-2026-05-26`; omitted `Config.model` selects the pinned snapshot.
+  `qwen3.7-plus-2026-05-26`; omitted `Config.vision_model.name` selects the pinned snapshot.
   The floating alias is allowed for explicit use, but cannot produce the initial
   reproducibility evidence.
-- `Config(provider="dashscope")` must compose an immutable
-  `DashScopeSettings`. The settings require an explicit region and full
+- Exact `DashScopeSettings` in `Config.provider` selects the built-in adapter.
+  String provider categories are invalid. The settings require an explicit region and full
   OpenAI-compatible `base_url`; the preferred production value is that region's
   workspace-dedicated endpoint. API keys are region-specific, so the adapter
   validates the region/endpoint pairing and never guesses a region or endpoint.
   An existing shared DashScope-domain endpoint may be selected explicitly for a
   legacy integration, but it is never a silent default.
-- The exact settings fields are `region`, `base_url`,
-  `enable_thinking=False`, and `vl_high_resolution_images=True`. Workspace
+- The settings own `region`, `base_url`, optional secret `api_key`,
+  `enable_thinking=False`, `vl_high_resolution_images=True`, and optional fixed
+  scout model. Workspace
   endpoints use
   `https://{workspace-id}.{region}.maas.aliyuncs.com/compatible-mode/v1` for
   `ap-northeast-1`, `ap-southeast-1`, `cn-beijing`, `cn-hongkong`, or
   `eu-central-1`. The only shared compatibility endpoints are the matching
   Beijing, Singapore, Hong Kong, and US hosts accepted by the validator.
 - Every public call revalidates an exact `Config` before source/provider work.
-  Injected providers keep the caller's original `Config` identity. A named
-  built-in provider is snapshotted at the first line of image processing, before
+  Injected providers keep the caller's original `Config` identity. A built-in
+  settings provider is snapshotted at the first line of image processing, before
   provider/model resolution, prompt construction, or cancellation inspection;
   its adapter revalidates that isolated copy again. Nested settings are
   reconstructed so callback or frozen-dataclass mutation cannot diverge request
   metadata or bypass endpoint allowlisting.
-- Credential lookup remains one value only: explicit `Config.api_key`, then
-  `DASHSCOPE_API_KEY`, then `ConfigError`. Coding Plan `sk-sp-` keys are rejected
+- Credential lookup remains one value only: explicit
+  `DashScopeSettings.api_key`, then `DASHSCOPE_API_KEY`, then `ConfigError`.
+  Coding Plan `sk-sp-` keys are rejected
   because they cannot authorize this adapter. The key is redacted everywhere.
 - The OpenAI-compatible request reads each validated snapshot and sends a
   MIME-correct Base64 data URL. A local filesystem path is never put in the
@@ -733,8 +741,9 @@ legacy_app/environment.yml
 
 Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
 `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
-passes. Local OCR and shared execution policy are GO; provider transport/model
-configuration is the current slice. Phase 3 has not started.
+passes. Local OCR, shared execution policy, and adapter-owned DashScope/model
+configuration are GO; provider workflow completion is the current slice. Phase
+3 has not started.
 
 Phase 2A recovery rules:
 
@@ -772,6 +781,16 @@ direct operation or batch. Parallel failure aborts work that has not reached
 the provider. Pushed commits `12c221b` and `40df1a9` pass the 895-test pinned
 suite, fixture identity, static checks, and a clean 117,093-byte wheel/import
 budget. See `docs/phase2a_recognition_execution_policy_2026-07-12.md`.
+
+Phase 2A checkpoint 3 removes the pre-1.0 string/duplicate provider shape.
+`DashScopeSettings` now selects and owns the current OpenAI-compatible adapter
+plus optional secret credential; `VisionModelSettings` owns model identity and
+a stricter image capability. Effective model/group limits fail before upload,
+while the worker converts its unchanged wire model string internally. Pushed
+decision `fb3ef8f` and implementation `3dd1ba3` pass 912 tests plus one optional
+skip, fixture identity, static/lazy checks, and clean base plus
+`image,dashscope` profiles. See
+`docs/provider_workflow_configuration_checkpoint_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
@@ -1228,8 +1247,9 @@ quorum remain. The 37,864-byte manifest SHA-256 is
 `docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
 
 The bounded JSONL worker, direct local OCR, and shared recognition execution
-policy are now GO. Provider transport/model configuration is the next Phase 2A
-task; credential pools and image resume follow as separate slices. PDF, audio, video,
+policy and adapter-owned DashScope/model configuration are now GO. Provider
+workflow completion is the next Phase 2A task; credential pools and image
+resume follow as separate slices. PDF, audio, video,
 HTTP service, HarmonyOS, Rust, Office, social, GPU, and offline-model work remain
 outside the current slice.
 

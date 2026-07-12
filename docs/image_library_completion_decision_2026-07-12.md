@@ -2,8 +2,8 @@
 
 Date: 2026-07-12.
 
-Status: active. Local OCR and shared execution policy are GO; provider
-transport/model configuration is current.
+Status: active. Local OCR, shared execution policy, and adapter-owned
+DashScope/model configuration are GO; provider workflow completion is current.
 
 ## Why The Roadmap Changes
 
@@ -29,8 +29,8 @@ Phase 2A is implemented as independent vertical slices:
    and real offline screenshot evidence.
 2. **Provider workflow configuration -- current.** Separate immutable provider
    transport, model, execution, and recognition-preference policies. The shared
-   `RecognitionExecutionPolicy` checkpoint is GO; provider transport and model
-   configuration are next. Do not freeze the user's four examples as an
+   `RecognitionExecutionPolicy` and adapter-owned DashScope/model checkpoints
+   are GO; provider workflow completion is next. Do not freeze the user's four examples as an
    exhaustive enum: OpenAI-compatible APIs, provider SDKs, Google SDKs, and
    Codex subprocess/session execution have different credential and lifecycle
    contracts.
@@ -124,6 +124,8 @@ The active provider/model migration is frozen in
 `provider_workflow_configuration_decision_2026-07-12.md`. It replaces string
 provider categories and duplicated DashScope fields with exact adapter settings
 plus `VisionModelSettings`; it does not add a second provider or content route.
+The implemented result and clean proof are in
+`provider_workflow_configuration_checkpoint_2026-07-12.md`.
 
 ## Explicit Do-Not-Do Items
 

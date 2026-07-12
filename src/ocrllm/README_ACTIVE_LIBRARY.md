@@ -27,6 +27,7 @@ from ocrllm import (
     RecognitionPreferences,
     RecognitionResult,
     UnsupportedFormat,
+    VisionModelSettings,
     recognize,
     recognize_batch,
     get_capabilities,
@@ -34,9 +35,9 @@ from ocrllm import (
 ```
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. Phase 2A image-library completion is active; local OCR and the
-shared execution policy are GO, provider transport/model configuration is
-current, and Phase 3 PDFium remains not started.
+worker are GO. Phase 2A image-library completion is active; local OCR, shared
+execution policy, and adapter-owned DashScope/model configuration are GO,
+provider workflow completion is current, and Phase 3 PDFium remains not started.
 
 The current image facade:
 
@@ -49,9 +50,11 @@ The current image facade:
 - returns `source_type="image"` and `profile="board"`;
 - keeps output in memory unless `output_dir` requests atomic Markdown output;
 - loads Pillow lazily from the optional `ocrllm[image]` extra.
-- resolves the exact built-in provider name `"dashscope"` only when immutable
-  `DashScopeSettings` is present, while keeping `openai` and `httpx` lazy behind
-  `ocrllm[dashscope]`.
+- resolves the exact `DashScopeSettings` provider value as the built-in
+  OpenAI-compatible adapter, while keeping `openai` and `httpx` lazy behind
+  `ocrllm[dashscope]`; string provider categories are invalid;
+- composes exact `VisionModelSettings` and fails known model/group mismatches
+  before source/provider work;
 - freshly revalidates an exact public `Config`; injected providers retain the
   caller's config identity, while the built-in adapter uses an isolated,
   revalidated copy.
