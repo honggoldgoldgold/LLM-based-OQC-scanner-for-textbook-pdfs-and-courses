@@ -65,8 +65,22 @@ root with source import configured explicitly:
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
-The clean committed-wheel proof follows after this checkpoint has immutable
-commit bytes.
+Clean distribution proof for full commit
+`6bef4164496a4a236bce346b6f7cb88977eb1558` also passes. A Git archive built a
+105,895-byte wheel with SHA-256
+`13ab4b2f8a390c6f8ce0cf6a1e6ade5eb7ffd5175269acd72d9450ffa92ae79e`;
+its isolated no-dependency target contains 484,795 bytes. Outside the
+repository, the installed wheel contains `ocrllm.worker.__main__`, serves all
+19 capabilities through `run_production_worker()`, writes no diagnostic, and
+loads no optional media/provider dependencies. Plain root import still loads no
+optional media, provider, PDF, HTTP, or socket modules. Python 3.10 root-import
+wall median/p95/max is 36.03865/38.8757/38.9784 ms and CPU median/p95/max is
+31.25/46.875/46.875 ms.
+
+The first installed-worker probe had a harness-only `SyntaxError` because
+PowerShell expanded a newline escape inside the inline Python source. The same
+already-built and installed bytes passed after replacing that ambiguous escape
+with `chr(10)`; no product bytes changed between probes.
 
 ## Next Slice
 
