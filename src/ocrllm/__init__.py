@@ -1,7 +1,7 @@
 """Public OCRLLM library facade."""
 
 from .config import Config
-from .contracts.capability_report import CapabilityReport
+from .capability_report import CapabilityReport
 from .providers.dashscope.provider_settings import DashScopeSettings
 from .errors import (
     Cancelled,

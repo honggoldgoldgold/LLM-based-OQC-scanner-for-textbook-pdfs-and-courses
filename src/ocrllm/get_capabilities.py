@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from .capability_report import CapabilityReport
 from .config import Config
-from .contracts.capability_report import CapabilityReport
 from .providers.dashscope.resolve_dashscope_model import DEFAULT_DASHSCOPE_MODEL
 from .snapshot_config import snapshot_config
 

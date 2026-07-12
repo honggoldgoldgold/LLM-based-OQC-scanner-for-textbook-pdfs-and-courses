@@ -1,11 +1,11 @@
 """Versioned JSON-safe OCRLLM worker contracts."""
 
-from .cancel_command import CancelCommand
 from .accepted_event import AcceptedEvent
 from .artifact import Artifact
 from .build_worker_recognition_result import build_worker_recognition_result
-from .capabilities_event import CapabilitiesEvent
+from .cancel_command import CancelCommand
 from .capabilities_command import CapabilitiesCommand
+from .capabilities_event import CapabilitiesEvent
 from .capability_report import CapabilityReport
 from .error_event import ErrorEvent
 from .image_recognition_request import ImageRecognitionRequest
@@ -30,8 +30,8 @@ __all__ = [
     "AcceptedEvent",
     "Artifact",
     "CancelCommand",
-    "CapabilitiesEvent",
     "CapabilitiesCommand",
+    "CapabilitiesEvent",
     "CapabilityReport",
     "ErrorEvent",
     "ImageRecognitionRequest",

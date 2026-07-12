@@ -93,6 +93,25 @@ records remain independently valid JSON lines.
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
+The first clean-wheel proof of feature commit `b3dd0cd` passed build, install,
+functionality, and heavy-module guards but failed the established import budget:
+Python 3.10 median wall/CPU were about 105.22/101.56 ms. Root-exporting one
+`CapabilityReport` had executed the eager `ocrllm.contracts` initializer and
+loaded the entire command/event graph.
+
+A lazy contracts barrel reduced import time but was rejected before commit:
+Python automatically placed lowercase submodule objects such as
+`parse_worker_command` on the package, overwriting same-named lazy function
+exports. Twenty-six command tests failed with `module object is not callable`.
+
+The accepted fix gives the public `CapabilityReport` its own lightweight root
+file and makes `ocrllm.contracts.capability_report` re-export that exact class.
+The explicitly imported contracts barrel remains eager and stable; plain root
+import never initializes it. All 794 tests pass again. A 32-process source-tree
+probe reports about 31.60 ms median wall, 31.25 ms median CPU, and zero loaded
+contract submodules. A clean committed-wheel timing proof remains required
+after this checkpoint is committed.
+
 ## Next Slice
 
 Implement the real isolated recognition job manager. It must start one child
