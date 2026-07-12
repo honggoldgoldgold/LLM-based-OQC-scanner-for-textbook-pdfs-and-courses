@@ -2,8 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: active implementation decision. This is scheduling and health state,
-not automatic retry.
+Status: implemented and verified by
+`dashscope_credential_pool_checkpoint_2026-07-12.md`. This is scheduling and
+health state, not automatic retry.
 
 ## Public Shape
 

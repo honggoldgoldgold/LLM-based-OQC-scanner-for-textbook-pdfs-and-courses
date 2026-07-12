@@ -259,8 +259,9 @@ without weakening secret protection. A clean Git-archive build from the hotfix
 produced a `50,094`-byte wheel and passed an isolated explicit-key resolver
 round-trip without a provider call.
 
-The active library has no API-key pools, automatic retries or model fallback,
-resume/checkpoint support, PDF recognition, audio
+The active library has an in-memory region-bound DashScope credential pool. It
+has no automatic retries or model fallback, persistent/cross-process pool
+state, resume/checkpoint support, PDF recognition, audio
 recognition, or video recognition. Those features must enter through their own
 approved phases rather than through the injected-provider scaffold.
 
@@ -308,6 +309,34 @@ substitute another region. Only the floating alias `qwen3.7-plus` and the
 default pinned snapshot `qwen3.7-plus-2026-05-26` belong to the proven Phase 1
 contract.
 
+For multiple independently authorized keys in the same Beijing region, supply
+one stateful pool instead of `api_key`. A failed call is never retried with the
+next key; only a later independent primary or scout call observes updated pool
+state.
+
+```python
+from ocrllm import (
+    CredentialPoolPolicy,
+    DashScopeCredential,
+    DashScopeCredentialPool,
+)
+
+
+pool = DashScopeCredentialPool(
+    region="cn-beijing",
+    credentials=(
+        DashScopeCredential(credential_id="primary", api_key="..."),
+        DashScopeCredential(credential_id="secondary", api_key="..."),
+    ),
+    policy=CredentialPoolPolicy(max_in_flight_per_credential=1),
+)
+settings = DashScopeSettings(
+    region="cn-beijing",
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    credential_pool=pool,
+)
+```
+
 The injected-provider contract remains available to host applications that own
 their clients and network policy. The library validates and snapshots the image
 before calling the provider; this offline example is contract evidence, not
@@ -350,6 +379,8 @@ docs/provider_workflow_configuration_checkpoint_2026-07-12.md
                                       Current provider/model API checkpoint.
 docs/provider_error_disposition_checkpoint_2026-07-12.md
                                       Provider error policy checkpoint.
+docs/dashscope_credential_pool_checkpoint_2026-07-12.md
+                                      Credential scheduler checkpoint.
 docs/phase1_live_quality_result_2026-07-11.md
                                       First Beijing live-gate result.
 Architecture.md                       Suspended future architecture reference.

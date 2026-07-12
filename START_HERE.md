@@ -41,6 +41,7 @@ Read next:
 - `docs/provider_error_disposition_decision_2026-07-12.md`
 - `docs/provider_error_disposition_checkpoint_2026-07-12.md`
 - `docs/dashscope_credential_pool_decision_2026-07-12.md`
+- `docs/dashscope_credential_pool_checkpoint_2026-07-12.md`
 
 Public import shape:
 
@@ -50,9 +51,9 @@ from ocrllm import Config, DashScopeSettings, VisionModelSettings, recognize
 
 Current phase: **Phase 2A -- image library completion**. Phase 0 contract
 honesty, Phase 1 real board/image, and Phase 2 JSONL worker are GO. The current
-slice is credential scheduling; local OCR, shared execution policy,
-adapter-owned DashScope/model configuration, and provider error disposition are
-GO. Phase 3
+slice is image resume; local OCR, shared execution policy, adapter-owned
+DashScope/model configuration, provider error disposition, and region-bound
+credential scheduling are GO. Phase 3
 PDFium remains not started. The Phase 2
 formal GO commit is `2db456a` and its clean Git-archive proof passes.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
@@ -81,7 +82,8 @@ image recognition, and fresh `image` plus Beijing `image,dashscope` profiles.
 The image/provider and v1alpha1 worker capabilities are available. The active
 post-Phase-2 decision now authorizes only the Phase 2A provider-workflow slice.
 
-The active library still has no API-key pool, retry/model-fallback policy,
+The active library has a DashScope in-memory credential scheduler, but still
+has no automatic retry/model fallback, persistent or cross-process pool state,
 resume support, PDF, audio, or video support. Local
 user PDFs/screenshots under `docs/` remain untracked supplemental test material,
 not redistributable gate evidence. Read

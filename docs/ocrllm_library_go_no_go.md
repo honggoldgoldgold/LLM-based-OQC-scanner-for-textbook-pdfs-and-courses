@@ -1864,6 +1864,18 @@ pinned suite, fixtures, static/lazy checks, and a clean installed mapping proof
 pass. Credential scheduling is now active; no retry runtime is authorized. See
 `provider_error_disposition_checkpoint_2026-07-12.md`.
 
+Phase 2A checkpoint 5 implements the separate stateful DashScope credential
+scheduler referenced by immutable adapter settings. Deterministic least-loaded
+rotation, per-key concurrency caps, bounded cancellation-aware waits,
+credential/model/account/provider health state, explicit recovery, secret-free
+reports, and primary/scout sharing pass. The adapter never switches credentials
+inside a failed call. The 975-test pinned suite, fixture identity, static/lazy
+gates, and exact pushed clean-wheel installed probe pass. The first archive
+attempt exposed an ignored validator source and commit `a84bfb2` repairs it with
+a narrow source exception while preserving the general secret rule. Image
+resume follows; no retry runtime is authorized. See
+`dashscope_credential_pool_checkpoint_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

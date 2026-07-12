@@ -8,8 +8,8 @@ The old OCRLLM app has been moved to `legacy_app/`; the active project is an
 importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
 versioned JSON/JSONL worker GO. Phase 2A image-library completion is active;
 local OCR, shared execution policy, adapter-owned provider/model configuration,
-and provider error disposition are GO; credential scheduling is current, and
-Phase 3 PDFium has not started.
+provider error disposition, and credential scheduling are GO; image resume is
+current, and Phase 3 PDFium has not started.
 
 ## First Files To Read
 
@@ -751,8 +751,8 @@ legacy_app/environment.yml
 Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
 `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
 passes. Local OCR, shared execution policy, adapter-owned DashScope/model
-configuration, and provider error disposition are GO; credential scheduling is
-the current slice. Phase 3 has not started.
+configuration, provider error disposition, and credential scheduling are GO;
+image resume is the current slice. Phase 3 has not started.
 
 Phase 2A recovery rules:
 
@@ -810,6 +810,17 @@ accept the taxonomy. Pushed decision `c33f64e` and implementation `54e2e72`
 pass 960 tests plus one optional skip, fixture/static/lazy gates, and a clean
 122,440-byte wheel/installed mapping proof. See
 `docs/provider_error_disposition_checkpoint_2026-07-12.md`.
+
+Phase 2A checkpoint 5 adds a region-bound, concurrency-safe DashScope
+credential scheduler without introducing retry. It fairly balances later
+independent primary/scout requests, enforces per-key caps and bounded
+cancellation-aware waits, and applies stable credential/model/account/provider
+health state without exposing secrets. Pushed decision `0cd2f56`, implementation
+`d4d444c`, and packaging repair `a84bfb2` pass 975 tests plus one optional skip,
+fixture identity, static/lazy checks, and a clean 130,497-byte installed-wheel
+pool probe. The first archive build exposed and preserved the ignored-source
+defect before the repair. See
+`docs/dashscope_credential_pool_checkpoint_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
