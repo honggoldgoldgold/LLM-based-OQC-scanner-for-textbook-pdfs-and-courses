@@ -6,13 +6,13 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from .errors import InvalidSource
+from .image_group_limits import (
+    MAX_AGGREGATE_PIXELS,
+    MAX_AGGREGATE_SOURCE_BYTES,
+    MAX_IMAGE_GROUP_COUNT,
+)
 from .imaging.decode_image import DecodedImageInfo, decode_image
 from .validate_source import validate_source
-
-
-MAX_IMAGE_GROUP_COUNT = 10
-MAX_AGGREGATE_SOURCE_BYTES = 100 * 1024 * 1024
-MAX_AGGREGATE_PIXELS = 64_000_000
 
 
 def validate_image_group(sources: Sequence[str | Path]) -> tuple[DecodedImageInfo, ...]:

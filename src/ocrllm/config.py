@@ -13,6 +13,7 @@ from .errors import ConfigError
 from .freeze_json_value import FrozenJSONValue, JSONValue, freeze_json_value
 from .local_ocr_settings import LocalOCRSettings
 from .providers.dashscope.provider_settings import DashScopeSettings
+from .recognition_execution_policy import RecognitionExecutionPolicy
 from .recognition_preferences import RecognitionPreferences
 
 
@@ -30,6 +31,9 @@ class Config:
     dashscope: DashScopeSettings | None = field(default=None, repr=False)
     image_mode: Literal["vision", "ocr"] = "vision"
     local_ocr: LocalOCRSettings | None = field(default=None, repr=False)
+    execution: RecognitionExecutionPolicy = field(
+        default_factory=RecognitionExecutionPolicy
+    )
     preferences: RecognitionPreferences = field(default_factory=RecognitionPreferences)
     profile: str | None = None
     input_languages: tuple[str, ...] = ()
@@ -57,6 +61,7 @@ class Config:
         image_mode = _normalize_image_mode(self.image_mode)
         dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
         local_ocr = _normalize_local_ocr_pair(image_mode, self.local_ocr)
+        execution = _normalize_execution_policy(self.execution)
         preferences = _normalize_preferences(self.preferences)
         _validate_dashscope_scout_workflow(
             dashscope=dashscope,
@@ -103,6 +108,7 @@ class Config:
         object.__setattr__(self, "dashscope", dashscope)
         object.__setattr__(self, "image_mode", image_mode)
         object.__setattr__(self, "local_ocr", local_ocr)
+        object.__setattr__(self, "execution", execution)
         object.__setattr__(self, "preferences", preferences)
         object.__setattr__(self, "extra", extra)
 
@@ -122,6 +128,21 @@ def _normalize_preferences(value: object) -> RecognitionPreferences:
     return RecognitionPreferences(
         draft_candidates=value.draft_candidates,
         review_passes=value.review_passes,
+    )
+
+
+def _normalize_execution_policy(value: object) -> RecognitionExecutionPolicy:
+    if type(value) is not RecognitionExecutionPolicy:
+        raise ConfigError(
+            "Config.execution must be an exact RecognitionExecutionPolicy instance",
+            code="CONFIG_INVALID",
+        ) from None
+    return RecognitionExecutionPolicy(
+        maximum_images_per_request=value.maximum_images_per_request,
+        max_parallel_requests=value.max_parallel_requests,
+        provider_request_start_interval_seconds=(
+            value.provider_request_start_interval_seconds
+        ),
     )
 
 

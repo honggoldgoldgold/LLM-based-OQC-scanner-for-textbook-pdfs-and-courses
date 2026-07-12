@@ -43,6 +43,10 @@ def _recognize(
     from .output.build_output_path import build_output_path
     from .output.write_markdown_atomically import write_markdown_atomically
     from .profiles.resolve_image_profile import resolve_image_profile
+    from .providers.provider_request_start_gate import (
+        reuse_or_create_provider_request_start_gate,
+    )
+    from .validate_execution_image_count import validate_execution_image_count
     from .validate_same_type_group import validate_same_type_group
 
     from .validate_config import validate_config
@@ -50,31 +54,35 @@ def _recognize(
     cfg = validate_config(config)
     profile = resolve_image_profile(cfg.profile)
     source_paths = coerce_source_paths(source)
+    validate_execution_image_count(source_paths, execution=cfg.execution)
     media_type = validate_same_type_group(source_paths)
 
-    if media_type == "image":
-        with snapshot_image_group(source_paths, config=cfg) as validated_paths:
-            output_path = build_output_path(source_paths, profile=profile, config=cfg)
-            if cfg.image_mode == "ocr":
-                from .local_ocr.recognize_images_with_rapidocr import (
-                    recognize_images_with_rapidocr,
-                )
+    with reuse_or_create_provider_request_start_gate(
+        cfg.execution.provider_request_start_interval_seconds
+    ):
+        if media_type == "image":
+            with snapshot_image_group(source_paths, config=cfg) as validated_paths:
+                output_path = build_output_path(source_paths, profile=profile, config=cfg)
+                if cfg.image_mode == "ocr":
+                    from .local_ocr.recognize_images_with_rapidocr import (
+                        recognize_images_with_rapidocr,
+                    )
 
-                processor_output = recognize_images_with_rapidocr(
-                    validated_paths,
-                    profile=profile,
-                    config=cfg,
-                )
-            else:
-                from .processors.recognize_images import recognize_images
+                    processor_output = recognize_images_with_rapidocr(
+                        validated_paths,
+                        profile=profile,
+                        config=cfg,
+                    )
+                else:
+                    from .processors.recognize_images import recognize_images
 
-                processor_output = recognize_images(
-                    validated_paths,
-                    profile=profile,
-                    config=cfg,
-                )
-    else:  # pragma: no cover - routing is closed until another phase is authorized.
-        raise AssertionError(f"unhandled validated media type: {media_type}")
+                    processor_output = recognize_images(
+                        validated_paths,
+                        profile=profile,
+                        config=cfg,
+                    )
+        else:  # pragma: no cover - routing is closed until another phase is authorized.
+            raise AssertionError(f"unhandled validated media type: {media_type}")
 
     if output_path is not None:
         write_markdown_atomically(

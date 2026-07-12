@@ -7,8 +7,8 @@ from pathlib import Path
 
 from ..config import Config
 from ..errors import ConfigError, OCRLLMError, ProviderError
-from ..raise_if_cancelled import raise_if_cancelled
 from .map_injected_provider_error import map_injected_provider_error
+from .provider_request_start_gate import wait_for_provider_request_start
 from .resolved_vision_provider import ResolvedVisionProvider
 from .validate_provider_markdown import validate_provider_markdown
 
@@ -41,7 +41,7 @@ def call_vision_provider(
             code="CONFIG_INVALID",
         )
 
-    raise_if_cancelled(config.cancellation)
+    wait_for_provider_request_start(config.cancellation)
     dispatch_error: OCRLLMError | None = None
     try:
         provider_value = recognize_method(tuple(image_paths), prompt=prompt, config=config)

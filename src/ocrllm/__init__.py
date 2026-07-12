@@ -25,6 +25,7 @@ from .recognize_batch import recognize_batch
 from .get_capabilities import get_capabilities
 from .local_ocr_settings import LocalOCRSettings
 from .recognition_preferences import RecognitionPreferences
+from .recognition_execution_policy import RecognitionExecutionPolicy
 from .result import RecognitionResult
 
 __all__ = [
@@ -47,6 +48,7 @@ __all__ = [
     "QuotaExhausted",
     "RateLimited",
     "RecognitionResult",
+    "RecognitionExecutionPolicy",
     "RecognitionPreferences",
     "UnsupportedFormat",
     "recognize",
