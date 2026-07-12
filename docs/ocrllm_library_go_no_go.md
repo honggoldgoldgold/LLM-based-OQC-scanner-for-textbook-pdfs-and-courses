@@ -1767,6 +1767,14 @@ passes 807. Production recognition adaptation, module entrypoint, Node harness,
 and live smoke remain; Phase 2 is not GO. See
 `phase2_isolated_job_manager_2026-07-12.md`.
 
+Phase 2 checkpoint 6 implements production recognition adaptation by reusing
+the public facade exactly once per ordered image group. It decodes strict file
+URIs and builds the credential-free Beijing v17 `board` configuration. It adds
+no handwriting branch, alternate prompt, retry, or fallback. Fourteen focused
+tests and the 821-test full suite pass. The module entrypoint, Node harness, and
+live smoke remain; Phase 2 is not GO. See
+`phase2_production_image_job_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

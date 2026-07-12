@@ -200,6 +200,14 @@ invariants, EOF cleanup, and real child-plus-grandchild cancellation within five
 seconds pass. The production image child, module entrypoint, Node harness, and
 live smoke remain. See `docs/phase2_isolated_job_manager_2026-07-12.md`.
 
+Phase 2 checkpoint 6 adds the production image-command adapter. It converts
+absolute file URIs, builds the exact credential-free Beijing v17 configuration,
+and invokes the existing unified `board` facade once for each ordered image
+group. No handwriting route, fallback, or retry exists. Typed facade errors
+remain owned by the isolated-child wrapper. The module entrypoint, Node harness,
+and live smoke remain. See
+`docs/phase2_production_image_job_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

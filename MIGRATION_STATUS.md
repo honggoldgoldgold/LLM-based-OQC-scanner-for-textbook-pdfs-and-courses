@@ -745,6 +745,14 @@ Implement only this bounded slice next:
 5. Keep Phase 2 development-only. Do not claim packaged end-user Electron
    compatibility before the Phase 6 clean-machine gate.
 
+Checkpoint 6 implements the production image-command adapter without adding a
+second recognition workflow. Absolute file URIs become platform paths, the
+exact credential-free Beijing v17 config is constructed, and the existing
+`recognize()` facade handles the complete ordered image group exactly once.
+Printed and handwritten content remain one `board` capability. The module
+entrypoint, Node harness, and live smoke remain required. See
+`docs/phase2_production_image_job_2026-07-12.md`.
+
 Checkpoint 1 completes the input side of item 1: all three v1alpha1 commands
 have immutable DTOs, strict parsing, explicit defaults, canonical serialization,
 and one frozen JSONL fixture. It passes 33 focused tests and the 745-test full
