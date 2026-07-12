@@ -98,6 +98,13 @@ tests/test_worker_event_contract.py
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
+Clean distribution proof for full commit
+`39775d7e9173fc400f1a7310029ca11532d9e19b` also passes. A Git archive built an
+87,423-byte wheel; its isolated no-dependency target contains 393,280 bytes.
+Outside the repository, root import left Pillow, PDFium, OpenAI, and HTTPX
+unloaded. Unicode result serialization and nested warning-detail credential
+redaction passed from the installed wheel.
+
 ## Next Slice
 
 Implement `write_jsonl_event.py` as the sole stdout protocol writer and
