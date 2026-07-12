@@ -87,6 +87,15 @@ tests/test_isolated_worker_job_manager.py
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
+Clean distribution proof for full commit
+`41d94ac5ef0ad18f1c8a6380835b6ebc20b7a514` also passes. A Git archive built a
+101,271-byte wheel; its isolated no-dependency target contains 466,544 bytes.
+Outside the repository, the installed manager imports and an event
+serialize/parse round trip passes. Plain root import loads no optional media,
+provider, PDF, HTTP, or socket modules; Python 3.10 wall median/p95/max is
+33.4714/35.1181/35.4495 ms and CPU median/p95/max is
+31.25/46.875/46.875 ms.
+
 ## Next Slice
 
 Implement the production image-job callable as a thin adapter from the frozen
