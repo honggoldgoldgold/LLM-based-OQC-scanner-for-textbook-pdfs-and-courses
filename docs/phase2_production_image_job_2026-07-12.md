@@ -85,8 +85,23 @@ tests/test_worker_image_job.py
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
-The clean committed-wheel proof is recorded after this checkpoint is committed,
-because a Git-archive proof must identify immutable source bytes.
+Clean distribution proof for full commit
+`9235e7929cb14e3cdf892575c37a3a26abdf4611` also passes. A Git archive built a
+104,085-byte wheel with SHA-256
+`cb9856669b030faa1abfae4a5aa963d371f51ccb48615c5e4b16bce89582bc86`;
+its isolated no-dependency target contains 478,517 bytes. Outside the
+repository, plain `import ocrllm` loads no optional media, provider, PDF, HTTP,
+or socket modules, and the installed production image job imports without
+loading Pillow, PDFium, OpenAI, or HTTPX. Python 3.10 root-import wall
+median/p95/max is 36.1932/38.9959/39.1587 ms and CPU median/p95/max is
+31.25/46.875/46.875 ms.
+
+The first worker-import probe also forbade the standard-library `socket` module
+and failed after the wheel built and installed. That assertion mixed two
+different boundaries: multiprocessing legitimately loads `socket` in the
+worker subsystem, while plain root import must not. The accepted rerun kept the
+strict socket prohibition on root import and separately prohibited only optional
+media/provider dependencies on worker import; both passed.
 
 ## Next Slice
 
