@@ -102,6 +102,13 @@ issues: `decode_image.py` re-exported `MAX_IMAGE_PIXELS` only for tests,
 limits and DTOs from the files that own them, and the dead imports are removed.
 Ruff passes across `src` and `tests`.
 
+Clean distribution proof for full commit
+`a62c93978317bc84f88bdc7953cac6195c7b5a13` also passes. A Git archive built a
+78,116-byte wheel; its isolated no-dependency target contains 351,800 bytes.
+Outside the repository, root import left Pillow, PDFium, OpenAI, and HTTPX
+unloaded. Importing `ocrllm.contracts`, parsing a Unicode-path recognize command,
+applying defaults, serializing it, and encoding it with strict JSON all passed.
+
 ## Next Slice
 
 Add the six immutable event DTOs and frozen event JSONL fixtures. Resolve the
