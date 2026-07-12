@@ -17,7 +17,8 @@ dependency surface for new projects.
 The active package is `src/ocrllm`.
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. No later phase is active; Phase 3 PDFium work has not started.
+worker are GO. Phase 2A image-library completion is active, beginning with local
+OCR through the same facade. Phase 3 PDFium work has not started.
 
 The current verified contract:
 

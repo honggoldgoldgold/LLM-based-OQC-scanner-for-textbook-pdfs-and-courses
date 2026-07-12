@@ -31,7 +31,9 @@ from ocrllm import (
 ```
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. No later phase is active.
+worker are GO. Phase 2A image-library completion is active; local OCR through
+the direct facade is the current slice, while Phase 3 PDFium remains not
+started.
 
 The current image facade:
 

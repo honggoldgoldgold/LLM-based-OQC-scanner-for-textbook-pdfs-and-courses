@@ -6,7 +6,8 @@ This file is the project memory aid. Read it before changing the repo.
 
 The old OCRLLM app has been moved to `legacy_app/`; the active project is an
 importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
-versioned JSON/JSONL worker GO. No later phase is active.
+versioned JSON/JSONL worker GO. Phase 2A image-library completion is active;
+local OCR is the current slice and Phase 3 PDFium has not started.
 
 ## First Files To Read
 
@@ -728,11 +729,11 @@ legacy_app/environment.yml
 
 ## What To Do Next
 
-Current gate: **Phase 2 -- versioned JSON contract and Electron JSONL worker --
-GO** at `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf`. Its clean Git-archive
-proof passes. No later phase is active.
+Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
+`2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
+passes. Local OCR is the current slice. Phase 3 has not started.
 
-Phase 2 recovery rules:
+Phase 2A recovery rules:
 
 1. New callers use `python -m ocrllm.worker` and the frozen
    `ocrllm.v1alpha1` JSONL contract.
@@ -741,8 +742,13 @@ Phase 2 recovery rules:
 3. Preserve the Phase 2 live evidence and Node cancellation fixtures.
 4. Keep the worker development-only with an explicitly configured Python
    executable. Do not claim packaged Electron compatibility before Phase 6.
-5. Do not start Phase 3 PDFium, Phase 4 audio/FileTrans, or another deferred
-   capability without a new explicit start decision.
+5. Implement local OCR first, then provider workflow configuration, provider
+   error taxonomies/credential pools, and image resume as separate gates. Do
+   not start Phase 3 PDFium, Phase 4 audio/FileTrans, or another deferred
+   capability.
+
+The active decision and exact local-OCR gates are in
+`docs/image_library_completion_decision_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
@@ -1198,9 +1204,11 @@ quorum remain. The 37,864-byte manifest SHA-256 is
 89 focused and all 712 isolated tests pass. See
 `docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
 
-PDF, audio, video, HTTP service, local OCR, provider pools, HarmonyOS, Rust,
-Office, social, GPU, and offline-model work are not the next task. The bounded
-JSONL worker is the next task.
+The bounded JSONL worker is now GO. Local OCR through the direct `recognize()`
+facade is the next task under Phase 2A. Provider workflow configuration,
+credential pools, and image resume follow as separate slices. PDF, audio, video,
+HTTP service, HarmonyOS, Rust, Office, social, GPU, and offline-model work remain
+outside the current slice.
 
 ## Do Not Do This
 

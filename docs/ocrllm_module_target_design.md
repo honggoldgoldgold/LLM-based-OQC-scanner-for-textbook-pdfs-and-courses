@@ -16,7 +16,8 @@ The active implementation remains the Python-first package in `src/ocrllm`.
 The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
 Phase 0 contract honesty is GO at commit `5018ad0` on the exact clean evidence
 recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is GO,
-and Phase 2 JSON/JSONL worker is GO. No later phase is active.
+and Phase 2 JSON/JSONL worker is GO. Phase 2A image-library completion is active
+before Phase 3; local OCR is the current slice.
 
 ## One-Sentence Goal
 
@@ -1246,6 +1247,7 @@ mandatory:
 Phase 0  Contract honesty                         GO at 5018ad0
 Phase 1  Real board/image and one provider        GO at 0278b66 plus decision
 Phase 2  Versioned JSON contract and Electron JSONL worker  GO
+Phase 2A Image library completion                            CURRENT
 Phase 3  PDFium text/vision PDF slice                    NOT STARTED
 Phase 4  Short ASR and resumable FileTrans audio
 Phase 5  Video composed from image and audio
@@ -1255,6 +1257,11 @@ Phase 6  Distribution, SBOM, and downstream proof
 Do not work on two phases concurrently. A later phase starts only after the
 current phase's offline and required real gates pass and `MIGRATION_STATUS.md`
 records the evidence.
+
+Phase 2A order is local OCR, generalized provider workflow configuration,
+provider error taxonomies/credential pools, then image resume. See
+`docs/image_library_completion_decision_2026-07-12.md` for the authoritative
+slice boundaries.
 
 Phase 2 checkpoint 1 implements the three command DTOs plus strict parsing and
 serialization. It deliberately left the six event DTOs and worker process

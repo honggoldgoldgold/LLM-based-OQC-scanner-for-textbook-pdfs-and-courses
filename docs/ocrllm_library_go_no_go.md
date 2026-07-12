@@ -2,7 +2,7 @@
 
 Status: active and authoritative.
 
-Decision date: 2026-07-11.
+Decision date: 2026-07-12.
 
 This file is the execution contract for new work in `src/ocrllm/`. If another
 planning document conflicts with this file, this file wins. Tests and runtime
@@ -94,7 +94,7 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
 - Phase 0 is GO at commit `5018ad0`. Phase 1 is GO after the passing v17 live
   gate and the clean committed-wheel proof at `0278b66`. Phase 2 is GO after
   the production live worker gate and clean proof at `60ce473` plus the formal
-  decision. No later phase is active.
+  decision. Phase 2A image-library completion is active; Phase 3 is not.
 - The active package validates and decodes PNG/JPEG sources before invoking an
   injected provider, rejects empty provider output, returns canonical
   `source_type="image"`, and represents board recognition as `profile="board"`.
@@ -112,6 +112,9 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
 - `worker.jsonl.v1alpha1` is `available` as a development worker with an
   explicitly configured Python executable. Packaged Electron compatibility
   remains a Phase 6 gate.
+- Phase 2A image-library completion is active before PDF. Its current and only
+  slice is local OCR through the direct `recognize()` facade. See
+  `image_library_completion_decision_2026-07-12.md`.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
   and advertised exactly `dev,image`. The current Phase 1 tree still has no base
@@ -853,14 +856,15 @@ src/ocrllm/providers/dashscope/map_dashscope_error.py
     public errors.
 ```
 
-Provider model queues and key pools are NO-GO until one-provider error handling
-is complete and tests prove why the extra policy is needed.
+Provider model queues and key pools remain NO-GO during the local-OCR slice.
+They become a later Phase 2A slice only after enabled provider categories have
+stable error taxonomies and tests prove the pool policy.
 
 Future provider architecture is recorded here without authorizing it:
 
-- A recognition profile such as `board` describes the task and prompt; the
-  execution engine is an orthogonal choice. A local OCR engine is neither a
-  board profile nor an approved capability or active-phase task.
+- A recognition profile such as `board` describes the task; the execution
+  strategy is orthogonal. Phase 2A now authorizes a local OCR strategy without
+  treating it as an API provider or a handwriting-specific profile.
 - Do not freeze four provider categories now. OpenAI-compatible transport,
   direct provider SDKs, local engines, and subprocess/session tools have
   different contracts and are not a closed current enum. In particular, a
@@ -871,7 +875,7 @@ Future provider architecture is recorded here without authorizing it:
   field.
 - A future credential pool requires an explicit decision covering fair
   selection, cooldown, and provider/model quota and error domains. It remains
-  NO-GO until the single-provider path and its error classification are proven.
+  outside the current local-OCR slice.
 
 Phase 1 provider policy is concrete:
 
@@ -1805,6 +1809,15 @@ with an explicitly configured Python executable; packaged Electron compatibility
 remains gated in Phase 6. The formal GO commit is `2db456a` and its clean
 Git-archive proof passes. See
 `phase2_live_worker_result_2026-07-12.md`.
+
+### Phase 2A: Image library completion
+
+The order is mandatory: local OCR, provider workflow configuration, stable
+provider error taxonomies and credential pools, then image resume. The active
+local-OCR GO gates and do-not-do rules are frozen in
+`image_library_completion_decision_2026-07-12.md`. PDF/audio/video remain
+unsupported and Phase 3 does not start until Phase 2A is complete or a new
+explicit decision changes the order.
 
 ### Phase 3: PDFium PDF
 
