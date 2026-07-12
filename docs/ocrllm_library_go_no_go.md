@@ -1775,6 +1775,14 @@ tests and the 821-test full suite pass. The module entrypoint, Node harness, and
 live smoke remain; Phase 2 is not GO. See
 `phase2_production_image_job_2026-07-12.md`.
 
+Phase 2 checkpoint 7 implements the production module entrypoint. It composes
+standard streams, the control loop, isolated manager, and unified image job
+without credential CLI arguments. Real no-key capabilities and spawned-child
+source-failure subprocess tests pass with JSON-only stdout; diagnostics contain
+only exception types. The full suite passes 824. The Node harness and live smoke
+remain; Phase 2 is not GO. See
+`phase2_production_worker_entrypoint_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

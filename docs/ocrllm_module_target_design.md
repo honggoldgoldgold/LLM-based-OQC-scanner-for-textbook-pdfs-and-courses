@@ -1282,6 +1282,10 @@ Phase 2 checkpoint 6 implements the production image job as a thin adapter over
 the existing unified `board` facade. The entrypoint, Node harness, and live
 smoke remain pending.
 
+Phase 2 checkpoint 7 implements the production module entrypoint with explicit
+standard-stream composition and secret-safe diagnostics. The Node harness and
+live smoke remain pending.
+
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;
 each requires a new explicit decision after Phase 6 or an approved product

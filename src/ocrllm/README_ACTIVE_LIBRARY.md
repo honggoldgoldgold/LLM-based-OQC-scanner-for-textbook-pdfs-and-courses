@@ -65,6 +65,8 @@ bridging and verified five-second descendant cancellation. It is not exposed as
 a production worker until the remaining gates pass. The production image job
 adapter now reuses this same unified facade once per ordered group, fixes the
 Beijing v17 configuration, and adds no handwriting route, fallback, or retry.
+`python -m ocrllm.worker` now composes that adapter with the isolated manager;
+it remains a development worker until the Node and live gates pass.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data

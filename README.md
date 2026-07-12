@@ -208,6 +208,13 @@ remain owned by the isolated-child wrapper. The module entrypoint, Node harness,
 and live smoke remain. See
 `docs/phase2_production_image_job_2026-07-12.md`.
 
+Phase 2 checkpoint 7 adds `python -m ocrllm.worker` as a small standard-stream
+launcher over the isolated manager and unified image job. Real offline
+subprocess tests prove no-key capabilities and spawned-child `SOURCE_NOT_FOUND`
+handling; unexpected diagnostics expose only exception types. The Node harness
+and live smoke remain. See
+`docs/phase2_production_worker_entrypoint_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

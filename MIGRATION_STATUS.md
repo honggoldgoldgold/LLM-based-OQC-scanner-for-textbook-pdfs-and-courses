@@ -753,6 +753,13 @@ Printed and handwritten content remain one `board` capability. The module
 entrypoint, Node harness, and live smoke remain required. See
 `docs/phase2_production_image_job_2026-07-12.md`.
 
+Checkpoint 7 implements `python -m ocrllm.worker` as a thin launcher over the
+production control loop, isolated manager, and unified image callable. Offline
+subprocess tests prove no-key capabilities and a real spawned-child typed source
+failure with JSON-only stdout and empty stderr. The Node harness and live smoke
+remain required. See
+`docs/phase2_production_worker_entrypoint_2026-07-12.md`.
+
 Checkpoint 1 completes the input side of item 1: all three v1alpha1 commands
 have immutable DTOs, strict parsing, explicit defaults, canonical serialization,
 and one frozen JSONL fixture. It passes 33 focused tests and the 745-test full
