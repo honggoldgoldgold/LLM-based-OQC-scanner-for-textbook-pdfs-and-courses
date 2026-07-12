@@ -120,6 +120,11 @@ first failure aborts provider calls that have not started. See
 `phase2a_recognition_execution_policy_2026-07-12.md` for exact semantics,
 verification, import budgets, and the next provider-configuration boundary.
 
+The active provider/model migration is frozen in
+`provider_workflow_configuration_decision_2026-07-12.md`. It replaces string
+provider categories and duplicated DashScope fields with exact adapter settings
+plus `VisionModelSettings`; it does not add a second provider or content route.
+
 ## Explicit Do-Not-Do Items
 
 - Do not start PDF, audio, video, UI, HarmonyOS, service, or Rust work.

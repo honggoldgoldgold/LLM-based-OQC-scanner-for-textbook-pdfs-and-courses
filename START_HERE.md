@@ -36,6 +36,7 @@ Read next:
 - `docs/image_library_completion_decision_2026-07-12.md`
 - `docs/local_ocr_implementation_checkpoint_2026-07-12.md`
 - `docs/phase2a_recognition_execution_policy_2026-07-12.md`
+- `docs/provider_workflow_configuration_decision_2026-07-12.md`
 
 Public import shape:
 
