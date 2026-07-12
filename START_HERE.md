@@ -39,6 +39,7 @@ Read next:
 - `docs/provider_workflow_configuration_decision_2026-07-12.md`
 - `docs/provider_workflow_configuration_checkpoint_2026-07-12.md`
 - `docs/provider_error_disposition_decision_2026-07-12.md`
+- `docs/provider_error_disposition_checkpoint_2026-07-12.md`
 
 Public import shape:
 
@@ -48,8 +49,9 @@ from ocrllm import Config, DashScopeSettings, VisionModelSettings, recognize
 
 Current phase: **Phase 2A -- image library completion**. Phase 0 contract
 honesty, Phase 1 real board/image, and Phase 2 JSONL worker are GO. The current
-slice is provider workflow completion; local OCR, shared execution policy, and
-the adapter-owned DashScope/model configuration foundation are GO. Phase 3
+slice is credential scheduling; local OCR, shared execution policy,
+adapter-owned DashScope/model configuration, and provider error disposition are
+GO. Phase 3
 PDFium remains not started. The Phase 2
 formal GO commit is `2db456a` and its clean Git-archive proof passes.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,

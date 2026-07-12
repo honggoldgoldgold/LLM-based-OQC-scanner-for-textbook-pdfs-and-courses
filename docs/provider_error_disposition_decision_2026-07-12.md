@@ -2,8 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: active implementation decision. This checkpoint must pass before a
-credential pool or another built-in provider adapter begins.
+Status: implemented at `54e2e72`; see
+`provider_error_disposition_checkpoint_2026-07-12.md`. The checkpoint passes
+before a credential pool or another built-in provider adapter begins.
 
 ## Problem
 

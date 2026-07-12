@@ -9,6 +9,7 @@ this repo intended for direct import by other projects.
 from ocrllm import (
     Cancelled,
     CapabilityReport,
+    ConcurrencyLimited,
     Config,
     ConfigError,
     DashScopeSettings,
@@ -20,6 +21,11 @@ from ocrllm import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderAccountSuspended,
+    ProviderContentBlocked,
+    ProviderErrorDisposition,
+    ProviderPermissionDenied,
+    ProviderRequestInvalid,
     ProviderUnavailable,
     QuotaExhausted,
     RateLimited,
@@ -31,13 +37,15 @@ from ocrllm import (
     recognize,
     recognize_batch,
     get_capabilities,
+    get_provider_error_disposition,
 )
 ```
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
 worker are GO. Phase 2A image-library completion is active; local OCR, shared
-execution policy, and adapter-owned DashScope/model configuration are GO,
-provider workflow completion is current, and Phase 3 PDFium remains not started.
+execution policy, adapter-owned DashScope/model configuration, and provider
+error disposition are GO, credential scheduling is current, and Phase 3 PDFium
+remains not started.
 
 The current image facade:
 
@@ -62,6 +70,9 @@ The current image facade:
   source/provider work and bounds ordered, fail-fast `recognize_batch()` jobs;
 - applies one monotonic provider-start interval to every draft/review/scout
   call in a direct operation or across one concurrent batch.
+- distinguishes provider permission, suspension, concurrency, quota,
+  invalid-request, content-block, and transient failures and exposes immutable
+  disposition evidence without performing retries.
 
 The built-in DashScope board/image capability is available under the bounded
 Phase 1 contract. The v17 Beijing gate completed exactly 52 provider calls with

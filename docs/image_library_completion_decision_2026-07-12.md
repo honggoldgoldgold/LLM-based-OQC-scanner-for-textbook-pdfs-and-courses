@@ -2,8 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: active. Local OCR, shared execution policy, and adapter-owned
-DashScope/model configuration are GO; provider workflow completion is current.
+Status: active. Local OCR, shared execution policy, adapter-owned
+DashScope/model configuration, and provider error disposition are GO;
+credential scheduling is current.
 
 ## Why The Roadmap Changes
 
@@ -27,14 +28,14 @@ Phase 2A is implemented as independent vertical slices:
    strategy, a maintained RapidOCR/ONNX Runtime adapter, typed local-OCR errors,
    deterministic Markdown, ordered multi-image handling, optional installation,
    and real offline screenshot evidence.
-2. **Provider workflow configuration -- current.** Separate immutable provider
+2. **Provider workflow configuration -- GO for the enabled adapter.** Separate immutable provider
    transport, model, execution, and recognition-preference policies. The shared
    `RecognitionExecutionPolicy` and adapter-owned DashScope/model checkpoints
-   are GO; provider workflow completion is next. Do not freeze the user's four examples as an
+   and provider error-disposition checkpoints are GO. Do not freeze the user's four examples as an
    exhaustive enum: OpenAI-compatible APIs, provider SDKs, Google SDKs, and
    Codex subprocess/session execution have different credential and lifecycle
    contracts.
-3. **Credential pools.** Add stateful fair rotation/cooldown only after each
+3. **Credential pools -- current.** Add stateful fair rotation/cooldown only after each
    enabled provider category maps authentication, quota, rate limit,
    concurrency, invalid request, timeout, network, suspension, and malformed
    response failures into stable policy decisions. Do not broaden one immutable
@@ -127,9 +128,10 @@ plus `VisionModelSettings`; it does not add a second provider or content route.
 The implemented result and clean proof are in
 `provider_workflow_configuration_checkpoint_2026-07-12.md`.
 
-Provider error taxonomy and pool-facing disposition are the active checkpoint,
-frozen in `provider_error_disposition_decision_2026-07-12.md`. No pool or retry
-runtime is authorized by that decision.
+Provider error taxonomy and pool-facing disposition are GO, frozen in
+`provider_error_disposition_decision_2026-07-12.md` and proven in
+`provider_error_disposition_checkpoint_2026-07-12.md`. Credential scheduling
+is the active checkpoint; no retry runtime is authorized by those decisions.
 
 ## Explicit Do-Not-Do Items
 

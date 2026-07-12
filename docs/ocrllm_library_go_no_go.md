@@ -113,8 +113,9 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
   explicitly configured Python executable. Packaged Electron compatibility
   remains a Phase 6 gate.
 - Phase 2A image-library completion is active before PDF. Its current and only
-  slice is provider workflow completion; local OCR, shared execution policy,
-  and adapter-owned DashScope/model configuration are GO. See
+  slice is credential scheduling; local OCR, shared execution policy,
+  adapter-owned DashScope/model configuration, and provider error disposition
+  are GO. See
   `image_library_completion_decision_2026-07-12.md`.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
@@ -935,15 +936,16 @@ Phase 1 provider policy is concrete:
   hidden retry in the first adapter.
 - Construct the synchronous `OpenAI` client with `max_retries=0`; the SDK's
   built-in retry default is not allowed to create undisclosed extra paid calls.
-- Map temporary throttling/HTTP 429 to retryable `PROVIDER_RATE_LIMITED`;
-  permanent billing, purchase, and free-quota provider codes to nonretryable
-  `PROVIDER_QUOTA_EXHAUSTED`; timeout to retryable `PROVIDER_TIMEOUT`; connection
-  failure to retryable `PROVIDER_NETWORK`; and HTTP 409/5xx service failures to
-  retryable `PROVIDER_UNAVAILABLE`. Inspect safe provider codes before generic
-  status mapping so a permanent account limit is not mislabeled as
-  authentication or temporary throttling. Provider codes `RequestTimeOut`,
+- Map permission, account suspension, concurrency, quota, content block, and
+  invalid provider request separately from authentication, rate, timeout,
+  network, unavailability, and malformed response. Inspect safe provider codes
+  before generic status mapping. A bounded private message fallback may only
+  identify the documented concurrency phrase and is never stored or emitted.
+  DashScope rate/concurrency limits are account-scoped; another key in the same
+  account is not fresh quota. Provider codes `RequestTimeOut`,
   `InternalError.Timeout`, and `ResponseTimeout` map to retryable
-  `PROVIDER_TIMEOUT` before generic 5xx handling. Do not perform the retry here.
+  `PROVIDER_TIMEOUT` before generic 5xx handling. Expose immutable disposition
+  evidence but do not perform its action here.
 - Add retry/backoff only in a later decision with retry-classification tests and
   cancellation-aware delays.
 - Direct-Python cancellation is checked before provider preflight, between
@@ -1839,8 +1841,8 @@ shared hard image-group limit, pre-provider configured-limit rejection,
 bounded ordered `recognize_batch()` concurrency, and monotonic all-provider-call
 cadence. Parallel failure prevents waiting calls from reaching the provider.
 The pinned full suite, fixture identity, static checks, and clean wheel/import
-budgets pass. Provider transport/model configuration is next; pools and resume
-remain later gates. See
+budgets pass. Adapter-owned provider/model configuration follows; pools and
+resume remain later gates. See
 `phase2a_recognition_execution_policy_2026-07-12.md`.
 
 Phase 2A checkpoint 3 makes adapter-owned configuration the only pre-1.0
@@ -1849,9 +1851,18 @@ its optional secret credential; exact `VisionModelSettings` owns model identity
 and a stricter image cap. String categories plus duplicated Config key/model/
 DashScope fields are removed. The worker wire format is unchanged. The
 912-test pinned suite, fixture identity, static/lazy checks, clean wheel, and
-fresh installed mock-transport adapter request pass. Provider workflow
-completion remains active; pools and resume stay later gates. See
+fresh installed mock-transport adapter request pass. Provider error disposition
+follows; pools and resume stay later gates. See
 `provider_workflow_configuration_checkpoint_2026-07-12.md`.
+
+Phase 2A checkpoint 4 adds stable permission, account-suspension, concurrency,
+invalid-request, and content-block errors plus immutable
+`ProviderErrorDisposition`. DashScope maps documented provider-code precedence
+and safe account/model/credential/request/provider scopes; injected providers
+and the unchanged worker error envelope accept every new code. The 960-test
+pinned suite, fixtures, static/lazy checks, and a clean installed mapping proof
+pass. Credential scheduling is now active; no retry runtime is authorized. See
+`provider_error_disposition_checkpoint_2026-07-12.md`.
 
 ### Phase 3: PDFium PDF
 

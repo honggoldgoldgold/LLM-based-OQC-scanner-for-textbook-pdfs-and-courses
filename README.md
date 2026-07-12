@@ -18,9 +18,9 @@ The active package is `src/ocrllm`.
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
 worker are GO. Phase 2A image-library completion is active. Local OCR, shared
-recognition execution policy, and adapter-owned DashScope/model configuration
-are GO; provider workflow completion is current. Phase 3 PDFium work has not
-started.
+recognition execution policy, adapter-owned DashScope/model configuration, and
+provider error disposition are GO; credential scheduling is current. Phase 3
+PDFium work has not started.
 
 The current verified contract:
 
@@ -28,6 +28,9 @@ The current verified contract:
 - The synchronous injected provider receives request-scoped validated snapshots
   isolated from later caller-path changes, not the caller's source paths.
 - Provider failures and invalid output become typed, redacted public errors.
+- Permission, suspension, concurrency, quota, invalid-request, content-block,
+  and transient failures have distinct stable codes plus immutable disposition
+  evidence; no automatic retry occurs.
 - Results use canonical `source_type="image"` and `profile="board"`.
 - File output is optional. `output_dir=None` means in-memory results only.
 - Requested Markdown output uses deterministic collision handling and atomic
@@ -345,6 +348,8 @@ docs/                                 Active migration decisions.
 docs/ocrllm_library_go_no_go.md       Authoritative execution decision.
 docs/provider_workflow_configuration_checkpoint_2026-07-12.md
                                       Current provider/model API checkpoint.
+docs/provider_error_disposition_checkpoint_2026-07-12.md
+                                      Provider error policy checkpoint.
 docs/phase1_live_quality_result_2026-07-11.md
                                       First Beijing live-gate result.
 Architecture.md                       Suspended future architecture reference.

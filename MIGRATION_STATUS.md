@@ -7,8 +7,8 @@ This file is the project memory aid. Read it before changing the repo.
 The old OCRLLM app has been moved to `legacy_app/`; the active project is an
 importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
 versioned JSON/JSONL worker GO. Phase 2A image-library completion is active;
-local OCR and shared execution policy are GO, provider transport/model
-configuration foundation is GO, provider workflow completion is current, and
+local OCR, shared execution policy, adapter-owned provider/model configuration,
+and provider error disposition are GO; credential scheduling is current, and
 Phase 3 PDFium has not started.
 
 ## First Files To Read
@@ -31,6 +31,8 @@ docs/provider_cost_and_reliability_policy.md
                                       Account-specific provider policy.
 docs/provider_workflow_configuration_checkpoint_2026-07-12.md
                                       Current provider/model API and proof.
+docs/provider_error_disposition_checkpoint_2026-07-12.md
+                                      Current provider error policy and proof.
 docs/phase1_implementation_record.md  Phase 1 commits, agent work, atomic writer,
                                       verification, and resume point.
 docs/legacy_bilibili_social_long_debug_record.md
@@ -78,6 +80,7 @@ The current public API is:
 
 ```python
 from ocrllm import (
+    ConcurrencyLimited,
     Config,
     DashScopeSettings,
     VisionModelSettings,
@@ -92,17 +95,23 @@ from ocrllm import (
     OutputError,
     OutputExists,
     ProviderError,
+    ProviderAccountSuspended,
+    ProviderContentBlocked,
+    ProviderErrorDisposition,
+    ProviderPermissionDenied,
+    ProviderRequestInvalid,
     ProviderUnavailable,
     QuotaExhausted,
     RateLimited,
     UnsupportedFormat,
     Cancelled,
+    get_provider_error_disposition,
 )
 ```
 
 Phase 0 and Phase 1 are GO. The active image route validates PNG/JPEG sources and sends
 request-scoped snapshots isolated from later caller-path changes to either one
-synchronous injected vision provider or the exact built-in name `"dashscope"`:
+synchronous injected vision provider or exact built-in adapter settings:
 
 ```python
 from ocrllm import Config, recognize
@@ -741,9 +750,9 @@ legacy_app/environment.yml
 
 Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
 `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
-passes. Local OCR, shared execution policy, and adapter-owned DashScope/model
-configuration are GO; provider workflow completion is the current slice. Phase
-3 has not started.
+passes. Local OCR, shared execution policy, adapter-owned DashScope/model
+configuration, and provider error disposition are GO; credential scheduling is
+the current slice. Phase 3 has not started.
 
 Phase 2A recovery rules:
 
@@ -791,6 +800,16 @@ decision `fb3ef8f` and implementation `3dd1ba3` pass 912 tests plus one optional
 skip, fixture identity, static/lazy checks, and clean base plus
 `image,dashscope` profiles. See
 `docs/provider_workflow_configuration_checkpoint_2026-07-12.md`.
+
+Phase 2A checkpoint 4 adds five missing stable provider failures for permission,
+account suspension, concurrency, invalid request, and content blocking plus
+immutable pool-facing `ProviderErrorDisposition`. DashScope now maps documented
+code/type/status precedence and account-shared rate/concurrency domains without
+echoing raw messages. Injected providers and the unchanged worker error envelope
+accept the taxonomy. Pushed decision `c33f64e` and implementation `54e2e72`
+pass 960 tests plus one optional skip, fixture/static/lazy gates, and a clean
+122,440-byte wheel/installed mapping proof. See
+`docs/provider_error_disposition_checkpoint_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
@@ -1247,9 +1266,9 @@ quorum remain. The 37,864-byte manifest SHA-256 is
 `docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
 
 The bounded JSONL worker, direct local OCR, and shared recognition execution
-policy and adapter-owned DashScope/model configuration are now GO. Provider
-workflow completion is the next Phase 2A task; credential pools and image
-resume follow as separate slices. PDF, audio, video,
+policy, adapter-owned DashScope/model configuration, and provider error
+disposition are now GO. Credential scheduling is the next Phase 2A task; image
+resume follows as a separate slice. PDF, audio, video,
 HTTP service, HarmonyOS, Rust, Office, social, GPU, and offline-model work remain
 outside the current slice.
 
