@@ -1,8 +1,15 @@
 """Public OCRLLM library facade."""
 
 from .config import Config
+from .credential_pool_policy import CredentialPoolPolicy
 from .capability_report import CapabilityReport
 from .providers.dashscope.provider_settings import DashScopeSettings
+from .providers.dashscope.credential import DashScopeCredential
+from .providers.dashscope.credential_pool import DashScopeCredentialPool
+from .providers.dashscope.credential_pool_report import (
+    DashScopeCredentialPoolReport,
+    DashScopeCredentialSlotReport,
+)
 from .errors import (
     Cancelled,
     ConcurrencyLimited,
@@ -42,9 +49,14 @@ __all__ = [
     "Cancelled",
     "ConcurrencyLimited",
     "Config",
+    "CredentialPoolPolicy",
     "CapabilityReport",
     "ConfigError",
     "DashScopeSettings",
+    "DashScopeCredential",
+    "DashScopeCredentialPool",
+    "DashScopeCredentialPoolReport",
+    "DashScopeCredentialSlotReport",
     "DependencyMissing",
     "InvalidSource",
     "LocalOCRSettings",

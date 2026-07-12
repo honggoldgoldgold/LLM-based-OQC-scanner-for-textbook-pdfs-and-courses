@@ -15,6 +15,11 @@ def resolve_dashscope_credential(settings: DashScopeSettings) -> str:
             "DashScope credential resolution requires exact DashScopeSettings.",
             code="CONFIG_INVALID",
         ) from None
+    if settings.credential_pool is not None:
+        raise ConfigError(
+            "Pooled DashScope credentials require a credential lease.",
+            code="CONFIG_INVALID",
+        ) from None
     api_key = settings.api_key
     if api_key is None:
         api_key = os.environ.get("DASHSCOPE_API_KEY")

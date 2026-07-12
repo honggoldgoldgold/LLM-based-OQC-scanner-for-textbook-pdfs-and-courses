@@ -4,10 +4,16 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 from ...errors import ConfigError
 from .resolve_dashscope_model import DEFAULT_DASHSCOPE_MODEL
+from .supported_regions import SUPPORTED_DASHSCOPE_REGIONS
+from .validate_dashscope_api_key import validate_dashscope_api_key
+
+if TYPE_CHECKING:
+    from .credential_pool import DashScopeCredentialPool
 
 
 _OPENAI_COMPATIBLE_PATH = "/compatible-mode/v1"
@@ -26,7 +32,6 @@ _SHARED_HOST_BY_REGION = {
     "cn-hongkong": "cn-hongkong.dashscope.aliyuncs.com",
     "us-east-1": "dashscope-us.aliyuncs.com",
 }
-_SUPPORTED_REGIONS = _WORKSPACE_REGIONS | frozenset(_SHARED_HOST_BY_REGION)
 _WORKSPACE_ID = re.compile(
     r"(?!trial$)(?!token-plan$)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
 )
@@ -39,6 +44,7 @@ class DashScopeSettings:
     region: str
     base_url: str
     api_key: str | None = field(default=None, repr=False)
+    credential_pool: DashScopeCredentialPool | None = field(default=None, repr=False)
     enable_thinking: bool = False
     vl_high_resolution_images: bool = True
     standalone_sign_scout_model: str | None = None
@@ -46,7 +52,13 @@ class DashScopeSettings:
     def __post_init__(self) -> None:
         _validate_region(self.region)
         _validate_base_url(self.base_url, region=self.region)
-        _validate_api_key(self.api_key)
+        if self.api_key is not None:
+            validate_dashscope_api_key(self.api_key, owner="DashScopeSettings")
+        _validate_credential_pool(
+            self.credential_pool,
+            api_key=self.api_key,
+            region=self.region,
+        )
         _require_exact_boolean(self.enable_thinking, field_name="enable_thinking")
         _require_exact_boolean(
             self.vl_high_resolution_images,
@@ -64,27 +76,36 @@ class DashScopeSettings:
 
 
 def _validate_region(region: object) -> None:
-    if type(region) is not str or region not in _SUPPORTED_REGIONS:
+    if type(region) is not str or region not in SUPPORTED_DASHSCOPE_REGIONS:
         raise ConfigError(
             "DashScopeSettings.region must be a supported canonical region ID."
         ) from None
 
 
-def _validate_api_key(api_key: object | None) -> None:
-    if api_key is None:
+def _validate_credential_pool(
+    pool: object | None,
+    *,
+    api_key: str | None,
+    region: str,
+) -> None:
+    if pool is None:
         return
-    if (
-        type(api_key) is not str
-        or not api_key
-        or api_key != api_key.strip()
-        or any(ord(character) < 32 or ord(character) == 127 for character in api_key)
-    ):
+    from .credential_pool import DashScopeCredentialPool
+
+    if type(pool) is not DashScopeCredentialPool:
         raise ConfigError(
-            "DashScopeSettings.api_key must be nonempty exact text when set."
+            "DashScopeSettings.credential_pool must be exact "
+            "DashScopeCredentialPool.",
+            code="CONFIG_INVALID",
         ) from None
-    if api_key.startswith("sk-sp-"):
+    if api_key is not None:
         raise ConfigError(
-            "DashScope Coding Plan credentials cannot authorize this library adapter.",
+            "DashScopeSettings.api_key and credential_pool are mutually exclusive.",
+            code="CONFIG_INVALID",
+        ) from None
+    if pool.region != region:
+        raise ConfigError(
+            "DashScopeSettings and credential_pool regions must match.",
             code="CONFIG_INVALID",
         ) from None
 

@@ -168,6 +168,7 @@ def _normalize_provider(value: object | None) -> object | None:
             region=value.region,
             base_url=value.base_url,
             api_key=value.api_key,
+            credential_pool=value.credential_pool,
             enable_thinking=value.enable_thinking,
             vl_high_resolution_images=value.vl_high_resolution_images,
             standalone_sign_scout_model=value.standalone_sign_scout_model,
