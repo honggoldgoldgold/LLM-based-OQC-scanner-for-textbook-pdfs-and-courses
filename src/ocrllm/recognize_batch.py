@@ -3,19 +3,17 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Iterator, Sequence
-from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from .config import Config
 from .recognize import recognize
-from .providers.provider_request_start_gate import (
-    ProviderRequestStartGate,
-    activate_provider_request_start_gate,
-)
 from .validate_config import validate_config
 
 if TYPE_CHECKING:
+    from concurrent.futures import Future, ThreadPoolExecutor
+
+    from .providers.provider_request_start_gate import ProviderRequestStartGate
     from .result import RecognitionResult
 
 
@@ -25,6 +23,11 @@ def recognize_batch(
     config: Config | None = None,
 ) -> list[RecognitionResult]:
     """Return ordered independent results with bounded fail-fast execution."""
+    from .providers.provider_request_start_gate import (
+        ProviderRequestStartGate,
+        activate_provider_request_start_gate,
+    )
+
     cfg = validate_config(config)
     gate = ProviderRequestStartGate(
         cfg.execution.provider_request_start_interval_seconds
@@ -32,6 +35,8 @@ def recognize_batch(
     if cfg.execution.max_parallel_requests == 1:
         with activate_provider_request_start_gate(gate):
             return [recognize(source, config=cfg) for source in sources]
+
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     source_iterator = iter(sources)
     results: list[RecognitionResult | None] = []
@@ -109,5 +114,9 @@ def _recognize_batch_item(
     gate: ProviderRequestStartGate,
 ) -> RecognitionResult:
     """Run one batch item with the operation-wide provider start gate."""
+    from .providers.provider_request_start_gate import (
+        activate_provider_request_start_gate,
+    )
+
     with activate_provider_request_start_gate(gate):
         return recognize(source, config=config)
