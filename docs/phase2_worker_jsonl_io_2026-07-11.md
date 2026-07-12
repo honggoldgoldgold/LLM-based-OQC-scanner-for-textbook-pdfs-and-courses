@@ -64,6 +64,13 @@ tests pass.
 - Ruff across `src` and `tests`: passed.
 - `git diff --check`: passed.
 
+Clean distribution proof for full commit
+`4d28212429a186b7625f984a2b08f22757503c46` also passes. A Git archive built a
+90,057-byte wheel; its isolated no-dependency target contains 403,613 bytes.
+Outside the repository, root import left Pillow, PDFium, OpenAI, and HTTPX
+unloaded. The installed package read one capabilities command and wrote/decoded
+one Unicode result event through binary in-memory streams.
+
 ## Explicit Non-Goals And Next Slice
 
 No process is spawned yet. There is no `python -m ocrllm.worker`, control loop,
