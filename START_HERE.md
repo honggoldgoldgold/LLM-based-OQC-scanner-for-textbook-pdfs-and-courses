@@ -40,6 +40,7 @@ Read next:
 - `docs/provider_workflow_configuration_checkpoint_2026-07-12.md`
 - `docs/provider_error_disposition_decision_2026-07-12.md`
 - `docs/provider_error_disposition_checkpoint_2026-07-12.md`
+- `docs/dashscope_credential_pool_decision_2026-07-12.md`
 
 Public import shape:
 

@@ -132,6 +132,8 @@ Provider error taxonomy and pool-facing disposition are GO, frozen in
 `provider_error_disposition_decision_2026-07-12.md` and proven in
 `provider_error_disposition_checkpoint_2026-07-12.md`. Credential scheduling
 is the active checkpoint; no retry runtime is authorized by those decisions.
+The concrete scheduler boundary is frozen in
+`dashscope_credential_pool_decision_2026-07-12.md`.
 
 ## Explicit Do-Not-Do Items
 
