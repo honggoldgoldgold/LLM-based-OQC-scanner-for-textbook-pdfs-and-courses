@@ -1270,6 +1270,10 @@ Phase 2 checkpoint 3 implements bounded binary stdin reading and protocol-only
 flushed binary stdout writing. Process control, child isolation, cancellation,
 and the Node harness remain pending.
 
+Phase 2 checkpoint 4 implements public atomic capability reporting and the
+control loop over a nonblocking injected job-manager protocol. The real isolated
+process manager and production entrypoint remain pending.
+
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;
 each requires a new explicit decision after Phase 6 or an approved product

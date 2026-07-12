@@ -184,6 +184,15 @@ with canonical request-ID recovery. Full verification passes 778 tests. Process
 creation, control, cancellation, and the Node harness remain pending. See
 `docs/phase2_worker_jsonl_io_2026-07-11.md`.
 
+Phase 2 checkpoint 4 adds public, zero-network reporting for all 19 atomic
+capabilities and a nonblocking injected-manager control loop. Exact pinned
+Beijing v17 config is distinguished from merely offline-valid workflows.
+In-memory concurrency and a real Python subprocess prove JSON-only output,
+fallback errors, and Unicode/long-path round trips. The real recognition child
+manager, five-second process-tree cancellation, production entrypoint, Node
+harness, and live smoke remain. See
+`docs/phase2_capability_control_loop_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

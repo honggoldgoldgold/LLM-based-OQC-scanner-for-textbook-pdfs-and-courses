@@ -41,6 +41,7 @@ STABLE_ERROR_CODES = frozenset(
         "PROTOCOL_UNSUPPORTED",
         "COMMAND_INVALID",
         "WORKER_BUSY",
+        "WORKER_INTERNAL",
         "REQUEST_NOT_ACTIVE",
     }
 )
@@ -95,7 +96,9 @@ class OCRLLMError(Exception):
 
         resolved_message = self.default_message if message is None else message
         if not isinstance(resolved_message, str) or not resolved_message.strip():
-            raise TypeError("public error message must be nonempty redacted text") from None
+            raise TypeError(
+                "public error message must be nonempty redacted text"
+            ) from None
 
         if retryable is None:
             resolved_retryable = resolved_code in _RETRYABLE_BY_DEFAULT
@@ -264,5 +267,7 @@ def _redact_frozen_value(value: FrozenJSONValue) -> FrozenJSONValue:
 
 
 def _is_sensitive_detail_key(key: str) -> bool:
-    normalized = "".join(character for character in key.casefold() if character.isalnum())
+    normalized = "".join(
+        character for character in key.casefold() if character.isalnum()
+    )
     return any(part in normalized for part in _SENSITIVE_DETAIL_KEY_PARTS)

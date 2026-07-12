@@ -1749,6 +1749,15 @@ passes 778. There is still no process/control loop, cancellation, Node harness,
 or live smoke; Phase 2 is not GO. See
 `phase2_worker_jsonl_io_2026-07-11.md`.
 
+Phase 2 checkpoint 4 implements the public atomic capability registry and a
+control loop over an injected nonblocking job-manager protocol. Zero-network
+status, exact v17 versus experimental workflow, invalid-record recovery,
+typed/internal errors, concurrent partial writes, EOF close, and real subprocess
+JSON-only/Unicode/fallback behavior pass. The full suite passes 794. The real
+child manager, five-second process-tree cancellation, production entrypoint,
+Node harness, and live smoke remain; Phase 2 is not GO. See
+`phase2_capability_control_loop_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

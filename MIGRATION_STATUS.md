@@ -767,6 +767,15 @@ next checkpoint is a deterministic no-job capability/error/EOF control loop;
 do not combine its first proof with recognition process concurrency. See
 `docs/phase2_worker_jsonl_io_2026-07-11.md`.
 
+Checkpoint 4 implements the public 19-name atomic capability registry and a
+control loop over a nonblocking injected `WorkerJobManager`. It passes real OS
+pipe tests, invalid-record recovery, concurrent partial-write serialization,
+stable internal-error mapping, and exact-config status tests. The focused suite
+passes 100 and the full suite passes 794. Next implement the isolated process
+manager and five-second descendant cancellation; do not expose a production
+entrypoint before that boundary passes. See
+`docs/phase2_capability_control_loop_2026-07-12.md`.
+
 Preserve every earlier Phase 1 evidence file unchanged. The passing decision is
 bound to v17 evidence SHA-256
 `6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`

@@ -8,6 +8,7 @@ this repo intended for direct import by other projects.
 ```python
 from ocrllm import (
     Cancelled,
+    CapabilityReport,
     Config,
     ConfigError,
     DashScopeSettings,
@@ -25,6 +26,7 @@ from ocrllm import (
     UnsupportedFormat,
     recognize,
     recognize_batch,
+    get_capabilities,
 )
 ```
 
@@ -55,6 +57,9 @@ no retry; both independent full-corpus runs passed. Run B repaired exactly one
 missing handwriting sign through generic two-of-three omission consensus; no
 handwriting route or model split exists. The committed Git-archive wheel then
 passed base, `image`, and `image,dashscope` clean profiles.
+`get_capabilities()` reports every known atomic capability without a network
+call or optional import. With an explicit config, it reports that exact
+workflow's proven status rather than treating installed code as sufficient.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data
