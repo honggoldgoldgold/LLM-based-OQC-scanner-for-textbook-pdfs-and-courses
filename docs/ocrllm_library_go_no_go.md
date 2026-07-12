@@ -1783,6 +1783,13 @@ only exception types. The full suite passes 824. The Node harness and live smoke
 remain; Phase 2 is not GO. See
 `phase2_production_worker_entrypoint_2026-07-12.md`.
 
+Phase 2 checkpoint 8 implements a shell-free Node harness and independent strict
+validation of every stdout line. Fixture JSON and long Unicode paths round-trip;
+real child-plus-grandchild cancellation completes inside the five-second
+contract and proves the descendant PID is gone. The full suite passes 826. The
+opt-in Beijing live production-worker smoke remains; Phase 2 is not GO. See
+`phase2_node_worker_harness_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

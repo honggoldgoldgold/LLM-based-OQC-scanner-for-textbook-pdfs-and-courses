@@ -760,6 +760,13 @@ failure with JSON-only stdout and empty stderr. The Node harness and live smoke
 remain required. See
 `docs/phase2_production_worker_entrypoint_2026-07-12.md`.
 
+Checkpoint 8 implements the shell-free Node harness and an independent strict
+validator for every worker event shape. Unicode path round-trip and real
+child-plus-grandchild cancellation pass; the complete cancellation scenario is
+about 3.32 seconds. Only the opt-in Beijing live production-worker smoke remains
+before the Phase 2 GO decision. See
+`docs/phase2_node_worker_harness_2026-07-12.md`.
+
 Checkpoint 1 completes the input side of item 1: all three v1alpha1 commands
 have immutable DTOs, strict parsing, explicit defaults, canonical serialization,
 and one frozen JSONL fixture. It passes 33 focused tests and the 745-test full

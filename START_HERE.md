@@ -31,6 +31,7 @@ Read next:
 - `docs/phase2_isolated_job_manager_2026-07-12.md`
 - `docs/phase2_production_image_job_2026-07-12.md`
 - `docs/phase2_production_worker_entrypoint_2026-07-12.md`
+- `docs/phase2_node_worker_harness_2026-07-12.md`
 
 Public import shape:
 

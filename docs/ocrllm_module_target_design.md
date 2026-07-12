@@ -1286,6 +1286,10 @@ Phase 2 checkpoint 7 implements the production module entrypoint with explicit
 standard-stream composition and secret-safe diagnostics. The Node harness and
 live smoke remain pending.
 
+Phase 2 checkpoint 8 implements the shell-free Node harness, cross-language
+event validation, Unicode path proof, and descendant cancellation. Only the
+live worker smoke remains pending.
+
 Rust/PyO3, HarmonyOS/ArkTS, browser service, Office, social download, offline
 models, GPU bundles, native FFI, and WASM are deferred. They are not Phase 7;
 each requires a new explicit decision after Phase 6 or an approved product

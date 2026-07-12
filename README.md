@@ -215,6 +215,13 @@ handling; unexpected diagnostics expose only exception types. The Node harness
 and live smoke remain. See
 `docs/phase2_production_worker_entrypoint_2026-07-12.md`.
 
+Phase 2 checkpoint 8 adds a shell-free standard-library Node harness that
+strictly validates every stdout line. Fixture output preserves Chinese, emoji,
+spaces, and long paths; a real recognition child plus grandchild is cancelled
+and proven gone within the five-second contract. Only the Beijing live worker
+smoke remains before the Phase 2 GO decision. See
+`docs/phase2_node_worker_harness_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in
