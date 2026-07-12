@@ -759,6 +759,9 @@ engine test, two authorized screenshot probes, clean committed wheel, and fresh
 331,832,087-byte OCR-extra install pass. `image.ocr.rapidocr` is available. See
 `docs/local_ocr_implementation_checkpoint_2026-07-12.md`.
 
+Formal local-OCR graduation commit `2b87d34` also passes its clean archive,
+installed capability, base dependency/import, and timing proof.
+
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
 exact credential-free Beijing v17 config is constructed, and the existing

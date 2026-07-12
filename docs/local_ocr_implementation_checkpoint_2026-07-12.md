@@ -151,3 +151,11 @@ Machine-readable evidence:
 
 The local-OCR slice is GO. The next Phase 2A slice is generalized provider
 workflow configuration; credential pools and image resume remain later slices.
+
+Formal graduation commit `2b87d34681004bac5ff4c68c66c9be9f207ebf59`
+also passes a clean Git-archive audit: 54 focused tests, 20 installed capability
+reports with `image.ocr.rapidocr=available`, a 112,939-byte wheel with SHA-256
+`ffb9ac4fb53cc6753376199dafe8d7f75ce7d4a469d3adf70ccf9136af88e102`,
+and a 517,727-byte no-dependency target. Root-import wall median/p95/max is
+45.26115/54.3224/54.5662 ms and CPU median/p95/max is
+46.875/62.5/62.5 ms.
