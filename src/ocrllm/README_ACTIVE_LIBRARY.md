@@ -71,6 +71,11 @@ the shell-free Node JSONL, Unicode-path, and descendant-cancellation gates pass.
 The Beijing live production-worker smoke and clean committed-source proof also
 pass; `worker.jsonl.v1alpha1` is available. This remains a development worker,
 not packaged Electron compatibility.
+The direct facade now also has an experimental explicit local-OCR mode backed by
+lazy maintained RapidOCR/ONNX Runtime dependencies in the `ocr` extra. It makes
+zero provider/network calls and warns that OCR text extraction is not equivalent
+to formula/table/layout-aware vision. Clean committed packaging remains before
+that atomic capability becomes available.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data

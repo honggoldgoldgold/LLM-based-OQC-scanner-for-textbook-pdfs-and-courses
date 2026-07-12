@@ -34,6 +34,7 @@ Read next:
 - `docs/phase2_node_worker_harness_2026-07-12.md`
 - `docs/phase2_live_worker_result_2026-07-12.md`
 - `docs/image_library_completion_decision_2026-07-12.md`
+- `docs/local_ocr_implementation_checkpoint_2026-07-12.md`
 
 Public import shape:
 

@@ -8,7 +8,9 @@ from .errors import (
     ConfigError,
     DependencyMissing,
     InvalidSource,
+    NoTextDetected,
     NoSpeechDetected,
+    OCRBackendError,
     OCRLLMError,
     OutputError,
     OutputExists,
@@ -21,6 +23,7 @@ from .errors import (
 from .recognize import recognize
 from .recognize_batch import recognize_batch
 from .get_capabilities import get_capabilities
+from .local_ocr_settings import LocalOCRSettings
 from .recognition_preferences import RecognitionPreferences
 from .result import RecognitionResult
 
@@ -32,7 +35,10 @@ __all__ = [
     "DashScopeSettings",
     "DependencyMissing",
     "InvalidSource",
+    "LocalOCRSettings",
+    "NoTextDetected",
     "NoSpeechDetected",
+    "OCRBackendError",
     "OCRLLMError",
     "OutputError",
     "OutputExists",

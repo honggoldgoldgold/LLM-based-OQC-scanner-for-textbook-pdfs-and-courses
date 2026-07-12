@@ -11,6 +11,7 @@ from typing import Literal, cast
 
 from .errors import ConfigError
 from .freeze_json_value import FrozenJSONValue, JSONValue, freeze_json_value
+from .local_ocr_settings import LocalOCRSettings
 from .providers.dashscope.provider_settings import DashScopeSettings
 from .recognition_preferences import RecognitionPreferences
 
@@ -27,6 +28,8 @@ class Config:
     api_key: str | None = field(default=None, repr=False)
     model: str | None = None
     dashscope: DashScopeSettings | None = field(default=None, repr=False)
+    image_mode: Literal["vision", "ocr"] = "vision"
+    local_ocr: LocalOCRSettings | None = field(default=None, repr=False)
     preferences: RecognitionPreferences = field(default_factory=RecognitionPreferences)
     profile: str | None = None
     input_languages: tuple[str, ...] = ()
@@ -51,7 +54,9 @@ class Config:
         _validate_optional_nonempty_text(self.model, field_name="model")
         _validate_optional_nonempty_text(self.profile, field_name="profile")
         _validate_optional_text(self.pdf_password, field_name="pdf_password")
+        image_mode = _normalize_image_mode(self.image_mode)
         dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
+        local_ocr = _normalize_local_ocr_pair(image_mode, self.local_ocr)
         preferences = _normalize_preferences(self.preferences)
         _validate_dashscope_scout_workflow(
             dashscope=dashscope,
@@ -78,12 +83,26 @@ class Config:
         if self.resume and self.overwrite:
             raise ConfigError("Config.resume and Config.overwrite cannot both be true") from None
 
+        _validate_image_mode_fields(
+            image_mode=image_mode,
+            provider=self.provider,
+            api_key=self.api_key,
+            model=self.model,
+            dashscope=dashscope,
+            preferences=preferences,
+            input_languages=input_languages,
+            output_language=output_language,
+            resume=self.resume,
+        )
+
         extra = _freeze_extra(self.extra)
         object.__setattr__(self, "input_languages", input_languages)
         object.__setattr__(self, "output_language", output_language)
         object.__setattr__(self, "pdf_pages", pdf_pages)
         object.__setattr__(self, "timeout_seconds", timeout_seconds)
         object.__setattr__(self, "dashscope", dashscope)
+        object.__setattr__(self, "image_mode", image_mode)
+        object.__setattr__(self, "local_ocr", local_ocr)
         object.__setattr__(self, "preferences", preferences)
         object.__setattr__(self, "extra", extra)
 
@@ -104,6 +123,72 @@ def _normalize_preferences(value: object) -> RecognitionPreferences:
         draft_candidates=value.draft_candidates,
         review_passes=value.review_passes,
     )
+
+
+def _normalize_image_mode(value: object) -> Literal["vision", "ocr"]:
+    if type(value) is not str or value not in {"vision", "ocr"}:
+        raise ConfigError(
+            "Config.image_mode must be exactly 'vision' or 'ocr'.",
+            code="CONFIG_INVALID",
+        ) from None
+    return cast(Literal["vision", "ocr"], value)
+
+
+def _normalize_local_ocr_pair(
+    image_mode: Literal["vision", "ocr"],
+    value: object | None,
+) -> LocalOCRSettings | None:
+    if image_mode == "vision":
+        if value is not None:
+            raise ConfigError(
+                "Config.local_ocr is valid only when image_mode='ocr'.",
+                code="CONFIG_INVALID",
+            ) from None
+        return None
+    if value is None:
+        return LocalOCRSettings()
+    if type(value) is not LocalOCRSettings:
+        raise ConfigError(
+            "Config.local_ocr must be an exact LocalOCRSettings instance.",
+            code="CONFIG_INVALID",
+        ) from None
+    return LocalOCRSettings(minimum_confidence=value.minimum_confidence)
+
+
+def _validate_image_mode_fields(
+    *,
+    image_mode: Literal["vision", "ocr"],
+    provider: object | None,
+    api_key: str | None,
+    model: str | None,
+    dashscope: DashScopeSettings | None,
+    preferences: RecognitionPreferences,
+    input_languages: tuple[str, ...],
+    output_language: str | None,
+    resume: bool,
+) -> None:
+    if image_mode != "ocr":
+        return
+    if provider is not None or api_key is not None or model is not None or dashscope is not None:
+        raise ConfigError(
+            "OCR mode cannot use provider, api_key, model, or DashScope settings.",
+            code="CONFIG_INVALID",
+        ) from None
+    if preferences != RecognitionPreferences():
+        raise ConfigError(
+            "OCR mode cannot use LLM draft or review preferences.",
+            code="CONFIG_INVALID",
+        ) from None
+    if input_languages or output_language is not None:
+        raise ConfigError(
+            "OCR mode does not accept language hints in the current engine.",
+            code="CONFIG_INVALID",
+        ) from None
+    if resume:
+        raise ConfigError(
+            "Image resume is not implemented for OCR mode.",
+            code="CONFIG_INVALID",
+        ) from None
 
 
 def _validate_optional_nonempty_text(

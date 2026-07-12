@@ -750,6 +750,14 @@ Phase 2A recovery rules:
 The active decision and exact local-OCR gates are in
 `docs/image_library_completion_decision_2026-07-12.md`.
 
+Phase 2A checkpoint 1 implements local OCR through `recognize()` with explicit
+`image_mode="ocr"`, immutable confidence settings, a lazy maintained RapidOCR
+adapter, four typed error categories, ordered multi-image Markdown, zero-call
+metadata, and the optional `ocr` extra. The 870-test base suite, fresh real
+engine test, and two authorized screenshot probe pass; a clean committed wheel
+and fresh-extra install remain before GO. See
+`docs/local_ocr_implementation_checkpoint_2026-07-12.md`.
+
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the
 exact credential-free Beijing v17 config is constructed, and the existing

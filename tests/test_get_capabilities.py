@@ -15,6 +15,7 @@ from ocrllm.providers.dashscope.resolve_dashscope_model import DEFAULT_DASHSCOPE
 EXPECTED_NAMES = (
     "image.board.png",
     "image.board.jpeg",
+    "image.ocr.rapidocr",
     "provider.dashscope.vision",
     "provider.dashscope.audio-short",
     "provider.dashscope.filetrans",
@@ -78,6 +79,7 @@ def test_zero_argument_reports_local_image_gates_without_guessing_provider_regio
 
     assert reports["image.board.png"].status == "available"
     assert reports["image.board.jpeg"].status == "available"
+    assert reports["image.ocr.rapidocr"].status == "experimental"
     assert reports["provider.dashscope.vision"].status == "unavailable"
     assert "region" in reports["provider.dashscope.vision"].reason
     assert "secret-sentinel" not in repr(reports)
@@ -123,13 +125,22 @@ def test_explicit_providerless_config_is_unavailable() -> None:
     assert reports["provider.dashscope.vision"].status == "unavailable"
 
 
+def test_explicit_local_ocr_config_is_experimental_without_claiming_provider() -> None:
+    reports = _by_name(Config(image_mode="ocr"))
+
+    assert reports["image.board.png"].status == "experimental"
+    assert reports["image.board.jpeg"].status == "experimental"
+    assert reports["image.ocr.rapidocr"].status == "experimental"
+    assert reports["provider.dashscope.vision"].status == "unavailable"
+
+
 def test_v1alpha1_worker_is_available_and_later_phases_are_deferred() -> None:
     reports = _by_name()
 
     assert reports["worker.jsonl.v1alpha1"].status == "available"
     assert "Phase 2" in reports["worker.jsonl.v1alpha1"].reason
     assert "Phase 6" in reports["worker.jsonl.v1alpha1"].reason
-    for name in EXPECTED_NAMES[6:]:
+    for name in EXPECTED_NAMES[7:]:
         assert reports[name].status == "deferred"
 
 
@@ -154,9 +165,9 @@ def test_capability_query_loads_no_optional_packages_or_network_stack() -> None:
     source_root = Path(__file__).resolve().parents[1] / "src"
     probe = (
         "import sys; sys.path.insert(0,sys.argv[1]); "
-        "import ocrllm; reports=ocrllm.get_capabilities(); assert len(reports)==19; "
+        "import ocrllm; reports=ocrllm.get_capabilities(); assert len(reports)==20; "
         "loaded={name.split('.')[0] for name in sys.modules}; "
-        "forbidden={'PIL','pypdfium2','openai','httpx','socket'}; "
+        "forbidden={'PIL','pypdfium2','openai','httpx','socket','rapidocr','onnxruntime','cv2','numpy'}; "
         "assert not loaded & forbidden, loaded & forbidden"
     )
     environment = os.environ.copy()

@@ -230,6 +230,14 @@ hidden; a final independent Beijing job completed the pinned four-call unified
 committed-source proof passes and the Phase 2 gate is GO. See
 `docs/phase2_live_worker_result_2026-07-12.md`.
 
+Phase 2A checkpoint 1 adds explicit `Config(image_mode="ocr")` routing through
+the same direct facade, immutable confidence settings, a lazy maintained
+RapidOCR adapter, typed local-OCR errors, deterministic ordered Markdown, and an
+`ocr` optional extra. Unit, generated-image, and two authorized screenshot
+offline gates pass; the capability remains experimental until the committed
+clean/fresh-install proof. See
+`docs/local_ocr_implementation_checkpoint_2026-07-12.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

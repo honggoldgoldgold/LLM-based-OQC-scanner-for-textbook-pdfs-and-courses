@@ -56,7 +56,7 @@ def test_module_entrypoint_serves_capabilities_without_credentials_or_network(
     assert event["protocol_version"] == "ocrllm.v1alpha1"
     assert event["event"] == "capabilities"
     assert event["request_id"] == CAPABILITY_ID
-    assert len(event["capabilities"]) == 19
+    assert len(event["capabilities"]) == 20
     assert all("secret" not in line.lower() for line in lines)
 
 

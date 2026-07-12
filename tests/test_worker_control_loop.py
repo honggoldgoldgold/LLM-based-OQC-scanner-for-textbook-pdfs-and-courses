@@ -133,7 +133,7 @@ def test_control_loop_handles_errors_capabilities_job_state_and_eof() -> None:
     ]
     assert events[0]["code"] == "COMMAND_INVALID"
     assert events[0]["request_id"] is None
-    assert len(events[1]["capabilities"]) == 19
+    assert len(events[1]["capabilities"]) == 20
     assert events[2]["request_id"] == ACTIVE_ID
     assert events[3]["code"] == "WORKER_BUSY"
     assert events[3]["request_id"] == OTHER_ID

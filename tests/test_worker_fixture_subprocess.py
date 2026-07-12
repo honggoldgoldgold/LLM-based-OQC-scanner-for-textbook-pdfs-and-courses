@@ -71,7 +71,7 @@ def test_fixture_entrypoint_round_trips_protocol_over_real_os_pipes() -> None:
     assert events[0]["request_id"] is None
     assert events[0]["code"] == "COMMAND_INVALID"
     assert events[1]["request_id"] == CAPABILITY_ID
-    assert len(events[1]["capabilities"]) == 19
+    assert len(events[1]["capabilities"]) == 20
     assert events[2]["request_id"] == RECOGNITION_ID
     assert events[3]["result"]["metadata"]["source_uris"] == [SOURCE_URI]
     assert all(line.startswith("{") and line.endswith("}") for line in lines)

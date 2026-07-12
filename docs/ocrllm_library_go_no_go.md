@@ -1819,6 +1819,13 @@ local-OCR GO gates and do-not-do rules are frozen in
 unsupported and Phase 3 does not start until Phase 2A is complete or a new
 explicit decision changes the order.
 
+Phase 2A checkpoint 1 implements the local-OCR direct facade, maintained lazy
+RapidOCR adapter, typed errors, optional extra, deterministic tests, and real
+offline generated/private-input probes. The base suite passes 870 tests with
+one optional-profile skip. `image.ocr.rapidocr` remains `experimental` until the
+committed clean-wheel and fresh `ocr`-extra gates pass. See
+`local_ocr_implementation_checkpoint_2026-07-12.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:

@@ -26,6 +26,9 @@ STABLE_ERROR_CODES = frozenset(
         "PROVIDER_NETWORK",
         "PROVIDER_UNAVAILABLE",
         "PROVIDER_RESPONSE_INVALID",
+        "OCR_BACKEND_FAILED",
+        "OCR_RESULT_INVALID",
+        "OCR_NO_TEXT",
         "PDF_BACKEND_UNAVAILABLE",
         "PDF_PASSWORD_REQUIRED",
         "PDF_PASSWORD_INVALID",
@@ -202,6 +205,22 @@ class ProviderUnavailable(ProviderError):
 
     default_code = "PROVIDER_UNAVAILABLE"
     default_message = "The provider service is temporarily unavailable."
+    allowed_codes = frozenset({default_code})
+
+
+class OCRBackendError(OCRLLMError):
+    """A local OCR backend failed or returned an invalid result."""
+
+    default_code = "OCR_BACKEND_FAILED"
+    default_message = "The local OCR backend failed."
+    allowed_codes = frozenset({"OCR_BACKEND_FAILED", "OCR_RESULT_INVALID"})
+
+
+class NoTextDetected(OCRLLMError):
+    """Local OCR found no text above the configured confidence threshold."""
+
+    default_code = "OCR_NO_TEXT"
+    default_message = "No text was detected."
     allowed_codes = frozenset({default_code})
 
 

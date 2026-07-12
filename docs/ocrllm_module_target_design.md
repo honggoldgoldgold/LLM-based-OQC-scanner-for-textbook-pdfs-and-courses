@@ -1263,6 +1263,10 @@ provider error taxonomies/credential pools, then image resume. See
 `docs/image_library_completion_decision_2026-07-12.md` for the authoritative
 slice boundaries.
 
+Phase 2A checkpoint 1 implements the local-OCR facade/adapter and real offline
+probes. Its capability remains experimental until clean committed packaging and
+fresh-extra gates pass.
+
 Phase 2 checkpoint 1 implements the three command DTOs plus strict parsing and
 serialization. It deliberately left the six event DTOs and worker process
 boundary for later slices and kept the existing direct-Python

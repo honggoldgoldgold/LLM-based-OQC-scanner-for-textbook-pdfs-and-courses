@@ -11,6 +11,7 @@ from .snapshot_config import snapshot_config
 _CAPABILITY_NAMES = (
     "image.board.png",
     "image.board.jpeg",
+    "image.ocr.rapidocr",
     "provider.dashscope.vision",
     "provider.dashscope.audio-short",
     "provider.dashscope.filetrans",
@@ -60,17 +61,39 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
         provider_reason = (
             "Explicit DashScope region and endpoint settings are required for use."
         )
+        local_ocr_status = "experimental"
+        local_ocr_reason = (
+            "The Phase 2A local-OCR implementation exists; its real optional-extra "
+            "and clean packaging gates remain."
+        )
     else:
         validated = snapshot_config(config)
         image_status, image_reason, provider_status, provider_reason = (
             _configured_image_status(validated)
         )
+        if validated.image_mode == "ocr":
+            local_ocr_status = "experimental"
+            local_ocr_reason = (
+                "The explicit config selects the Phase 2A local-OCR workflow; "
+                "its real optional-extra and clean packaging gates remain."
+            )
+        else:
+            local_ocr_status = "unavailable"
+            local_ocr_reason = "The explicit config selects provider-backed vision."
 
     reports: list[CapabilityReport] = []
     for name in _CAPABILITY_NAMES:
         if name in {"image.board.png", "image.board.jpeg"}:
             reports.append(
                 CapabilityReport(name=name, status=image_status, reason=image_reason)
+            )
+        elif name == "image.ocr.rapidocr":
+            reports.append(
+                CapabilityReport(
+                    name=name,
+                    status=local_ocr_status,
+                    reason=local_ocr_reason,
+                )
             )
         elif name == "provider.dashscope.vision":
             reports.append(
@@ -107,6 +130,13 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
 def _configured_image_status(
     config: Config,
 ) -> tuple[str, str, str, str]:
+    if config.image_mode == "ocr":
+        return (
+            "experimental",
+            "The explicit configuration selects the Phase 2A local-OCR workflow.",
+            "unavailable",
+            "The explicit configuration does not select an API vision provider.",
+        )
     if config.provider is None:
         reason = "The explicit configuration has no vision provider."
         return "unavailable", reason, "unavailable", reason
