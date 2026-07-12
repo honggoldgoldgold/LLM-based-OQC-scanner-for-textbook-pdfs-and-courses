@@ -109,8 +109,21 @@ file and makes `ocrllm.contracts.capability_report` re-export that exact class.
 The explicitly imported contracts barrel remains eager and stable; plain root
 import never initializes it. All 794 tests pass again. A 32-process source-tree
 probe reports about 31.60 ms median wall, 31.25 ms median CPU, and zero loaded
-contract submodules. A clean committed-wheel timing proof remains required
-after this checkpoint is committed.
+contract submodules.
+
+Clean distribution proof for corrected full commit
+`3664980b9de25404a0d180c195c76a0b8088d17b` passes. A Git archive built a
+94,097-byte wheel; its isolated no-dependency target contains 479,559 bytes.
+Outside the repository, capability reporting and the explicit contracts import
+both pass, while plain root import loads no Pillow, PDFium, OpenAI, HTTPX,
+socket, or contract submodule. Import timing remains within budget:
+
+```text
+Python 3.10 wall median/p95/max 33.04785/35.5508/35.9682 ms
+            CPU  median/p95/max 31.25/46.875/46.875 ms
+Python 3.13 wall median/p95/max 24.12755/26.6444/27.4769 ms
+            CPU  median/p95/max 31.25/31.25/31.25 ms
+```
 
 ## Next Slice
 
