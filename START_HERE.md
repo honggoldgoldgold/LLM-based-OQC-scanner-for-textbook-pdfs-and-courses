@@ -23,7 +23,7 @@ Read next:
 - `docs/ocrllm_module_target_design.md`
 - `docs/provider_cost_and_reliability_policy.md`
 - `docs/phase1_implementation_record.md`
-- `docs/phase1_live_quality_result_2026-07-11.md`
+- `docs/phase1_live_quality_result_v17_2026-07-11.md`
 
 Public import shape:
 
@@ -31,7 +31,8 @@ Public import shape:
 from ocrllm import Config, DashScopeSettings, recognize
 ```
 
-Current phase: **Phase 1 -- real board/image**. Phase 0 contract honesty is GO.
+Current phase: **Phase 2 -- versioned JSON contract and Electron JSONL
+worker**. Phase 0 contract honesty and Phase 1 real board/image are GO.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
 passes request-scoped validated snapshots isolated from later caller-path
 changes to one synchronous injected provider,
@@ -41,53 +42,26 @@ canonical `source_type="image"` with `profile="board"`. File output remains
 optional and atomic; `output_dir=None` stays memory-only. Pillow is installed by
 the `image` extra and remains lazy during plain `import ocrllm`.
 
-Phase 0 GO is a contract result, not a real recognition-capability claim. The
-active library has an offline-tested built-in DashScope adapter. Offline
-checkpoint `e328253` also committed the licensed five-class Phase 1 corpus,
-deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The current versioned `board.v6` manifest is `37,685` bytes
-with SHA-256
-`c058a68b4a17d1ed13c74bd31429269fc4287539afeb23e20c8dfb0be6f50a27`;
-the corpus has 20 artifacts, including 5 images, totaling `17,914,515` bytes
-with `8,299,885` bytes of headroom under the 25 MiB gate. The pinned full suite
-now passes `599` tests; the generator byte-identity check and `compileall` pass.
-Exact one-below/at/one-above tests cover the source-byte, decoded-pixel,
-group-count, aggregate-source-byte, and aggregate-pixel limits, with rejecting
-integration paths proving zero provider calls.
-Committed runner checkpoint `fb23d1e` adds the guarded live evidence path. Its
-offline fake/evidence tests and direct preflight passed without a provider/API
-call.
+Phase 1 uses one unified `board.v17` workflow for printed, projected,
+handwritten, formula, table, and ordered-image inputs. The Beijing live gate
+completed all 13 recognitions and exactly 52 provider calls with no retry or
+terminal failure. Both independent six-dispatch runs passed. Run A required no
+restoration; Run B restored exactly one missing handwriting sign through the
+same generic two-of-three omission-scout path used for every image class.
 
-The runner's live entrypoint is non-injectable; fake dependencies enter only a
-separately labeled simulated path that cannot pass the live gate. Its immutable
-plan is exactly 13 recognition invocations: one clean-slide smoke, then all six
-dispatches in run A and all six independently dispatched entries in run B. V6
-pins one same-model review pass, so the confirmation covers 26 provider calls.
-On 2026-07-11 the user confirmed `region="cn-beijing"` and the stored Beijing
-endpoint. The runner then completed all 13 fixed zero-retry calls. Both full
-runs completed, but neither passed, so Phase 1 remains NO-GO. No provider
-request failed. Preserve the evidence and read
-`docs/phase1_live_quality_result_2026-07-11.md` before changing the prompt or
-scorer; a new billed run requires a new explicit decision. Local user
-screenshots under `docs/` remain untracked, non-redistributable supplemental
-material and are not gate evidence.
+Preserve
+`evidence/phase1/phase1-quality-v17-2026-07-11-cn-beijing.json`: 107,246
+bytes, SHA-256
+`6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`.
+The clean Git-archive gate at `0278b66` passed 712 tests, fixture-byte identity,
+compilation, a 67,266-byte wheel, base import and timing budgets, a generated
+image recognition, and fresh `image` plus Beijing `image,dashscope` profiles.
+The image/provider capabilities are available; this authorizes only Phase 2.
 
-The v2 gate is also preserved. The source-corrected unified `board.v6` contract
-shows that six of its seven handwriting failure codes came from defective
-annotation; only the genuinely missed second `+` remains. The v5 generic
-region-verification prompt plus one explicit same-model review pass produced
-five passing reviewed probes, including one repaired draft. Fresh repeated v6 live
-evidence is still required, so Phase 1 remains NO-GO. Read
-`docs/phase1_unified_board_handwriting_debug_2026-07-11.md`.
-The workflow design and 28-call diagnostic audit are in
-`docs/phase1_v6_review_workflow_debug_2026-07-11.md`.
-
-Pushed packaging hotfix `3414f47` renamed the legitimate credential resolver so
-the existing secret filename-ignore rules no longer exclude that source module;
-the rules themselves remain intact. Its clean Git-archive build produced a
-`50,094`-byte wheel and passed an isolated resolver round-trip without a
-network call. The active library still has no local OCR path, API-key pool,
-retry/model-fallback policy, resume support, PDF, audio, or video support. Read
+The active library still has no local OCR path, API-key pool,
+retry/model-fallback policy, resume support, PDF, audio, or video support. Local
+user PDFs/screenshots under `docs/` remain untracked supplemental test material,
+not redistributable gate evidence. Read
 `MIGRATION_STATUS.md` for current evidence and next steps, and
 `docs/ocrllm_library_go_no_go.md` for exact gates, commands, target
 responsibilities, and the migrate/rewrite/reject matrix.

@@ -16,8 +16,8 @@ dependency surface for new projects.
 
 The active package is `src/ocrllm`.
 
-Phase 0 contract honesty is GO. The current phase is **Phase 1 -- real
-board/image**.
+Phase 0 contract honesty and Phase 1 real board/image are GO. The current phase
+is **Phase 2 -- versioned JSON contract and Electron JSONL worker**.
 
 The current verified contract:
 
@@ -149,8 +149,19 @@ V17 keeps the three-scout, 52-call unified workflow but conditions omission
 scouts on the quoted primary transcript. Three targeted calls on the exact
 failed v16 result agree only on the missing `foreign gene + I:V` plus. Exact
 dynamic prompt hashes are recorded; all prior guards remain. All 712 offline
-tests pass; live evidence is pending. See
+tests pass. See
 `docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
+
+The committed v17 Beijing gate completed all 13 recognitions and exactly 52
+provider calls with no retry or terminal failure. Both independent six-dispatch
+runs passed. Run A needed no restoration; Run B handwriting passed after
+exactly one two-of-three omission-scout restoration, while formula, table, and
+ordered-image guards remained clean. The 107,246-byte atomic evidence has
+SHA-256
+`6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`.
+The clean Git-archive gate at `0278b66` then passed 712 tests, built a 67,266-byte
+wheel, and passed base, `image`, and Beijing `image,dashscope` profiles. Phase 1
+is GO; see `docs/phase1_live_quality_result_v17_2026-07-11.md`.
 
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
@@ -192,11 +203,8 @@ from ocrllm import Config, DashScopeSettings, recognize
 
 
 settings = DashScopeSettings(
-    region="ap-southeast-1",
-    base_url=(
-        "https://your-workspace-id.ap-southeast-1.maas.aliyuncs.com/"
-        "compatible-mode/v1"
-    ),
+    region="cn-beijing",
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 result = recognize(
     "board.jpg",
@@ -206,9 +214,10 @@ print(result.markdown)
 ```
 
 Supply the key through `Config.api_key` or `DASHSCOPE_API_KEY`; Coding Plan
-`sk-sp-` credentials are not accepted. Replace the example workspace ID with a
-real endpoint in the same region. Only the floating alias `qwen3.7-plus` and the
-default pinned snapshot `qwen3.7-plus-2026-05-26` are accepted in Phase 1.
+`sk-sp-` credentials are not accepted. This account uses Beijing; do not
+substitute another region. Only the floating alias `qwen3.7-plus` and the
+default pinned snapshot `qwen3.7-plus-2026-05-26` belong to the proven Phase 1
+contract.
 
 The injected-provider contract remains available to host applications that own
 their clients and network policy. The library validates and snapshots the image

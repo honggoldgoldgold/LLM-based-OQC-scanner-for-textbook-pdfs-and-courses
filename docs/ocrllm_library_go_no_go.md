@@ -2,7 +2,7 @@
 
 Status: active and authoritative.
 
-Decision date: 2026-07-09.
+Decision date: 2026-07-11.
 
 This file is the execution contract for new work in `src/ocrllm/`. If another
 planning document conflicts with this file, this file wins. Tests and runtime
@@ -88,11 +88,12 @@ DEFERRED:
 
 ## Current Truth
 
-Phase 0 transition evidence and current Phase 1 implementation truth, as of
+Phase 0/1 transition evidence and current Phase 2 implementation truth, as of
 2026-07-11:
 
-- Phase 0 is GO at commit `5018ad0`; Phase 1 is the current and only authorized
-  implementation phase.
+- Phase 0 is GO at commit `5018ad0`. Phase 1 is GO after the passing v17 live
+  gate and the clean committed-wheel proof at `0278b66`. Phase 2 is the current
+  and only authorized implementation phase.
 - The active package validates and decodes PNG/JPEG sources before invoking an
   injected provider, rejects empty provider output, returns canonical
   `source_type="image"`, and represents board recognition as `profile="board"`.
@@ -102,14 +103,11 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
   otherwise-successful cleanup failures raise typed `OUTPUT_WRITE_FAILED`; when a
   typed recognition failure is already active, it remains primary and records
   redacted `snapshot_cleanup_failed=true` detail.
-- The built-in DashScope adapter and its offline boundary tests now exist. The
-  injected and built-in `image.board.png`, `image.board.jpeg`, and
-  `provider.dashscope.vision` implementations are `experimental`, not
-  `available`. Offline checkpoint `e328253` supplies the licensed corpus,
-  deterministic generators, scorers, and manifest-authenticated live-scoring
-  gate. The first fixed live gate completed all 13 calls, but the smoke and
-  both independent full runs failed their frozen scoring contract. Phase 0
-  itself made no recognition capability available, and Phase 1 remains NO-GO.
+- The injected and built-in `image.board.png`, `image.board.jpeg`, and
+  `provider.dashscope.vision` capabilities are `available`. Their unified v17
+  board workflow passed both independent Beijing full-corpus runs and the clean
+  base, image, and image-plus-DashScope packaging profiles. Earlier failed gates
+  remain immutable historical evidence.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
   and advertised exactly `dev,image`. The current Phase 1 tree still has no base
@@ -284,9 +282,9 @@ Phase 0 transition evidence and current Phase 1 implementation truth, as of
 - Legacy behavior is evidence only; it is not an active import or service
   boundary.
 
-Therefore contract honesty is complete and real board/image work is the current
-phase. The current phase is not PDF migration, audio migration, video migration,
-service work, local-OCR work, or native work.
+Therefore contract honesty and real board/image work are complete. The current
+phase is the versioned JSON contract and one-job JSONL worker. It is not PDF,
+audio, video, HTTP service, local-OCR, or native work.
 
 Capability status vocabulary is fixed:
 
@@ -1532,7 +1530,7 @@ GO when all are true:
 GO is recorded by the exact clean evidence in `Current Truth`. Regress Phase 0
 to NO-GO if any condition above stops passing.
 
-### Phase 1: Real board/image -- current
+### Phase 1: Real board/image -- GO
 
 GO when all are true:
 
@@ -2130,8 +2128,8 @@ forbidden = {"PIL", "openai", "httpx"}
 assert not loaded & forbidden, loaded & forbidden
 
 settings = DashScopeSettings(
-    region="ap-southeast-1",
-    base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    region="cn-beijing",
+    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
 )
 config = Config(
     provider="dashscope",
@@ -2357,8 +2355,26 @@ primary agree only on `foreign gene + I:V`. The pool remains three, quorum
 remains two, and all structural guards remain. Dynamic prompt hashes enter
 result metadata and evidence. The v17 manifest is 37,864 bytes with SHA-256
 `4ec1440f531e88492eb06795a29308256a5718c2748625ce2ad9b1230807e393`;
-all 712 isolated tests pass. Phase 1 remains NO-GO pending complete live
-evidence. See `phase1_v17_conditioned_omission_scout_2026-07-11.md`.
+all 712 isolated tests pass. See
+`phase1_v17_conditioned_omission_scout_2026-07-11.md`.
+
+The complete v17 Beijing gate reported all 52 planned provider calls with no
+retry or terminal failure. Both independent full runs passed. Run A required no
+restoration; Run B handwriting passed after exactly one generic two-of-three
+omission restoration. Formula, table, printed/projected, and ordered-image
+dispatches passed unchanged in both runs. Preserve the 107,246-byte evidence
+SHA-256
+`6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`.
+See `phase1_live_quality_result_v17_2026-07-11.md`.
+
+The clean Git-archive gate then tested committed checkpoint `0278b66`: 712
+tests, generated fixture identity, compilation, a 67,266-byte wheel, a
+306,163-byte base target, both import timing environments, generated-image
+recognition, and the offline Beijing DashScope construction probe passed. The
+fresh `image` profile installed 15,987,099 bytes against a 25 MiB ceiling; the
+fresh `image,dashscope` profile installed 40,901,589 bytes against a 64 MiB
+ceiling. No provider call occurred. Phase 1 is **GO** and Phase 2 is now the
+only active implementation phase.
 
 ## Change Rejection Checklist
 

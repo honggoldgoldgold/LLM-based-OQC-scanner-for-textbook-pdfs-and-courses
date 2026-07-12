@@ -8,7 +8,7 @@ This file records account-specific cost and reliability facts that influence
 future provider selection. It does not make a deferred provider available and
 does not replace the phase gates in `ocrllm_library_go_no_go.md`.
 
-## Active Phase 1 Decision
+## Proven Phase 1 Decision
 
 - The user's Aliyun/DashScope API workflows use the Beijing region. For the
   current credential, use canonical region `cn-beijing` with the confirmed
@@ -36,6 +36,9 @@ does not replace the phase gates in `ocrllm_library_go_no_go.md`.
   generative rewrite; it remains explicit and defaults off.
 - The Phase 1 model remains `qwen3.7-plus-2026-05-26` unless the authoritative
   decision is changed before collecting a new complete evidence set.
+- The v17 Beijing gate completed both full runs and all 52 planned calls. Phase
+  1 is GO; provider changes require a new capability decision and evidence set,
+  not a silent substitution inside the proven workflow.
 
 ## Future Provider Inputs
 
@@ -62,8 +65,8 @@ entitlements and current product terms before a large run.
   object may rank approved workflows, but it must not turn one `Config` into an
   implicit multi-provider state machine.
 - Provider pools, automatic switching, Google, Codex, and FileTrans remain
-  behind their phase decisions. Complete the current one-provider image gate
-  before activating any of them.
+  behind their phase decisions. The completed one-provider image gate does not
+  activate any of them.
 - Every paid or quota-consuming evidence run records its exact call plan before
   dispatch and preserves failures rather than cherry-picking a better result.
 - The four screenshots and PDF under `docs/` are authorized as private local

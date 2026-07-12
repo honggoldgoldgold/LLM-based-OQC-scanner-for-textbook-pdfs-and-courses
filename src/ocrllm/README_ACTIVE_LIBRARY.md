@@ -28,8 +28,8 @@ from ocrllm import (
 )
 ```
 
-Phase 0 contract honesty is GO. The current phase is **Phase 1 -- real
-board/image**.
+Phase 0 contract honesty and Phase 1 real board/image are GO. The current phase
+is **Phase 2 -- versioned JSON contract and Electron JSONL worker**.
 
 The current image facade:
 
@@ -49,12 +49,12 @@ The current image facade:
   caller's config identity, while the built-in adapter uses an isolated,
   revalidated copy.
 
-This is not yet a completed recognition capability. The built-in DashScope
-adapter, exact offline boundary tests, committed licensed five-class corpus,
-deterministic scorers, and guarded evidence runner now exist. Required live
-provider evidence does not: Phase 1 remains NO-GO and no image/provider
-capability is `available` until the clean smoke, both independently dispatched
-full-corpus runs, final clean profiles, and explicit GO-decision update pass.
+The built-in DashScope board/image capability is available under the bounded
+Phase 1 contract. The v17 Beijing gate completed exactly 52 provider calls with
+no retry; both independent full-corpus runs passed. Run B repaired exactly one
+missing handwriting sign through generic two-of-three omission consensus; no
+handwriting route or model split exists. The committed Git-archive wheel then
+passed base, `image`, and `image,dashscope` clean profiles.
 The adapter requires an explicit matching region and endpoint, accepts
 `qwen3.7-plus`, the default pinned `qwen3.7-plus-2026-05-26`, and explicit
 configured scout work, disables OpenAI SDK retries, and builds Base64 data
@@ -67,9 +67,9 @@ cannot enter the result. Directional-arrow insertion is forbidden while
 complete primary transcription remains unchanged. Exact dynamic scout-prompt
 hashes and byte counts are returned in metadata.
 Qwen-VL Max remains an explicit supported scout option but is not the Phase 1
-evidence baseline. There is still no local OCR
-backend, key pool, automatic retry/model fallback, or image resume; PDF, audio,
-and video remain unavailable. Local user screenshots are uncommitted
+evidence baseline. There is still no local OCR backend, key pool, automatic
+retry/model fallback, or image resume; PDF, audio, and video remain unavailable.
+Local user screenshots are uncommitted
 supplemental material and never replace the committed corpus in pass/fail
 evidence.
 

@@ -15,8 +15,9 @@ execution record.
 The active implementation remains the Python-first package in `src/ocrllm`.
 The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
 Phase 0 contract honesty is GO at commit `5018ad0` on the exact clean evidence
-recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is the
-current and only authorized implementation phase.
+recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is GO,
+and Phase 2 JSON/JSONL worker work is the current and only authorized
+implementation phase.
 
 ## One-Sentence Goal
 
@@ -74,11 +75,8 @@ result = recognize(
         api_key="sk-...",
         model="qwen3.7-plus-2026-05-26",
         dashscope=DashScopeSettings(
-            region="ap-southeast-1",
-            base_url=(
-                "https://YOUR_WORKSPACE_ID.ap-southeast-1.maas.aliyuncs.com/"
-                "compatible-mode/v1"
-            ),
+            region="cn-beijing",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ),
     ),
 )
@@ -96,11 +94,8 @@ results = recognize_batch(
     config=Config(
         provider="dashscope",
         dashscope=DashScopeSettings(
-            region="ap-southeast-1",
-            base_url=(
-                "https://YOUR_WORKSPACE_ID.ap-southeast-1.maas.aliyuncs.com/"
-                "compatible-mode/v1"
-            ),
+            region="cn-beijing",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ),
         pdf_mode="vision",
         output_dir="out",
@@ -1002,11 +997,10 @@ Critical rule: provider adapters own HTTP details, authentication, request
 format, and response parsing. Processors own media-specific workflow.
 
 The injected-provider and built-in DashScope implementations for
-`image.board.png`, `image.board.jpeg`, and `provider.dashscope.vision` are now
-offline-tested and `experimental`, not `available`. The required licensed
-corpus/scorer, live smoke, and two independent full-corpus live proofs remain;
-Phase 1 is therefore still NO-GO. No Phase 0 result authorizes a later
-capability.
+`image.board.png`, `image.board.jpeg`, and `provider.dashscope.vision` are
+`available`. Their offline, live Beijing, repeatability, and clean-package gates
+passed under the unified v17 board workflow. This Phase 1 result authorizes
+Phase 2 only; it does not authorize PDF, audio, video, or another provider.
 
 ## Optional Dependencies
 
@@ -1251,8 +1245,8 @@ mandatory:
 
 ```text
 Phase 0  Contract honesty                         GO at 5018ad0
-Phase 1  Real board/image and one provider        CURRENT
-Phase 2  Versioned JSON contract and Electron JSONL worker
+Phase 1  Real board/image and one provider        GO at 0278b66 plus decision
+Phase 2  Versioned JSON contract and Electron JSONL worker  CURRENT
 Phase 3  PDFium text/vision PDF slice
 Phase 4  Short ASR and resumable FileTrans audio
 Phase 5  Video composed from image and audio

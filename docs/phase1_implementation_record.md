@@ -453,8 +453,28 @@ dynamic prompt hash/size. Omission rows no longer lose their budget because the
 same sign appears elsewhere, while all location and structural guards remain.
 The 37,864-byte manifest SHA-256 is
 `4ec1440f531e88492eb06795a29308256a5718c2748625ce2ad9b1230807e393`;
-89 focused and 712 exact isolated tests pass. Complete live v17 evidence is
-pending.
+89 focused and 712 exact isolated tests pass.
+
+The complete v17 Beijing gate ran from
+`7f1fd98666b681b0e4a276cf89989fee0e4f54a6`. Its frozen 13-recognition plan
+reported exactly 52 provider calls with no retry and no terminal failure. Both
+independent full runs passed. Run A made no auxiliary changes. Run B restored
+exactly one missing handwriting sign through the generic two-of-three
+primary-conditioned omission workflow; every other dispatch passed unchanged.
+The atomic writer flushed a complete checkpoint after each dispatch and a final
+terminal record. Preserve the 107,246-byte evidence SHA-256
+`6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`.
+The post-run credential scan found neither the active environment key nor an
+`sk-...` token pattern.
+
+Evidence and the live result were committed and pushed at `0278b66`. A clean
+Git archive of that commit passed all 712 tests, fixture-byte identity,
+`compileall`, base wheel and import budgets, and fresh `image` and Beijing
+`image,dashscope` profiles. The wheel was 67,266 bytes; the no-deps base target
+was 306,163 bytes; profile deltas were 15,987,099 and 40,901,589 bytes against
+25 MiB and 64 MiB limits. No provider call occurred during packaging probes.
+This completes the Phase 1 GO evidence without splitting handwriting from the
+board workflow.
 
 The v14 live gate returned all 52 calls. Run B passed all six dispatches; Run A
 failed only handwriting at 29/30 recall and 5/6 critical signs because two

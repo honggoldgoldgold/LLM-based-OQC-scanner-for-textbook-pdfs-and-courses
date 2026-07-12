@@ -5,8 +5,8 @@ This file is the project memory aid. Read it before changing the repo.
 ## One-Sentence Summary
 
 The old OCRLLM app has been moved to `legacy_app/`; the active project is an
-importable Python library in `src/ocrllm`, with contract honesty GO and Phase 1
-real board/image plus one provider now current.
+importable Python library in `src/ocrllm`, with Phase 0 and Phase 1 GO and Phase
+2 versioned JSON/JSONL worker work now current.
 
 ## First Files To Read
 
@@ -94,7 +94,7 @@ from ocrllm import (
 )
 ```
 
-Phase 0 is GO. The active Phase 1 route validates PNG/JPEG sources and sends
+Phase 0 and Phase 1 are GO. The active image route validates PNG/JPEG sources and sends
 request-scoped snapshots isolated from later caller-path changes to either one
 synchronous injected vision provider or the exact built-in name `"dashscope"`:
 
@@ -122,11 +122,8 @@ result = recognize(
     config=Config(
         provider="dashscope",
         dashscope=DashScopeSettings(
-            region="ap-southeast-1",
-            base_url=(
-                "https://your-workspace-id.ap-southeast-1.maas.aliyuncs.com/"
-                "compatible-mode/v1"
-            ),
+            region="cn-beijing",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ),
     ),
 )
@@ -152,16 +149,15 @@ built-in provider metadata          region, thinking/high-resolution flags,
 public Config boundary              exact Config only; freshly revalidated
 ```
 
-The built-in DashScope adapter and offline boundary tests now exist. Offline
-checkpoint `e328253` additionally commits the licensed five-class image corpus,
-deterministic generators, scorers, and integrated manifest-authenticated
-live-scoring gate. The pinned suite and byte-identity checks pass. On 2026-07-11
-the user confirmed `cn-beijing` and the key-matching endpoint, and the committed
-runner completed its fixed 13-call plan with zero runner retries. Both full runs
-completed, but neither passed. No provider request or terminal runner failure
-occurred. Phase 1 remains NO-GO. The immutable result is summarized in
-`docs/phase1_live_quality_result_2026-07-11.md`. Google, Codex, local-OCR, PDF,
-audio, and video adapters do not exist in the active library.
+The built-in DashScope adapter, offline boundary tests, licensed five-class
+image corpus, deterministic scorers, and manifest-authenticated live runner are
+complete. V17 ran in `cn-beijing`: all 13 recognitions and 52 provider calls
+completed without retry, both independent full runs passed, and Run B repaired
+exactly one missing handwriting sign without a handwriting-specific route. The
+clean committed-wheel gate at `0278b66` also passed. The immutable result is
+summarized in `docs/phase1_live_quality_result_v17_2026-07-11.md`. Google,
+Codex, local-OCR, PDF, audio, and video adapters do not exist in the active
+library.
 
 Current package metadata still has no base runtime requirements. It declares
 exactly `dev`, `image`, and `dashscope`; `image` installs `Pillow>=10.4,<13`, and
@@ -732,24 +728,27 @@ legacy_app/environment.yml
 
 ## What To Do Next
 
-Current phase: **Phase 1 -- real board/image and one provider**.
+Current phase: **Phase 2 -- versioned JSON contract and Electron JSONL
+worker**.
 
-Finish only this bounded slice. The first live gate is complete and failed; do
-not delete, overwrite, selectively retry, or reinterpret its evidence:
+Implement only this bounded slice next:
 
-1. Preserve and audit
-   `evidence/phase1/phase1-quality-2026-07-11-cn-beijing.json` and its SHA-256
-   `cfb2ee423eafecbc87190f9e30d39439f0ea0a865d1a0348a140f67d8088fa23`.
-2. Design a separately versioned prompt/scorer correction offline. Keep all
-   v1 thresholds and this evidence frozen. Add deliberate-corruption tests
-   before accepting any newly declared presentation equivalence.
-3. Treat the repeated handwriting recall, precision, and critical-slot misses
-   as product quality failures; a formatting-parser correction cannot erase
-   them.
-4. Require a new explicit user decision, a new evidence path, and a clean
-   Git/import/manifest/artifact preflight before another billed call set.
-5. Keep the clean-tree offline/package gate current after source, packaged
-   README, dependency, or package-metadata changes.
+1. Freeze JSON fixtures for all three worker commands and all six event shapes,
+   including literals, defaults, nullable invalid-command IDs, unknown-option
+   rejection, and fallback protocol versions.
+2. Add one `python -m ocrllm.worker` entrypoint with one job at a time. Keep GUI,
+   Electron, server, and provider imports out of base `import ocrllm`.
+3. Add the Node harness that launches Python without a shell and validates every
+   stdout line. Use the offline fixture entrypoint for deterministic tests.
+4. Prove Chinese, emoji, spaces, and long Windows paths round-trip, and prove
+   cancellation terminates the job process tree within five seconds.
+5. Keep Phase 2 development-only. Do not claim packaged end-user Electron
+   compatibility before the Phase 6 clean-machine gate.
+
+Preserve every earlier Phase 1 evidence file unchanged. The passing decision is
+bound to v17 evidence SHA-256
+`6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`
+and the clean package proof at `0278b66`.
 
 The historical v2 correction explicitly
 requires labeled standalone formulas, Unicode inline relations, and exact
@@ -1130,8 +1129,9 @@ quorum remain. The 37,864-byte manifest SHA-256 is
 89 focused and all 712 isolated tests pass. See
 `docs/phase1_v17_conditioned_omission_scout_2026-07-11.md`.
 
-PDF, audio, video, worker/service, local OCR, provider pools, HarmonyOS, Rust,
-Office, social, GPU, and offline-model work are not the next task.
+PDF, audio, video, HTTP service, local OCR, provider pools, HarmonyOS, Rust,
+Office, social, GPU, and offline-model work are not the next task. The bounded
+JSONL worker is the next task.
 
 ## Do Not Do This
 
