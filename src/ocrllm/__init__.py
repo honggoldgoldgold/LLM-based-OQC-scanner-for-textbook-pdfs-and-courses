@@ -30,6 +30,7 @@ from .errors import (
     ProviderUnavailable,
     QuotaExhausted,
     RateLimited,
+    ResumeStateError,
     UnsupportedFormat,
 )
 from .recognize import recognize
@@ -75,6 +76,7 @@ __all__ = [
     "ProviderUnavailable",
     "QuotaExhausted",
     "RateLimited",
+    "ResumeStateError",
     "RecognitionResult",
     "RecognitionExecutionPolicy",
     "RecognitionPreferences",

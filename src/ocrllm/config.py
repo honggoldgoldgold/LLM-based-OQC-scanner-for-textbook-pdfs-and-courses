@@ -244,11 +244,6 @@ def _validate_image_mode_fields(
             "OCR mode does not accept language hints in the current engine.",
             code="CONFIG_INVALID",
         ) from None
-    if resume:
-        raise ConfigError(
-            "Image resume is not implemented for OCR mode.",
-            code="CONFIG_INVALID",
-        ) from None
 
 
 def _validate_optional_nonempty_text(

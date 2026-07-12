@@ -172,6 +172,14 @@ class OutputExists(OutputError):
     allowed_codes = frozenset({default_code})
 
 
+class ResumeStateError(OCRLLMError):
+    """Saved recognition work is corrupt or belongs to another request."""
+
+    default_code = "RESUME_STATE_INVALID"
+    default_message = "The image resume state is invalid."
+    allowed_codes = frozenset({"RESUME_STATE_INVALID", "RESUME_STATE_MISMATCH"})
+
+
 class ProviderError(OCRLLMError):
     """A provider request failed."""
 

@@ -82,9 +82,10 @@ def test_ocr_mode_rejects_fields_that_would_be_silently_ignored(kwargs) -> None:
         Config(image_mode="ocr", **kwargs)
 
 
-def test_ocr_mode_rejects_resume_even_with_output_directory(tmp_path) -> None:
-    with pytest.raises(ConfigError, match="resume is not implemented"):
-        Config(image_mode="ocr", resume=True, output_dir=tmp_path)
+def test_ocr_mode_accepts_resume_with_output_directory(tmp_path) -> None:
+    config = Config(image_mode="ocr", resume=True, output_dir=tmp_path)
+
+    assert config.resume is True
 
 
 def test_config_rejects_local_ocr_settings_subclass() -> None:

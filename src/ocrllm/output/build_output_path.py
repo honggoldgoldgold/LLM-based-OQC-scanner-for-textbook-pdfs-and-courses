@@ -7,7 +7,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from ..config import Config
-from ..errors import ConfigError, OutputError, OutputExists
+from ..errors import OutputError, OutputExists
 from .normalize_output_stem import normalize_output_stem
 
 
@@ -21,12 +21,6 @@ def build_output_path(
     output_dir = config.output_directory()
     if output_dir is None:
         return None
-    if config.resume:
-        raise ConfigError(
-            "Resume is not available for image recognition.",
-            code="CONFIG_INVALID",
-        )
-
     try:
         if output_dir.exists() and not output_dir.is_dir():
             raise OutputError(
@@ -55,6 +49,6 @@ def build_output_path(
             "The requested Markdown output path is not a regular file.",
             code="OUTPUT_PATH_INVALID",
         )
-    if target_exists and not config.overwrite:
+    if target_exists and not config.overwrite and not config.resume:
         raise OutputExists("The requested Markdown output already exists.")
     return output_path

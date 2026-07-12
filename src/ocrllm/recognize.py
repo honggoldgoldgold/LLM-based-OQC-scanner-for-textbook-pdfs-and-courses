@@ -56,27 +56,62 @@ def _recognize(
     source_paths = coerce_source_paths(source)
     validate_execution_image_count(source_paths, config=cfg)
     media_type = validate_same_type_group(source_paths)
+    output_path = None
+    resume_identity = None
+    resume_state = None
+    resume_state_path = None
 
     with reuse_or_create_provider_request_start_gate(
         cfg.execution.provider_request_start_interval_seconds
     ):
         if media_type == "image":
             with snapshot_image_group(source_paths, config=cfg) as validated_paths:
-                output_path = build_output_path(source_paths, profile=profile, config=cfg)
-                if cfg.image_mode == "ocr":
-                    from .local_ocr.recognize_images_with_rapidocr import (
-                        recognize_images_with_rapidocr,
-                    )
+                output_path = build_output_path(
+                    source_paths,
+                    profile=profile,
+                    config=cfg,
+                )
+                if cfg.resume:
+                    assert output_path is not None
+                    from .fingerprint_image_request import fingerprint_image_request
+                    from .fingerprint_image_sources import fingerprint_image_sources
+                    from .output.build_job_state_path import build_job_state_path
+                    from .output.load_image_resume_state import load_image_resume_state
+                    from .reuse_image_resume_state import reuse_image_resume_state
 
-                    processor_output = recognize_images_with_rapidocr(
-                        validated_paths,
+                    resume_identity = fingerprint_image_request(
+                        fingerprint_image_sources(source_paths, validated_paths),
                         profile=profile,
                         config=cfg,
                     )
-                else:
-                    from .processors.recognize_images import recognize_images
+                    resume_state_path = build_job_state_path(output_path)
+                    resume_state = load_image_resume_state(resume_state_path)
+                    if resume_state is None and output_path.exists():
+                        from .errors import ResumeStateError
 
-                    processor_output = recognize_images(
+                        raise ResumeStateError(
+                            "Existing image output has no matching resume state.",
+                            code="RESUME_STATE_INVALID",
+                        ) from None
+                    if resume_state is not None:
+                        processor_output = reuse_image_resume_state(
+                            resume_state,
+                            resume_identity,
+                        )
+                    else:
+                        from .recognize_validated_images import (
+                            recognize_validated_images,
+                        )
+
+                        processor_output = recognize_validated_images(
+                            validated_paths,
+                            profile=profile,
+                            config=cfg,
+                        )
+                else:
+                    from .recognize_validated_images import recognize_validated_images
+
+                    processor_output = recognize_validated_images(
                         validated_paths,
                         profile=profile,
                         config=cfg,
@@ -84,7 +119,34 @@ def _recognize(
         else:  # pragma: no cover - routing is closed until another phase is authorized.
             raise AssertionError(f"unhandled validated media type: {media_type}")
 
-    if output_path is not None:
+    if cfg.resume:
+        assert output_path is not None
+        assert resume_identity is not None
+        assert resume_state_path is not None
+        if resume_state is None:
+            from .build_image_resume_state import build_image_resume_state
+            from .output.save_image_resume_state_atomically import (
+                save_image_resume_state_atomically,
+            )
+
+            resume_state = build_image_resume_state(resume_identity, processor_output)
+            save_image_resume_state_atomically(resume_state_path, resume_state)
+        if output_path.exists():
+            from .output.validate_image_resume_output import (
+                validate_image_resume_output,
+            )
+
+            validate_image_resume_output(output_path, resume_state)
+        else:
+            write_markdown_atomically(
+                output_path,
+                processor_output.markdown,
+                overwrite=False,
+            )
+        from .output.delete_image_resume_state import delete_image_resume_state
+
+        delete_image_resume_state(resume_state_path)
+    elif output_path is not None:
         write_markdown_atomically(
             output_path,
             processor_output.markdown,
