@@ -26,6 +26,7 @@ from .get_capabilities import get_capabilities
 from .local_ocr_settings import LocalOCRSettings
 from .recognition_preferences import RecognitionPreferences
 from .recognition_execution_policy import RecognitionExecutionPolicy
+from .vision_model_settings import VisionModelSettings
 from .result import RecognitionResult
 
 __all__ = [
@@ -51,6 +52,7 @@ __all__ = [
     "RecognitionExecutionPolicy",
     "RecognitionPreferences",
     "UnsupportedFormat",
+    "VisionModelSettings",
     "recognize",
     "recognize_batch",
     "get_capabilities",

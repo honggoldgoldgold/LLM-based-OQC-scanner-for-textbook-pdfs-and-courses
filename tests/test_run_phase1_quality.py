@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from ocrllm import RecognitionResult
+from ocrllm import DashScopeSettings, RecognitionResult
 from ocrllm.errors import RateLimited
 from tests.quality.build_phase1_dispatch_plan import (
     CONFIRMED_PAID_CALL_COUNT,
@@ -119,7 +119,7 @@ class FakeRecognizer:
             profile="board",
             metadata={
                 "image_count": len(paths),
-                "model": config.model,
+                "model": config.vision_model.name,
                 "prompt_version": "board.v17",
                 "provider_call_count": (
                     config.preferences.draft_candidates
@@ -129,7 +129,7 @@ class FakeRecognizer:
                 "draft_candidates": config.preferences.draft_candidates,
                 "review_passes": config.preferences.review_passes,
                 "standalone_sign_scout_model": (
-                    config.dashscope.standalone_sign_scout_model
+                    config.provider.standalone_sign_scout_model
                 ),
                 "standalone_sign_scout_count": 3,
                 "standalone_sign_scout_enable_thinking": True,
@@ -140,10 +140,10 @@ class FakeRecognizer:
                 "standalone_sign_scout_prompt_utf8_bytes": 1,
                 "provider": "dashscope",
                 "profile": "board",
-                "provider_region": config.dashscope.region,
-                "enable_thinking": config.dashscope.enable_thinking,
+                "provider_region": config.provider.region,
+                "enable_thinking": config.provider.enable_thinking,
                 "vl_high_resolution_images": (
-                    config.dashscope.vl_high_resolution_images
+                    config.provider.vl_high_resolution_images
                 ),
             },
         )
@@ -186,12 +186,13 @@ def test_fake_runner_executes_exact_plan_with_fresh_configs_and_safe_evidence(
             )
         )
         assert config.input_languages == expected_languages
-        assert config.api_key is None
+        assert type(config.provider) is DashScopeSettings
+        assert config.provider.api_key is None
         assert config.timeout_seconds == 180.0
         assert config.preferences.draft_candidates == 1
         assert config.preferences.review_passes == 0
         assert (
-            config.dashscope.standalone_sign_scout_model
+            config.provider.standalone_sign_scout_model
             == "qwen3.7-plus-2026-05-26"
         )
         assert entry.fixture_ids == fixture_ids

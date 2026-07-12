@@ -2,7 +2,13 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from ocrllm import Config, DashScopeSettings, RecognitionPreferences, recognize
+from ocrllm import (
+    Config,
+    DashScopeSettings,
+    RecognitionPreferences,
+    VisionModelSettings,
+    recognize,
+)
 from ocrllm.errors import ConfigError
 
 
@@ -56,6 +62,7 @@ def test_dashscope_settings_accept_documented_region_endpoint_pairs(region, base
 
     assert settings.region == region
     assert settings.base_url == base_url
+    assert settings.api_key is None
     assert settings.enable_thinking is False
     assert settings.vl_high_resolution_images is True
     assert settings.standalone_sign_scout_model is None
@@ -79,16 +86,15 @@ def test_config_accepts_exact_sign_scout_only_with_default_workflow():
         standalone_sign_scout_model="qwen-vl-max",
     )
 
-    config = Config(provider="dashscope", dashscope=settings)
+    config = Config(provider=settings)
 
-    assert config.dashscope is not settings
-    assert config.dashscope is not None
-    assert config.dashscope.standalone_sign_scout_model == "qwen-vl-max"
+    assert config.provider is not settings
+    assert type(config.provider) is DashScopeSettings
+    assert config.provider.standalone_sign_scout_model == "qwen-vl-max"
 
     with pytest.raises(ConfigError, match="default RecognitionPreferences"):
         Config(
-            provider="dashscope",
-            dashscope=settings,
+            provider=settings,
             preferences=RecognitionPreferences(review_passes=1),
         )
 
@@ -102,11 +108,14 @@ def test_config_accepts_same_pinned_qwen37_primary_and_sign_scout():
         standalone_sign_scout_model=model,
     )
 
-    config = Config(provider="dashscope", model=model, dashscope=settings)
+    config = Config(
+        provider=settings,
+        vision_model=VisionModelSettings(name=model),
+    )
 
-    assert config.model == model
-    assert config.dashscope is not None
-    assert config.dashscope.standalone_sign_scout_model == model
+    assert config.vision_model.name == model
+    assert type(config.provider) is DashScopeSettings
+    assert config.provider.standalone_sign_scout_model == model
 
 
 def test_dashscope_settings_are_frozen_slotted_and_require_explicit_routing():
@@ -186,7 +195,8 @@ def test_dashscope_settings_reject_unapproved_or_mismatched_endpoints(region, ba
 
 def test_dashscope_settings_reject_string_subclasses():
     class TextSubclass(str):
-        pass
+        def __hash__(self):
+            raise RuntimeError("HOSTILE_DASHSCOPE_HASH_SECRET")
 
     with pytest.raises(ConfigError, match="region"):
         DashScopeSettings(
@@ -200,32 +210,42 @@ def test_dashscope_settings_reject_string_subclasses():
                 "https://dashscope.aliyuncs.com/compatible-mode/v1"
             ),
         )
+    with pytest.raises(ConfigError, match="standalone_sign_scout_model") as captured:
+        DashScopeSettings(
+            region="cn-beijing",
+            base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            standalone_sign_scout_model=TextSubclass("qwen-vl-max"),
+        )
+    assert "HOSTILE_DASHSCOPE_HASH_SECRET" not in str(captured.value)
 
 
-def test_config_requires_dashscope_settings_exactly_for_builtin_dashscope():
+def test_config_uses_exact_dashscope_settings_to_select_builtin_adapter():
     settings = _settings()
 
-    config = Config(provider="dashscope", dashscope=settings)
-    assert config.dashscope == settings
-    assert config.dashscope is not settings
+    config = Config(provider=settings)
+    assert config.provider == settings
+    assert config.provider is not settings
 
-    with pytest.raises(ConfigError) as missing:
+    with pytest.raises(ConfigError, match="string provider categories"):
         Config(provider="dashscope")
-    assert missing.value.code == "CONFIG_MISSING"
 
-    for provider in (None, object(), "another-provider"):
-        with pytest.raises(ConfigError, match="exact built-in provider"):
-            Config(provider=provider, dashscope=settings)
+def test_config_rejects_dashscope_settings_subclass_and_string_subclass():
+    class SettingsSubclass(DashScopeSettings):
+        pass
 
-
-def test_config_rejects_non_settings_value_and_string_subclass_pair():
     class DashScopeName(str):
         pass
 
-    with pytest.raises(ConfigError, match="must be DashScopeSettings"):
-        Config(provider="dashscope", dashscope=object())  # type: ignore[arg-type]
-    with pytest.raises(ConfigError, match="exact built-in provider"):
-        Config(provider=DashScopeName("dashscope"), dashscope=_settings())
+    settings = _settings()
+    with pytest.raises(ConfigError, match="exact DashScopeSettings"):
+        Config(
+            provider=SettingsSubclass(
+                region=settings.region,
+                base_url=settings.base_url,
+            )
+        )
+    with pytest.raises(ConfigError, match="string provider categories"):
+        Config(provider=DashScopeName("dashscope"))
 
 
 def test_config_omits_composed_dashscope_settings_from_repr():
@@ -238,15 +258,38 @@ def test_config_omits_composed_dashscope_settings_from_repr():
         ),
     )
 
-    rendered = repr(Config(provider="dashscope", dashscope=settings))
+    rendered = repr(Config(provider=settings))
 
     assert sentinel not in rendered
-    assert "dashscope=" not in rendered
+    assert "provider=" not in rendered
+
+
+def test_dashscope_api_key_is_secret_and_validated_without_echo():
+    sentinel = "api-secret-sentinel-337"
+    settings = DashScopeSettings(
+        region="cn-beijing",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        api_key=sentinel,
+    )
+
+    assert settings.api_key == sentinel
+    assert sentinel not in repr(settings)
+    assert sentinel not in repr(Config(provider=settings))
+
+    for bad_value in ("", " padded ", "sk-sp-DO_NOT_ECHO", 1, True):
+        with pytest.raises(ConfigError) as captured:
+            DashScopeSettings(
+                region="cn-beijing",
+                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+                api_key=bad_value,  # type: ignore[arg-type]
+            )
+        if bad_value:
+            assert str(bad_value) not in str(captured.value)
 
 
 def test_config_copies_and_revalidates_mutated_dashscope_settings():
     settings = _settings()
-    config = Config(provider="dashscope", dashscope=settings)
+    config = Config(provider=settings)
 
     object.__setattr__(
         settings,
@@ -254,17 +297,17 @@ def test_config_copies_and_revalidates_mutated_dashscope_settings():
         "https://example.invalid/compatible-mode/v1",
     )
 
-    assert config.dashscope is not None
-    assert config.dashscope.base_url != settings.base_url
+    assert type(config.provider) is DashScopeSettings
+    assert config.provider.base_url != settings.base_url
     with pytest.raises(ConfigError):
-        Config(provider="dashscope", dashscope=settings)
+        Config(provider=settings)
 
 
 def test_public_call_revalidates_a_mutated_nested_endpoint_before_source_work(tmp_path):
-    config = Config(provider="dashscope", dashscope=_settings())
-    assert config.dashscope is not None
+    config = Config(provider=_settings())
+    assert type(config.provider) is DashScopeSettings
     object.__setattr__(
-        config.dashscope,
+        config.provider,
         "base_url",
         "https://example.invalid/compatible-mode/v1",
     )

@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from ocrllm import CapabilityReport, Config, DashScopeSettings, get_capabilities
+from ocrllm import (
+    CapabilityReport,
+    Config,
+    DashScopeSettings,
+    VisionModelSettings,
+    get_capabilities,
+)
 from ocrllm.errors import ConfigError
 from ocrllm.providers.dashscope.resolve_dashscope_model import DEFAULT_DASHSCOPE_MODEL
 
@@ -42,16 +48,15 @@ def _by_name(config: Config | None = None) -> dict[str, CapabilityReport]:
 
 def _proven_config(*, api_key: str | None = None) -> Config:
     return Config(
-        provider="dashscope",
-        api_key=api_key,
-        model=DEFAULT_DASHSCOPE_MODEL,
-        dashscope=DashScopeSettings(
+        provider=DashScopeSettings(
             region="cn-beijing",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+            api_key=api_key,
             enable_thinking=True,
             vl_high_resolution_images=True,
             standalone_sign_scout_model=DEFAULT_DASHSCOPE_MODEL,
         ),
+        vision_model=VisionModelSettings(name=DEFAULT_DASHSCOPE_MODEL),
     )
 
 
@@ -97,12 +102,11 @@ def test_exact_pinned_beijing_v17_configuration_is_available() -> None:
 
 def test_offline_valid_but_unproven_dashscope_workflow_is_experimental() -> None:
     config = Config(
-        provider="dashscope",
-        model="qwen3.7-plus",
-        dashscope=DashScopeSettings(
+        provider=DashScopeSettings(
             region="cn-beijing",
             base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
         ),
+        vision_model=VisionModelSettings(name="qwen3.7-plus"),
     )
     reports = _by_name(config)
 
@@ -146,8 +150,8 @@ def test_v1alpha1_worker_is_available_and_later_phases_are_deferred() -> None:
 
 def test_get_capabilities_freshly_revalidates_exact_config() -> None:
     config = _proven_config()
-    assert config.dashscope is not None
-    object.__setattr__(config.dashscope, "region", "cn-hongkong")
+    assert type(config.provider) is DashScopeSettings
+    object.__setattr__(config.provider, "region", "cn-hongkong")
 
     with pytest.raises(ConfigError, match="same DashScope region"):
         get_capabilities(config)

@@ -17,6 +17,7 @@ from ocrllm import (
     InvalidSource,
     ProviderError,
     RecognitionPreferences,
+    VisionModelSettings,
     recognize,
 )
 from write_test_image import write_test_image
@@ -100,10 +101,11 @@ def _response(
     return SimpleNamespace(choices=[choice], model=model)
 
 
-def _settings() -> DashScopeSettings:
+def _settings(*, api_key: str | None = "test-key") -> DashScopeSettings:
     return DashScopeSettings(
         region="ap-southeast-1",
         base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        api_key=api_key,
     )
 
 
@@ -122,9 +124,7 @@ def test_builtin_dashscope_adapter_builds_one_no_retry_request(tmp_path, monkeyp
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=_settings(),
-            api_key=api_key_sentinel,
+            provider=_settings(api_key=api_key_sentinel),
         ),
     )
 
@@ -180,10 +180,8 @@ def test_explicit_dashscope_model_reaches_request_and_result(tmp_path, monkeypat
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=_settings(),
-            api_key="test-key",
-            model="qwen3.7-plus",
+            provider=_settings(),
+            vision_model=VisionModelSettings(name="qwen3.7-plus"),
         ),
     )
 
@@ -202,9 +200,7 @@ def test_builtin_review_pass_makes_two_no_retry_requests_and_returns_review(
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=_settings(),
-            api_key="test-key",
+            provider=_settings(),
             preferences=RecognitionPreferences(review_passes=1),
         ),
     )
@@ -233,9 +229,7 @@ def test_builtin_consensus_review_makes_three_no_retry_requests(
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=_settings(),
-            api_key="test-key",
+            provider=_settings(),
             preferences=RecognitionPreferences(
                 draft_candidates=2,
                 review_passes=1,
@@ -282,6 +276,7 @@ def test_builtin_sign_scout_workflow_uses_one_primary_and_three_nonthinking_scou
     settings = DashScopeSettings(
         region=ordinary.region,
         base_url=ordinary.base_url,
+        api_key="test-key",
         enable_thinking=True,
         vl_high_resolution_images=True,
         standalone_sign_scout_model="qwen-vl-max",
@@ -290,9 +285,7 @@ def test_builtin_sign_scout_workflow_uses_one_primary_and_three_nonthinking_scou
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=settings,
-            api_key="test-key",
+            provider=settings,
         ),
     )
 
@@ -369,6 +362,7 @@ def test_builtin_sign_scout_workflow_restores_only_two_scout_quorum_sign(
     settings = DashScopeSettings(
         region=ordinary.region,
         base_url=ordinary.base_url,
+        api_key="test-key",
         enable_thinking=True,
         standalone_sign_scout_model="qwen-vl-max",
     )
@@ -376,9 +370,7 @@ def test_builtin_sign_scout_workflow_restores_only_two_scout_quorum_sign(
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=settings,
-            api_key="test-key",
+            provider=settings,
         ),
     )
 
@@ -412,6 +404,7 @@ def test_builtin_sign_scout_workflow_records_malformed_scout_abstentions(
     settings = DashScopeSettings(
         region=ordinary.region,
         base_url=ordinary.base_url,
+        api_key="test-key",
         enable_thinking=True,
         standalone_sign_scout_model="qwen-vl-max",
     )
@@ -419,9 +412,7 @@ def test_builtin_sign_scout_workflow_records_malformed_scout_abstentions(
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=settings,
-            api_key="test-key",
+            provider=settings,
         ),
     )
 
@@ -468,6 +459,7 @@ def test_same_qwen37_model_uses_thinking_scouts_and_extracts_supported_rows(
     settings = DashScopeSettings(
         region=ordinary.region,
         base_url=ordinary.base_url,
+        api_key="test-key",
         enable_thinking=True,
         standalone_sign_scout_model="qwen3.7-plus-2026-05-26",
     )
@@ -475,9 +467,7 @@ def test_same_qwen37_model_uses_thinking_scouts_and_extracts_supported_rows(
     result = recognize(
         source,
         config=Config(
-            provider="dashscope",
-            dashscope=settings,
-            api_key="test-key",
+            provider=settings,
         ),
     )
 
@@ -509,9 +499,7 @@ def test_mutated_review_preferences_fail_before_builtin_provider_work(
     client = FakeClient()
     fake_openai = _install_fake_openai(monkeypatch, client)
     config = Config(
-        provider="dashscope",
-        dashscope=_settings(),
-        api_key="test-key",
+        provider=_settings(),
         preferences=RecognitionPreferences(review_passes=1),
     )
     object.__setattr__(config.preferences, "review_passes", 2)
@@ -532,7 +520,11 @@ def test_cancellation_callback_cannot_diverge_builtin_request_metadata(
 
         def is_set(self):
             assert self.config is not None
-            object.__setattr__(self.config, "model", "qwen3.7-plus")
+            object.__setattr__(
+                self.config.vision_model,
+                "name",
+                "qwen3.7-plus",
+            )
             return False
 
     source = write_test_image(tmp_path / "board.png", size=(11, 11))
@@ -540,16 +532,14 @@ def test_cancellation_callback_cannot_diverge_builtin_request_metadata(
     _install_fake_openai(monkeypatch, client)
     cancellation = MutatingCancellation()
     config = Config(
-        provider="dashscope",
-        dashscope=_settings(),
-        api_key="test-key",
+        provider=_settings(),
         cancellation=cancellation,
     )
     cancellation.config = config
 
     result = recognize(source, config=config)
 
-    assert config.model == "qwen3.7-plus"
+    assert config.vision_model.name == "qwen3.7-plus"
     assert client.calls[0]["model"] == "qwen3.7-plus-2026-05-26"
     assert result.metadata["model"] == "qwen3.7-plus-2026-05-26"
 
@@ -567,10 +557,8 @@ def test_unapproved_dashscope_model_fails_before_sdk_load(tmp_path, monkeypatch)
         recognize(
             source,
             config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-                model=sentinel,
+                provider=_settings(),
+                vision_model=VisionModelSettings(name=sentinel),
             ),
         )
 
@@ -595,9 +583,7 @@ def test_pre_dispatch_cancellation_makes_zero_sdk_calls(tmp_path, monkeypatch):
         recognize(
             source,
             config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
+                provider=_settings(),
                 cancellation=cancellation,
             ),
         )
@@ -629,9 +615,7 @@ def test_cancellation_during_client_setup_still_prevents_http_dispatch(
         recognize(
             source,
             config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
+                provider=_settings(),
                 cancellation=cancellation,
             ),
         )
@@ -653,7 +637,7 @@ def test_missing_dashscope_key_fails_before_sdk_load(tmp_path, monkeypatch):
     with pytest.raises(ConfigError) as captured:
         recognize(
             source,
-            config=Config(provider="dashscope", dashscope=_settings()),
+            config=Config(provider=_settings(api_key=None)),
         )
 
     assert captured.value.code == "CONFIG_MISSING"
@@ -668,11 +652,7 @@ def test_sdk_authentication_failure_is_typed_and_redacted(tmp_path, monkeypatch)
     with pytest.raises(ProviderError) as captured:
         recognize(
             source,
-            config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-            ),
+            config=Config(provider=_settings()),
         )
 
     rendered = "".join(
@@ -698,11 +678,7 @@ def test_truncated_response_and_client_cleanup_failure_never_succeed(
     with pytest.raises(ProviderError) as truncated:
         recognize(
             source,
-            config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-            ),
+            config=Config(provider=_settings()),
         )
     assert truncated.value.code == "PROVIDER_RESPONSE_INVALID"
 
@@ -711,11 +687,7 @@ def test_truncated_response_and_client_cleanup_failure_never_succeed(
     with pytest.raises(ProviderError) as cleanup:
         recognize(
             source,
-            config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-            ),
+            config=Config(provider=_settings()),
         )
     assert cleanup.value.code == "PROVIDER_RESPONSE_INVALID"
 
@@ -727,11 +699,7 @@ def test_truncated_response_and_client_cleanup_failure_never_succeed(
     with pytest.raises(ProviderError) as primary_and_cleanup:
         recognize(
             source,
-            config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-            ),
+            config=Config(provider=_settings()),
         )
     assert primary_and_cleanup.value.code == "PROVIDER_AUTHENTICATION"
     assert (
@@ -747,11 +715,7 @@ def test_partial_response_header_never_becomes_success(tmp_path, monkeypatch):
     with pytest.raises(ProviderError) as captured:
         recognize(
             source,
-            config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-            ),
+            config=Config(provider=_settings()),
         )
 
     assert captured.value.code == "PROVIDER_RESPONSE_INVALID"
@@ -792,11 +756,7 @@ def test_final_snapshot_buffers_recheck_aggregate_pixels_before_sdk(
     with pytest.raises(InvalidSource) as captured:
         recognize(
             sources,
-            config=Config(
-                provider="dashscope",
-                dashscope=_settings(),
-                api_key="test-key",
-            ),
+            config=Config(provider=_settings()),
         )
 
     assert captured.value.code == "SOURCE_TOO_LARGE"
@@ -863,11 +823,7 @@ def test_real_openai_mock_transport_enforces_raw_response_boundary(
         "create_dashscope_openai_client",
         create_real_client,
     )
-    config = Config(
-        provider="dashscope",
-        dashscope=_settings(),
-        api_key="test-only",
-    )
+    config = Config(provider=_settings(api_key="test-only"))
 
     if partial:
         with pytest.raises(ProviderError) as captured:

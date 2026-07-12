@@ -6,6 +6,7 @@ import importlib
 
 from ..config import Config
 from ..errors import ConfigError
+from .dashscope.provider_settings import DashScopeSettings
 from .dashscope.resolve_dashscope_model import resolve_dashscope_model
 from .resolved_vision_provider import ResolvedVisionProvider
 
@@ -19,17 +20,7 @@ def resolve_vision_provider(config: Config) -> ResolvedVisionProvider:
             code="CONFIG_MISSING",
         ) from None
 
-    if type(provider) is str:
-        if provider != "dashscope":
-            raise ConfigError(
-                "Config.provider names an unsupported built-in provider.",
-                code="CONFIG_INVALID",
-            ) from None
-        if config.dashscope is None:
-            raise ConfigError(
-                "The built-in DashScope provider requires Config.dashscope settings.",
-                code="CONFIG_MISSING",
-            ) from None
+    if type(provider) is DashScopeSettings:
         provider_module = importlib.import_module(
             ".dashscope.recognize_images",
             package=__package__,
@@ -37,18 +28,13 @@ def resolve_vision_provider(config: Config) -> ResolvedVisionProvider:
         return ResolvedVisionProvider(
             value=provider_module,
             name="dashscope",
-            model=resolve_dashscope_model(config.model),
+            model=resolve_dashscope_model(config.vision_model.name),
             built_in=True,
         )
 
-    if isinstance(provider, str):
-        raise ConfigError(
-            "Config.provider string subclasses are not valid provider names.",
-            code="CONFIG_INVALID",
-        ) from None
     return ResolvedVisionProvider(
         value=provider,
         name=None,
-        model=config.model,
+        model=config.vision_model.name,
         built_in=False,
     )

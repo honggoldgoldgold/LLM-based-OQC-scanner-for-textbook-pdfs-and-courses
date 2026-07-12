@@ -9,6 +9,7 @@ from ...config import Config
 from ...errors import ConfigError, OCRLLMError, ProviderError
 from ...raise_if_cancelled import raise_if_cancelled
 from ...snapshot_config import snapshot_config
+from .provider_settings import DashScopeSettings
 from .build_dashscope_image_request import build_dashscope_image_request
 from .create_dashscope_openai_client import create_dashscope_openai_client
 from .load_openai import load_openai
@@ -31,15 +32,15 @@ def recognize_images(
     starts, direct-Python cancellation cannot interrupt it.
     """
     config = snapshot_config(config)
-    settings = config.dashscope
-    if settings is None:
+    settings = config.provider
+    if type(settings) is not DashScopeSettings:
         raise ConfigError(
-            "The built-in DashScope provider requires Config.dashscope settings.",
-            code="CONFIG_MISSING",
+            "The built-in DashScope provider requires exact DashScopeSettings.",
+            code="CONFIG_INVALID",
         ) from None
 
-    model = resolve_dashscope_model(config.model)
-    api_key = resolve_dashscope_credential(config)
+    model = resolve_dashscope_model(config.vision_model.name)
+    api_key = resolve_dashscope_credential(settings)
     request = build_dashscope_image_request(
         image_paths,
         prompt=prompt,

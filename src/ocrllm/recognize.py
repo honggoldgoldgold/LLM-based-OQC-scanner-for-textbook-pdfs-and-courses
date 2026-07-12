@@ -54,7 +54,7 @@ def _recognize(
     cfg = validate_config(config)
     profile = resolve_image_profile(cfg.profile)
     source_paths = coerce_source_paths(source)
-    validate_execution_image_count(source_paths, execution=cfg.execution)
+    validate_execution_image_count(source_paths, config=cfg)
     media_type = validate_same_type_group(source_paths)
 
     with reuse_or_create_provider_request_start_gate(

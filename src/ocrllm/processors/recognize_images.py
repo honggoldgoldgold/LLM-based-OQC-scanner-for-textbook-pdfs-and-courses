@@ -22,8 +22,10 @@ from ..providers.call_vision_provider import call_vision_provider
 from ..providers.dashscope.resolve_sign_scout_enable_thinking import (
     resolve_sign_scout_enable_thinking,
 )
+from ..providers.dashscope.provider_settings import DashScopeSettings
 from ..providers.resolve_vision_provider import resolve_vision_provider
 from ..snapshot_config import snapshot_config
+from ..vision_model_settings import VisionModelSettings
 from .restore_quorum_standalone_signs import restore_quorum_standalone_signs
 
 
@@ -34,13 +36,16 @@ def recognize_images(
     config: Config,
 ) -> ProcessorOutput:
     """Call one injected vision provider and reject false-success output."""
-    if type(config.provider) is str:
+    if type(config.provider) is DashScopeSettings:
         config = snapshot_config(config)
     resolved_provider = resolve_vision_provider(config)
     base_prompt = build_board_prompt(config.input_languages, config.output_language)
+    dashscope_settings = (
+        config.provider if type(config.provider) is DashScopeSettings else None
+    )
     scout_model = (
-        config.dashscope.standalone_sign_scout_model
-        if config.dashscope is not None
+        dashscope_settings.standalone_sign_scout_model
+        if dashscope_settings is not None
         else None
     )
     primary_prompt = (
@@ -98,13 +103,13 @@ def recognize_images(
     abstained_scout_count = 0
     scout_prompt: str | None = None
     if scout_model is not None:
-        assert config.dashscope is not None
+        assert dashscope_settings is not None
         scout_enable_thinking = resolve_sign_scout_enable_thinking(scout_model)
         scout_config = replace(
             config,
-            model=scout_model,
-            dashscope=replace(
-                config.dashscope,
+            vision_model=VisionModelSettings(name=scout_model),
+            provider=replace(
+                dashscope_settings,
                 enable_thinking=scout_enable_thinking,
                 standalone_sign_scout_model=None,
             ),
@@ -179,13 +184,13 @@ def recognize_images(
             len(scout_prompt.encode("utf-8")) if scout_prompt is not None else None
         ),
     }
-    if resolved_provider.name == "dashscope" and config.dashscope is not None:
+    if resolved_provider.name == "dashscope" and dashscope_settings is not None:
         metadata.update(
             {
-                "provider_region": config.dashscope.region,
-                "enable_thinking": config.dashscope.enable_thinking,
+                "provider_region": dashscope_settings.region,
+                "enable_thinking": dashscope_settings.enable_thinking,
                 "vl_high_resolution_images": (
-                    config.dashscope.vl_high_resolution_images
+                    dashscope_settings.vl_high_resolution_images
                 ),
                 "standalone_sign_scout_enable_thinking": (
                     scout_enable_thinking if scout_model is not None else None

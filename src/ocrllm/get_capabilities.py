@@ -5,6 +5,7 @@ from __future__ import annotations
 from .capability_report import CapabilityReport
 from .config import Config
 from .providers.dashscope.resolve_dashscope_model import DEFAULT_DASHSCOPE_MODEL
+from .providers.dashscope.provider_settings import DashScopeSettings
 from .snapshot_config import snapshot_config
 
 
@@ -140,20 +141,19 @@ def _configured_image_status(
     if config.provider is None:
         reason = "The explicit configuration has no vision provider."
         return "unavailable", reason, "unavailable", reason
-    if type(config.provider) is not str:
+    if type(config.provider) is not DashScopeSettings:
         return (
             "experimental",
             "An injected provider satisfies the offline protocol only; no stable live identity is proven.",
             "unavailable",
             "The explicit configuration does not select the built-in DashScope provider.",
         )
-    if config.provider != "dashscope" or config.dashscope is None:
-        reason = "The explicit configuration does not select a usable DashScope vision workflow."
-        return "unavailable", reason, "unavailable", reason
-
-    settings = config.dashscope
+    settings = config.provider
     is_exact_v17 = (
-        (config.model is None or config.model == DEFAULT_DASHSCOPE_MODEL)
+        (
+            config.vision_model.name is None
+            or config.vision_model.name == DEFAULT_DASHSCOPE_MODEL
+        )
         and settings.region == "cn-beijing"
         and settings.base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
         and settings.enable_thinking is True

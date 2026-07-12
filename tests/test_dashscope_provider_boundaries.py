@@ -9,8 +9,8 @@ import pytest
 
 from ocrllm import (
     Cancelled,
-    Config,
     ConfigError,
+    DashScopeSettings,
     DependencyMissing,
     InvalidSource,
     ProviderError,
@@ -84,16 +84,15 @@ OPENAI_SHAPE = SimpleNamespace(
 
 def test_explicit_dashscope_key_precedes_environment(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", "environment-key")
-    config = Config(provider=InjectedProvider(), api_key="explicit-key")
 
-    assert resolve_dashscope_credential(config) == "explicit-key"
+    assert resolve_dashscope_credential(_settings(api_key="explicit-key")) == "explicit-key"
 
 
 def test_dashscope_key_falls_back_to_environment(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", "environment-key")
 
     assert (
-        resolve_dashscope_credential(Config(provider=InjectedProvider()))
+        resolve_dashscope_credential(_settings())
         == "environment-key"
     )
 
@@ -105,7 +104,7 @@ def test_missing_or_malformed_dashscope_key_is_typed(monkeypatch, value):
         monkeypatch.setenv("DASHSCOPE_API_KEY", value)
 
     with pytest.raises(ConfigError) as captured:
-        resolve_dashscope_credential(Config(provider=InjectedProvider()))
+        resolve_dashscope_credential(_settings())
 
     assert captured.value.code == "CONFIG_MISSING"
 
@@ -115,11 +114,19 @@ def test_coding_plan_key_is_rejected_without_echo(monkeypatch):
     monkeypatch.setenv("DASHSCOPE_API_KEY", sentinel)
 
     with pytest.raises(ConfigError) as captured:
-        resolve_dashscope_credential(Config(provider=InjectedProvider()))
+        resolve_dashscope_credential(_settings())
 
     assert captured.value.code == "CONFIG_INVALID"
     assert sentinel not in str(captured.value)
     assert sentinel not in repr(captured.value.details)
+
+
+def _settings(*, api_key: str | None = None) -> DashScopeSettings:
+    return DashScopeSettings(
+        region="cn-beijing",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+        api_key=api_key,
+    )
 
 
 def test_missing_openai_extra_is_a_typed_dependency_failure(monkeypatch):

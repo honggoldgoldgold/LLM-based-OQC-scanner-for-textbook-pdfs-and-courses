@@ -21,6 +21,7 @@ from ocrllm import (
     OCRLLMError,
     RecognitionResult,
     RecognitionPreferences,
+    VisionModelSettings,
     __version__ as OCRLLM_VERSION,
     recognize,
 )
@@ -794,19 +795,23 @@ def _build_config(
     input_languages: tuple[str, ...],
 ) -> Config:
     contract = manifest.evidence_contract
+    if contract.provider != "dashscope":
+        raise Phase1QualityRunnerError(
+            "The frozen Phase 1 contract requires the DashScope adapter."
+        )
     return Config(
-        provider=contract.provider,
-        model=contract.model,
-        preferences=RecognitionPreferences(
-            draft_candidates=contract.draft_candidates,
-            review_passes=contract.review_passes,
-        ),
-        dashscope=DashScopeSettings(
+        provider=DashScopeSettings(
             region=settings.region,
             base_url=settings.base_url,
+            api_key=settings.api_key,
             enable_thinking=contract.enable_thinking,
             vl_high_resolution_images=contract.vl_high_resolution_images,
             standalone_sign_scout_model=contract.standalone_sign_scout_model,
+        ),
+        vision_model=VisionModelSettings(name=contract.model),
+        preferences=RecognitionPreferences(
+            draft_candidates=contract.draft_candidates,
+            review_passes=contract.review_passes,
         ),
         profile=contract.profile,
         input_languages=input_languages,

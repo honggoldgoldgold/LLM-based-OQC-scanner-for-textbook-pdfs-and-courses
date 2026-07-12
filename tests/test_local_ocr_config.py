@@ -4,7 +4,13 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from ocrllm import Config, DashScopeSettings, LocalOCRSettings, RecognitionPreferences
+from ocrllm import (
+    Config,
+    DashScopeSettings,
+    LocalOCRSettings,
+    RecognitionPreferences,
+    VisionModelSettings,
+)
 from ocrllm.errors import ConfigError
 
 
@@ -32,9 +38,7 @@ def test_ocr_mode_constructs_default_settings_without_provider_fields() -> None:
     assert config.image_mode == "ocr"
     assert config.local_ocr == LocalOCRSettings()
     assert config.provider is None
-    assert config.api_key is None
-    assert config.model is None
-    assert config.dashscope is None
+    assert config.vision_model == VisionModelSettings()
 
 
 def test_ocr_mode_revalidates_and_copies_exact_settings() -> None:
@@ -62,14 +66,12 @@ def test_config_rejects_unknown_or_nontext_image_mode(value) -> None:
     [
         {"provider": object()},
         {
-            "provider": "dashscope",
-            "dashscope": DashScopeSettings(
+            "provider": DashScopeSettings(
                 region="cn-beijing",
                 base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
             ),
         },
-        {"api_key": "secret-sentinel"},
-        {"model": "model-sentinel"},
+        {"vision_model": VisionModelSettings(name="model-sentinel")},
         {"preferences": RecognitionPreferences(review_passes=1)},
         {"input_languages": ("zh-Hans",)},
         {"output_language": "en"},

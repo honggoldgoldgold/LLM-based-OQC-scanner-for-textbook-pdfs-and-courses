@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from urllib.parse import urlsplit
 
 from ...errors import ConfigError
@@ -38,6 +38,7 @@ class DashScopeSettings:
 
     region: str
     base_url: str
+    api_key: str | None = field(default=None, repr=False)
     enable_thinking: bool = False
     vl_high_resolution_images: bool = True
     standalone_sign_scout_model: str | None = None
@@ -45,16 +46,17 @@ class DashScopeSettings:
     def __post_init__(self) -> None:
         _validate_region(self.region)
         _validate_base_url(self.base_url, region=self.region)
+        _validate_api_key(self.api_key)
         _require_exact_boolean(self.enable_thinking, field_name="enable_thinking")
         _require_exact_boolean(
             self.vl_high_resolution_images,
             field_name="vl_high_resolution_images",
         )
-        if self.standalone_sign_scout_model not in {
-            None,
-            "qwen-vl-max",
-            DEFAULT_DASHSCOPE_MODEL,
-        }:
+        scout_model = self.standalone_sign_scout_model
+        if scout_model is not None and (
+            type(scout_model) is not str
+            or scout_model not in {"qwen-vl-max", DEFAULT_DASHSCOPE_MODEL}
+        ):
             raise ConfigError(
                 "DashScopeSettings.standalone_sign_scout_model must be None or "
                 "one fixed supported scout model."
@@ -65,6 +67,25 @@ def _validate_region(region: object) -> None:
     if type(region) is not str or region not in _SUPPORTED_REGIONS:
         raise ConfigError(
             "DashScopeSettings.region must be a supported canonical region ID."
+        ) from None
+
+
+def _validate_api_key(api_key: object | None) -> None:
+    if api_key is None:
+        return
+    if (
+        type(api_key) is not str
+        or not api_key
+        or api_key != api_key.strip()
+        or any(ord(character) < 32 or ord(character) == 127 for character in api_key)
+    ):
+        raise ConfigError(
+            "DashScopeSettings.api_key must be nonempty exact text when set."
+        ) from None
+    if api_key.startswith("sk-sp-"):
+        raise ConfigError(
+            "DashScope Coding Plan credentials cannot authorize this library adapter.",
+            code="CONFIG_INVALID",
         ) from None
 
 

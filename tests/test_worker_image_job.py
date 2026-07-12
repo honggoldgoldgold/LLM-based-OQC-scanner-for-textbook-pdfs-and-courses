@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from ocrllm import Config, RecognitionResult
+from ocrllm import Config, DashScopeSettings, RecognitionResult
 from ocrllm.contracts import (
     ImageRecognitionRequest,
     ProgressEvent,
@@ -105,23 +105,22 @@ def test_worker_config_is_exact_beijing_v17_and_credential_free(
     config = build_worker_image_config(command)
 
     assert type(config) is Config
-    assert config.provider == "dashscope"
-    assert config.api_key is None
-    assert config.model == DEFAULT_DASHSCOPE_MODEL
+    assert type(config.provider) is DashScopeSettings
+    assert config.provider.api_key is None
+    assert config.vision_model.name == DEFAULT_DASHSCOPE_MODEL
     assert config.profile == "board"
     assert config.input_languages == ("zh-Hans", "en")
     assert config.output_language == "zh-Hans"
     assert config.output_dir == output_dir.resolve()
     assert config.overwrite is True
     assert config.timeout_seconds == 33.5
-    assert config.dashscope is not None
-    assert config.dashscope.region == "cn-beijing"
+    assert config.provider.region == "cn-beijing"
     assert (
-        config.dashscope.base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
+        config.provider.base_url == "https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
-    assert config.dashscope.enable_thinking is True
-    assert config.dashscope.vl_high_resolution_images is True
-    assert config.dashscope.standalone_sign_scout_model == DEFAULT_DASHSCOPE_MODEL
+    assert config.provider.enable_thinking is True
+    assert config.provider.vl_high_resolution_images is True
+    assert config.provider.standalone_sign_scout_model == DEFAULT_DASHSCOPE_MODEL
     assert "secret-sentinel" not in repr(config)
 
 
@@ -155,7 +154,8 @@ def test_image_job_reuses_public_facade_preserves_order_and_emits_result(
     assert captured["source"] == (first.resolve(), second.resolve())
     config = captured["config"]
     assert isinstance(config, Config)
-    assert config.api_key is None
+    assert type(config.provider) is DashScopeSettings
+    assert config.provider.api_key is None
     assert [event.event for event in events] == ["progress", "progress", "result"]
     assert isinstance(events[0], ProgressEvent)
     assert (events[0].completed, events[0].total) == (0, 2)
@@ -232,5 +232,6 @@ def test_worker_image_module_does_not_read_credential_during_config_build(
 
     config = build_worker_image_config(command)
 
-    assert config.api_key is None
+    assert type(config.provider) is DashScopeSettings
+    assert config.provider.api_key is None
     assert "DASHSCOPE_API_KEY" not in os.environ

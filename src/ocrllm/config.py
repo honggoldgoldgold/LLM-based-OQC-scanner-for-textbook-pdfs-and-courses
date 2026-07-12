@@ -7,7 +7,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal, cast
+from typing import TYPE_CHECKING, Literal, cast
 
 from .errors import ConfigError
 from .freeze_json_value import FrozenJSONValue, JSONValue, freeze_json_value
@@ -15,6 +15,10 @@ from .local_ocr_settings import LocalOCRSettings
 from .providers.dashscope.provider_settings import DashScopeSettings
 from .recognition_execution_policy import RecognitionExecutionPolicy
 from .recognition_preferences import RecognitionPreferences
+from .vision_model_settings import VisionModelSettings
+
+if TYPE_CHECKING:
+    from .providers.vision_provider import VisionProvider
 
 
 _LANGUAGE_SUBTAG = re.compile(r"^[A-Za-z0-9]{1,8}$")
@@ -25,10 +29,11 @@ _PDF_MODES = frozenset({"text", "vision"})
 class Config:
     """Runtime options for OCRLLM library calls."""
 
-    provider: str | object | None = field(default=None, repr=False)
-    api_key: str | None = field(default=None, repr=False)
-    model: str | None = None
-    dashscope: DashScopeSettings | None = field(default=None, repr=False)
+    provider: DashScopeSettings | VisionProvider | None = field(
+        default=None,
+        repr=False,
+    )
+    vision_model: VisionModelSettings = field(default_factory=VisionModelSettings)
     image_mode: Literal["vision", "ocr"] = "vision"
     local_ocr: LocalOCRSettings | None = field(default=None, repr=False)
     execution: RecognitionExecutionPolicy = field(
@@ -53,18 +58,16 @@ class Config:
     extra: Mapping[str, JSONValue] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
-        _validate_optional_nonempty_text(self.provider, field_name="provider", allow_object=True)
-        _validate_optional_nonempty_text(self.api_key, field_name="api_key")
-        _validate_optional_nonempty_text(self.model, field_name="model")
+        provider = _normalize_provider(self.provider)
+        vision_model = _normalize_vision_model(self.vision_model)
         _validate_optional_nonempty_text(self.profile, field_name="profile")
         _validate_optional_text(self.pdf_password, field_name="pdf_password")
         image_mode = _normalize_image_mode(self.image_mode)
-        dashscope = _normalize_dashscope_pair(self.provider, self.dashscope)
         local_ocr = _normalize_local_ocr_pair(image_mode, self.local_ocr)
         execution = _normalize_execution_policy(self.execution)
         preferences = _normalize_preferences(self.preferences)
         _validate_dashscope_scout_workflow(
-            dashscope=dashscope,
+            provider=provider,
             preferences=preferences,
         )
 
@@ -90,10 +93,8 @@ class Config:
 
         _validate_image_mode_fields(
             image_mode=image_mode,
-            provider=self.provider,
-            api_key=self.api_key,
-            model=self.model,
-            dashscope=dashscope,
+            provider=provider,
+            vision_model=vision_model,
             preferences=preferences,
             input_languages=input_languages,
             output_language=output_language,
@@ -105,7 +106,8 @@ class Config:
         object.__setattr__(self, "output_language", output_language)
         object.__setattr__(self, "pdf_pages", pdf_pages)
         object.__setattr__(self, "timeout_seconds", timeout_seconds)
-        object.__setattr__(self, "dashscope", dashscope)
+        object.__setattr__(self, "provider", provider)
+        object.__setattr__(self, "vision_model", vision_model)
         object.__setattr__(self, "image_mode", image_mode)
         object.__setattr__(self, "local_ocr", local_ocr)
         object.__setattr__(self, "execution", execution)
@@ -146,6 +148,44 @@ def _normalize_execution_policy(value: object) -> RecognitionExecutionPolicy:
     )
 
 
+def _normalize_vision_model(value: object) -> VisionModelSettings:
+    if type(value) is not VisionModelSettings:
+        raise ConfigError(
+            "Config.vision_model must be an exact VisionModelSettings instance",
+            code="CONFIG_INVALID",
+        ) from None
+    return VisionModelSettings(
+        name=value.name,
+        maximum_images_per_request=value.maximum_images_per_request,
+    )
+
+
+def _normalize_provider(value: object | None) -> object | None:
+    if value is None:
+        return None
+    if type(value) is DashScopeSettings:
+        return DashScopeSettings(
+            region=value.region,
+            base_url=value.base_url,
+            api_key=value.api_key,
+            enable_thinking=value.enable_thinking,
+            vl_high_resolution_images=value.vl_high_resolution_images,
+            standalone_sign_scout_model=value.standalone_sign_scout_model,
+        )
+    if isinstance(value, DashScopeSettings):
+        raise ConfigError(
+            "Config.provider must use an exact DashScopeSettings instance.",
+            code="CONFIG_INVALID",
+        ) from None
+    if isinstance(value, str):
+        raise ConfigError(
+            "Config.provider must be adapter settings or an injected provider object; "
+            "string provider categories are not supported.",
+            code="CONFIG_INVALID",
+        ) from None
+    return value
+
+
 def _normalize_image_mode(value: object) -> Literal["vision", "ocr"]:
     if type(value) is not str or value not in {"vision", "ocr"}:
         raise ConfigError(
@@ -180,9 +220,7 @@ def _validate_image_mode_fields(
     *,
     image_mode: Literal["vision", "ocr"],
     provider: object | None,
-    api_key: str | None,
-    model: str | None,
-    dashscope: DashScopeSettings | None,
+    vision_model: VisionModelSettings,
     preferences: RecognitionPreferences,
     input_languages: tuple[str, ...],
     output_language: str | None,
@@ -190,9 +228,9 @@ def _validate_image_mode_fields(
 ) -> None:
     if image_mode != "ocr":
         return
-    if provider is not None or api_key is not None or model is not None or dashscope is not None:
+    if provider is not None or vision_model != VisionModelSettings():
         raise ConfigError(
-            "OCR mode cannot use provider, api_key, model, or DashScope settings.",
+            "OCR mode cannot use provider or vision-model settings.",
             code="CONFIG_INVALID",
         ) from None
     if preferences != RecognitionPreferences():
@@ -216,22 +254,8 @@ def _validate_optional_nonempty_text(
     value: object | None,
     *,
     field_name: str,
-    allow_object: bool = False,
 ) -> None:
     if value is None:
-        return
-    if allow_object:
-        if type(value) is str:
-            if not value.strip():
-                raise ConfigError(
-                    f"Config.{field_name} must be nonempty text when set"
-                ) from None
-            return
-        if isinstance(value, str):
-            raise ConfigError(
-                f"Config.{field_name} must name an exact built-in provider "
-                "or be a provider object"
-            ) from None
         return
     if type(value) is not str or not value.strip():
         raise ConfigError(f"Config.{field_name} must be nonempty text when set") from None
@@ -242,46 +266,15 @@ def _validate_optional_text(value: object | None, *, field_name: str) -> None:
         raise ConfigError(f"Config.{field_name} must be text when set") from None
 
 
-def _normalize_dashscope_pair(
-    provider: object | None,
-    dashscope: object | None,
-) -> DashScopeSettings | None:
-    if dashscope is not None and type(dashscope) is not DashScopeSettings:
-        raise ConfigError(
-            "Config.dashscope must be DashScopeSettings when set."
-        ) from None
-
-    uses_builtin_dashscope = type(provider) is str and provider == "dashscope"
-    if uses_builtin_dashscope and dashscope is None:
-        raise ConfigError(
-            "Config.provider='dashscope' requires Config.dashscope settings.",
-            code="CONFIG_MISSING",
-        ) from None
-    if not uses_builtin_dashscope and dashscope is not None:
-        raise ConfigError(
-            "Config.dashscope is valid only with the exact built-in provider 'dashscope'."
-        ) from None
-    if dashscope is None:
-        return None
-
-    # ``frozen=True`` prevents ordinary assignment, but callers can still use
-    # ``object.__setattr__``. Reconstruct the nested value so Config owns a
-    # freshly validated endpoint snapshot rather than trusting prior state.
-    return DashScopeSettings(
-        region=dashscope.region,
-        base_url=dashscope.base_url,
-        enable_thinking=dashscope.enable_thinking,
-        vl_high_resolution_images=dashscope.vl_high_resolution_images,
-        standalone_sign_scout_model=dashscope.standalone_sign_scout_model,
-    )
-
-
 def _validate_dashscope_scout_workflow(
     *,
-    dashscope: DashScopeSettings | None,
+    provider: object | None,
     preferences: RecognitionPreferences,
 ) -> None:
-    if dashscope is None or dashscope.standalone_sign_scout_model is None:
+    if (
+        type(provider) is not DashScopeSettings
+        or provider.standalone_sign_scout_model is None
+    ):
         return
     if preferences != RecognitionPreferences():
         raise ConfigError(

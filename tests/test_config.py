@@ -2,7 +2,7 @@ from dataclasses import FrozenInstanceError
 
 import pytest
 
-from ocrllm import RecognitionPreferences
+from ocrllm import RecognitionPreferences, VisionModelSettings
 from ocrllm.config import Config
 from ocrllm.errors import ConfigError
 
@@ -38,8 +38,7 @@ def test_config_is_frozen_slotted_and_omits_secrets_from_repr(tmp_path):
     extra_secret = "EXTRA-SECRET-c194e"
 
     config = Config(
-        provider=SecretProvider(provider_secret),
-        api_key=api_secret,
+        provider=SecretProvider(provider_secret + api_secret),
         pdf_password=password_secret,
         output_dir=tmp_path,
         extra={"provider_token": extra_secret},
@@ -50,7 +49,9 @@ def test_config_is_frozen_slotted_and_omits_secrets_from_repr(tmp_path):
         assert sentinel not in rendered
     assert not hasattr(config, "__dict__")
     with pytest.raises(FrozenInstanceError):
-        config.model = "another-model"  # type: ignore[misc]
+        config.vision_model = VisionModelSettings(  # type: ignore[misc]
+            name="another-model"
+        )
 
 
 def test_config_omits_progress_and_cancellation_objects_from_repr():
@@ -73,8 +74,7 @@ def test_config_omits_progress_and_cancellation_objects_from_repr():
     "kwargs",
     [
         {"provider": HostileText("dashscope")},
-        {"api_key": HostileText("key")},
-        {"model": HostileText("qwen3.7-plus")},
+        {"vision_model": object()},
         {"profile": HostileText("board")},
         {"pdf_password": HostileText("password")},
         {"input_languages": (HostileText("en"),)},
@@ -120,7 +120,6 @@ def test_config_rejects_non_json_or_nonfinite_extra_without_echoing_values(bad_v
 def test_config_validation_error_does_not_render_other_secret_fields():
     secrets = (
         "PROVIDER-ERROR-SECRET-11",
-        "API-ERROR-SECRET-22",
         "PASSWORD-ERROR-SECRET-33",
         "EXTRA-ERROR-SECRET-44",
     )
@@ -128,9 +127,8 @@ def test_config_validation_error_does_not_render_other_secret_fields():
     with pytest.raises(ConfigError) as caught:
         Config(
             provider=SecretProvider(secrets[0]),
-            api_key=secrets[1],
-            pdf_password=secrets[2],
-            extra={"provider_token": secrets[3]},
+            pdf_password=secrets[1],
+            extra={"provider_token": secrets[2]},
             timeout_seconds=0,
         )
 
