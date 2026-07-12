@@ -17,10 +17,10 @@ dependency surface for new projects.
 The active package is `src/ocrllm`.
 
 Phase 0 contract honesty, Phase 1 real board/image, and Phase 2 versioned JSONL
-worker are GO. Phase 2A image-library completion is active. Local OCR, shared
+worker and Phase 2A image-library completion are GO. Local OCR, shared
 recognition execution policy, adapter-owned DashScope/model configuration,
-provider error disposition, and credential scheduling are GO; image resume is
-current. Phase 3 PDFium work has not started.
+provider error disposition, credential scheduling, and image resume are GO.
+No later phase is active; Phase 3 PDFium work has not started.
 
 The current verified contract:
 
@@ -358,7 +358,11 @@ print(result.profile)      # board
 ```
 
 Set `output_dir` to request a Markdown file. Without it, recognition stays
-in-memory. Image resume is not implemented.
+in-memory. Add `resume=True` to preserve a completed built-in DashScope or local
+OCR result across an interrupted final publication. Resume state is a sibling
+`.ocrllm-state.json` file and is removed after the Markdown is durable. Resume
+does not support identity-less injected providers and never retries half of a
+provider call.
 
 ## Repository Map
 
@@ -381,6 +385,8 @@ docs/provider_error_disposition_checkpoint_2026-07-12.md
                                       Provider error policy checkpoint.
 docs/dashscope_credential_pool_checkpoint_2026-07-12.md
                                       Credential scheduler checkpoint.
+docs/image_resume_checkpoint_2026-07-12.md
+                                      Image resume and Phase 2A GO checkpoint.
 docs/phase1_live_quality_result_2026-07-11.md
                                       First Beijing live-gate result.
 Architecture.md                       Suspended future architecture reference.

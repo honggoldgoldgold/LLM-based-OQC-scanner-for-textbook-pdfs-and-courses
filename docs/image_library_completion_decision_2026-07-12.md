@@ -2,9 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: active. Local OCR, shared execution policy, adapter-owned
-DashScope/model configuration, provider error disposition, and credential
-scheduling are GO; image resume is current.
+Status: GO. Local OCR, shared execution policy, adapter-owned DashScope/model
+configuration, provider error disposition, credential scheduling, and image
+resume all passed their independent gates.
 
 ## Why The Roadmap Changes
 
@@ -40,7 +40,7 @@ Phase 2A is implemented as independent vertical slices:
    concurrency, invalid request, timeout, network, suspension, and malformed
    response failures into stable policy decisions. Do not broaden one immutable
    `api_key` field to an ambiguous scalar-or-tuple union.
-4. **Image resume.** Define versioned source/config/result identity and atomic
+4. **Image resume -- GO.** Define versioned source/config/result identity and atomic
    state before reusing any completed work. Resume must prove it avoids repeated
    provider/OCR work and rejects stale or corrupt state.
 

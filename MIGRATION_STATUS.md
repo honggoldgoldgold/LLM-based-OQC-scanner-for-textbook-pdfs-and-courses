@@ -6,10 +6,10 @@ This file is the project memory aid. Read it before changing the repo.
 
 The old OCRLLM app has been moved to `legacy_app/`; the active project is an
 importable Python library in `src/ocrllm`, with Phase 0, Phase 1, and Phase 2
-versioned JSON/JSONL worker GO. Phase 2A image-library completion is active;
+versioned JSON/JSONL worker GO. Phase 2A image-library completion is also GO;
 local OCR, shared execution policy, adapter-owned provider/model configuration,
-provider error disposition, and credential scheduling are GO; image resume is
-current, and Phase 3 PDFium has not started.
+provider error disposition, credential scheduling, and image resume are GO. No
+later phase is active, and Phase 3 PDFium has not started.
 
 ## First Files To Read
 
@@ -33,6 +33,10 @@ docs/provider_workflow_configuration_checkpoint_2026-07-12.md
                                       Current provider/model API and proof.
 docs/provider_error_disposition_checkpoint_2026-07-12.md
                                       Current provider error policy and proof.
+docs/dashscope_credential_pool_checkpoint_2026-07-12.md
+                                      Credential scheduler API and proof.
+docs/image_resume_checkpoint_2026-07-12.md
+                                      Image resume and Phase 2A GO proof.
 docs/phase1_implementation_record.md  Phase 1 commits, agent work, atomic writer,
                                       verification, and resume point.
 docs/legacy_bilibili_social_long_debug_record.md
@@ -748,11 +752,11 @@ legacy_app/environment.yml
 
 ## What To Do Next
 
-Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
+Completed phase: **Phase 2A -- image library completion**. Phase 2 is GO at
 `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
 passes. Local OCR, shared execution policy, adapter-owned DashScope/model
-configuration, provider error disposition, and credential scheduling are GO;
-image resume is the current slice. Phase 3 has not started.
+configuration, provider error disposition, credential scheduling, and image
+resume are GO. No later phase is active; Phase 3 has not started.
 
 Phase 2A recovery rules:
 
@@ -821,6 +825,16 @@ fixture identity, static/lazy checks, and a clean 130,497-byte installed-wheel
 pool probe. The first archive build exposed and preserved the ignored-source
 defect before the repair. See
 `docs/dashscope_credential_pool_checkpoint_2026-07-12.md`.
+
+Phase 2A checkpoint 6 implements strict versioned image resume for exact
+built-in DashScope and local OCR without retrying partial calls. Ordered source
+bytes and output-affecting settings bind one completed processor output; keys,
+pool state, and runtime objects are excluded. State-only and matching
+state-plus-output crash windows reuse with zero recognition calls, while
+corrupt/stale/edited work fails closed. Decision `bb75039` and implementation
+`f7465db` pass 987 tests plus one optional skip, fixture/static/lazy gates, and
+a clean 143,072-byte installed-wheel interruption/resume probe. See
+`docs/image_resume_checkpoint_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a
 second recognition workflow. Absolute file URIs become platform paths, the

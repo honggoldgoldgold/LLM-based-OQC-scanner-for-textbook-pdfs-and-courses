@@ -94,7 +94,8 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
 - Phase 0 is GO at commit `5018ad0`. Phase 1 is GO after the passing v17 live
   gate and the clean committed-wheel proof at `0278b66`. Phase 2 is GO after
   the production live worker gate and clean proof at `60ce473` plus the formal
-  decision. Phase 2A image-library completion is active; Phase 3 is not.
+  decision. Phase 2A image-library completion is GO; no later phase is active
+  and Phase 3 has not started.
 - The active package validates and decodes PNG/JPEG sources before invoking an
   injected provider, rejects empty provider output, returns canonical
   `source_type="image"`, and represents board recognition as `profile="board"`.
@@ -112,10 +113,9 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
 - `worker.jsonl.v1alpha1` is `available` as a development worker with an
   explicitly configured Python executable. Packaged Electron compatibility
   remains a Phase 6 gate.
-- Phase 2A image-library completion is active before PDF. Its current and only
-  slice is credential scheduling; local OCR, shared execution policy,
-  adapter-owned DashScope/model configuration, and provider error disposition
-  are GO. See
+- Phase 2A image-library completion is GO. Local OCR, shared execution policy,
+  adapter-owned DashScope/model configuration, provider error disposition,
+  credential scheduling, and image resume passed their independent gates. See
   `image_library_completion_decision_2026-07-12.md`.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
@@ -1875,6 +1875,15 @@ attempt exposed an ignored validator source and commit `a84bfb2` repairs it with
 a narrow source exception while preserving the general secret rule. Image
 resume follows; no retry runtime is authorized. See
 `dashscope_credential_pool_checkpoint_2026-07-12.md`.
+
+Phase 2A checkpoint 6 implements versioned sibling state for one completed
+image group. Exact built-in DashScope and local OCR interruption/resume paths
+reuse with zero repeated calls; source/order/request/processor and final output
+identity fail closed, while credentials and pool state are excluded. The
+987-test pinned suite, fixture/static/lazy checks, and exact pushed clean-wheel
+installed resume probe pass. Phase 2A is **GO**. The user's bounded current
+scope excludes PDF/audio/video/UI, so no later phase is activated. See
+`image_resume_checkpoint_2026-07-12.md`.
 
 ### Phase 3: PDFium PDF
 

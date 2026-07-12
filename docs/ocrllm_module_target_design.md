@@ -16,8 +16,8 @@ The active implementation remains the Python-first package in `src/ocrllm`.
 The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
 Phase 0 contract honesty is GO at commit `5018ad0` on the exact clean evidence
 recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is GO,
-and Phase 2 JSON/JSONL worker is GO. Phase 2A image-library completion is active
-before Phase 3; local OCR is GO and provider workflow configuration is current.
+and Phase 2 JSON/JSONL worker is GO. Phase 2A image-library completion is also
+GO; no later phase is active and Phase 3 has not started.
 
 ## One-Sentence Goal
 
@@ -1249,7 +1249,7 @@ mandatory:
 Phase 0  Contract honesty                         GO at 5018ad0
 Phase 1  Real board/image and one provider        GO at 0278b66 plus decision
 Phase 2  Versioned JSON contract and Electron JSONL worker  GO
-Phase 2A Image library completion                            CURRENT
+Phase 2A Image library completion                                GO
 Phase 3  PDFium text/vision PDF slice                    NOT STARTED
 Phase 4  Short ASR and resumable FileTrans audio
 Phase 5  Video composed from image and audio

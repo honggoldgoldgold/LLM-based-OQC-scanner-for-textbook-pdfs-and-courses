@@ -2,8 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: active implementation decision. This completes Phase 2A; it does not
-start PDF, audio, video, or a second handwriting workflow.
+Status: implemented and verified by `image_resume_checkpoint_2026-07-12.md`.
+This completes Phase 2A; it does not start PDF, audio, video, or a second
+handwriting workflow.
 
 ## Goal And Assumptions
 
@@ -107,4 +108,3 @@ No partial provider-pass checkpoint, automatic retry, model/key/provider
 switching, persistent credential pool, cross-process lock, PDF/audio/video
 state, worker wire change, legacy edit, or handwriting-specific state enters
 this checkpoint.
-

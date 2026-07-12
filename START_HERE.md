@@ -42,6 +42,8 @@ Read next:
 - `docs/provider_error_disposition_checkpoint_2026-07-12.md`
 - `docs/dashscope_credential_pool_decision_2026-07-12.md`
 - `docs/dashscope_credential_pool_checkpoint_2026-07-12.md`
+- `docs/image_resume_decision_2026-07-12.md`
+- `docs/image_resume_checkpoint_2026-07-12.md`
 
 Public import shape:
 
@@ -49,12 +51,12 @@ Public import shape:
 from ocrllm import Config, DashScopeSettings, VisionModelSettings, recognize
 ```
 
-Current phase: **Phase 2A -- image library completion**. Phase 0 contract
-honesty, Phase 1 real board/image, and Phase 2 JSONL worker are GO. The current
-slice is image resume; local OCR, shared execution policy, adapter-owned
-DashScope/model configuration, provider error disposition, and region-bound
-credential scheduling are GO. Phase 3
-PDFium remains not started. The Phase 2
+Completed phase: **Phase 2A -- image library completion**. Phase 0 contract
+honesty, Phase 1 real board/image, Phase 2 JSONL worker, and Phase 2A are GO.
+Local OCR, shared execution policy, adapter-owned DashScope/model configuration,
+provider error disposition, region-bound credential scheduling, and image
+resume are verified. No later phase is active; Phase 3 PDFium remains not
+started. The Phase 2
 formal GO commit is `2db456a` and its clean Git-archive proof passes.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
 passes request-scoped validated snapshots isolated from later caller-path
@@ -83,8 +85,8 @@ The image/provider and v1alpha1 worker capabilities are available. The active
 post-Phase-2 decision now authorizes only the Phase 2A provider-workflow slice.
 
 The active library has a DashScope in-memory credential scheduler, but still
-has no automatic retry/model fallback, persistent or cross-process pool state,
-resume support, PDF, audio, or video support. Local
+has no automatic retry/model fallback or persistent/cross-process pool state.
+Image resume is available; PDF, audio, and video support remain absent. Local
 user PDFs/screenshots under `docs/` remain untracked supplemental test material,
 not redistributable gate evidence. Read
 `MIGRATION_STATUS.md` for current evidence and next steps, and
