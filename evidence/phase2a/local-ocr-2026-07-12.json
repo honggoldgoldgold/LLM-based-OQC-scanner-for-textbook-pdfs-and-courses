@@ -1,0 +1,75 @@
+{
+  "schema_version": "ocrllm.phase2a.local-ocr.v1",
+  "date": "2026-07-12",
+  "implementation_commit": "bc0c15cf8be6badd213ebeeec0184e4c368c4a34",
+  "strategy": "ocr",
+  "engine": "rapidocr",
+  "engine_version": "3.9.1",
+  "runtime": "onnxruntime",
+  "runtime_version": "1.23.2",
+  "network_allowed": false,
+  "provider_calls": 0,
+  "automatic_retries": 0,
+  "private_input_policy": {
+    "tracked": false,
+    "redistributed": false,
+    "recognized_markdown_stored": false
+  },
+  "generated_image_gate": {
+    "formats": ["png", "jpeg"],
+    "ordered_images": 2,
+    "expected_tokens": ["OCRLLM", "2026", "BOARD", "31415"],
+    "expected_tokens_matched": 4,
+    "stdout_bytes": 0,
+    "stderr_bytes": 0,
+    "result": "pass"
+  },
+  "private_screenshot_gate": {
+    "ordered_images": 2,
+    "input_bytes": [208014, 168837],
+    "input_dimensions": [[879, 1114], [922, 1197]],
+    "installed_wheel_elapsed_seconds": 35.72359389998019,
+    "detected_line_count": 191,
+    "retained_line_count": 191,
+    "empty_image_count": 0,
+    "minimum_confidence": 0.5,
+    "mean_confidence": 0.9553138743455502,
+    "selected_token_count": 8,
+    "selected_tokens_matched": 8,
+    "markdown_utf8_bytes": 3307,
+    "markdown_sha256": "a9ebeae0c0e0e87a172d3bb5219ed5865d344f7f527b0473a2ffe9cc5de2848a",
+    "stdout_bytes": 0,
+    "stderr_bytes": 0,
+    "result": "pass",
+    "quality_scope": "Text extraction smoke only; not formula, table, handwriting, or layout semantic scoring."
+  },
+  "clean_archive_gate": {
+    "focused_tests": 64,
+    "real_engine_tests": 1,
+    "wheel_bytes": 112959,
+    "wheel_sha256": "297ddcfea1a74397ebd419f0730385db86b3aecced70a7c8154f4f7260813f35",
+    "base_target_bytes": 517852,
+    "ocr_target_bytes": 331832087,
+    "ocr_target_limit_bytes": 536870912,
+    "root_wall_median_ms": 43.9436,
+    "root_wall_p95_ms": 49.4483,
+    "root_wall_max_ms": 49.768,
+    "root_cpu_median_ms": 46.875,
+    "root_cpu_p95_ms": 62.5,
+    "root_cpu_max_ms": 62.5,
+    "base_requirements": [],
+    "extras": ["dashscope", "dev", "image", "ocr"],
+    "result": "pass"
+  },
+  "rejected_probe_assumptions": [
+    {
+      "problem": "The first base probe imported importlib.metadata before checking socket modules.",
+      "resolution": "Root import and metadata probes were separated; strict plain-import socket exclusion passed."
+    },
+    {
+      "problem": "The first installed screenshot summary printed Chinese through an isolated CP1252 console.",
+      "resolution": "The unchanged installed bytes passed with ASCII-escaped JSON output."
+    }
+  ],
+  "gate_result": "pass"
+}

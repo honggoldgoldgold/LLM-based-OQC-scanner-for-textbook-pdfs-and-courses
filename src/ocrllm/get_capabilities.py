@@ -61,10 +61,10 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
         provider_reason = (
             "Explicit DashScope region and endpoint settings are required for use."
         )
-        local_ocr_status = "experimental"
+        local_ocr_status = "available"
         local_ocr_reason = (
-            "The Phase 2A local-OCR implementation exists; its real optional-extra "
-            "and clean packaging gates remain."
+            "The Phase 2A maintained RapidOCR implementation, real offline, "
+            "fresh-extra, and clean packaging gates passed."
         )
     else:
         validated = snapshot_config(config)
@@ -72,10 +72,10 @@ def get_capabilities(config: Config | None = None) -> tuple[CapabilityReport, ..
             _configured_image_status(validated)
         )
         if validated.image_mode == "ocr":
-            local_ocr_status = "experimental"
+            local_ocr_status = "available"
             local_ocr_reason = (
-                "The explicit config selects the Phase 2A local-OCR workflow; "
-                "its real optional-extra and clean packaging gates remain."
+                "The explicit config selects the live-proven Phase 2A local-OCR "
+                "workflow."
             )
         else:
             local_ocr_status = "unavailable"
@@ -132,8 +132,8 @@ def _configured_image_status(
 ) -> tuple[str, str, str, str]:
     if config.image_mode == "ocr":
         return (
-            "experimental",
-            "The explicit configuration selects the Phase 2A local-OCR workflow.",
+            "available",
+            "The explicit configuration selects the live-proven Phase 2A local-OCR workflow.",
             "unavailable",
             "The explicit configuration does not select an API vision provider.",
         )

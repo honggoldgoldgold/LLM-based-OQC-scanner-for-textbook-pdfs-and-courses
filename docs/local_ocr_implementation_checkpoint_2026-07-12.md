@@ -2,9 +2,9 @@
 
 Date: 2026-07-12.
 
-Status: implementation, deterministic tests, maintained-engine test, and two
-authorized screenshot probes pass. `image.ocr.rapidocr` remains experimental
-until the committed clean-wheel and fresh-extra gates pass.
+Status: GO. Implementation, deterministic tests, maintained-engine tests,
+authorized screenshot probes, committed clean wheel, and fresh-extra gates
+pass. `image.ocr.rapidocr` is available.
 
 ## Public Contract
 
@@ -130,8 +130,24 @@ a formula/table/layout accuracy score.
 
 ## Next Gate
 
-Commit and push this checkpoint, then build from its Git archive. Prove the base
-wheel/import budgets, install `ocrllm[ocr]` into a fresh target, rerun the real
-generated-image and private screenshot probes from committed code, measure the
-OCR profile, and only then graduate `image.ocr.rapidocr` from experimental to
-available.
+Full implementation commit `bc0c15cf8be6badd213ebeeec0184e4c368c4a34`
+passes its Git-archive gate. The wheel is 112,959 bytes with SHA-256
+`297ddcfea1a74397ebd419f0730385db86b3aecced70a7c8154f4f7260813f35`;
+its no-dependency target is 517,852 bytes. Plain root import loads no Pillow,
+RapidOCR, ONNX Runtime, OpenCV, NumPy, provider, PDF, HTTP, or socket modules.
+Wall median/p95/max is 43.9436/49.4483/49.768 ms and CPU median/p95/max is
+46.875/62.5/62.5 ms.
+
+A fresh `wheel[ocr]` install is 331,832,087 bytes, below the recorded 512 MiB
+ceiling. It reports RapidOCR 3.9.1, reruns generated PNG/JPEG recognition with
+network blocked, and reproduces the exact private screenshot Markdown hash and
+191-line metadata from installed bytes. The first base probe incorrectly mixed
+`importlib.metadata` with root-import socket checking; separated probes pass.
+The first installed screenshot summary failed only when CP1252 printed Chinese;
+ASCII-escaped JSON passed against unchanged installed bytes.
+
+Machine-readable evidence:
+`evidence/phase2a/local-ocr-2026-07-12.json`.
+
+The local-OCR slice is GO. The next Phase 2A slice is generalized provider
+workflow configuration; credential pools and image resume remain later slices.

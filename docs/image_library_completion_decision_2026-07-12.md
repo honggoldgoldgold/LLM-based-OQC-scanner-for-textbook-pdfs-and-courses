@@ -2,7 +2,7 @@
 
 Date: 2026-07-12.
 
-Status: active. Phase 2A starts after Phase 2 GO and before PDF work.
+Status: active. Local OCR is GO; provider workflow configuration is current.
 
 ## Why The Roadmap Changes
 
@@ -22,11 +22,11 @@ contracts remain valid.
 
 Phase 2A is implemented as independent vertical slices:
 
-1. **Local OCR through `recognize()` -- current.** Add an explicit recognition
+1. **Local OCR through `recognize()` -- GO.** Add an explicit recognition
    strategy, a maintained RapidOCR/ONNX Runtime adapter, typed local-OCR errors,
    deterministic Markdown, ordered multi-image handling, optional installation,
    and real offline screenshot evidence.
-2. **Provider workflow configuration.** Separate immutable provider transport,
+2. **Provider workflow configuration -- current.** Separate immutable provider transport,
    model, execution, and recognition-preference policies. Do not freeze the
    user's four examples as an exhaustive enum: OpenAI-compatible APIs, provider
    SDKs, Google SDKs, and Codex subprocess/session execution have different

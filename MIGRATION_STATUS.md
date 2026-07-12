@@ -731,7 +731,8 @@ legacy_app/environment.yml
 
 Current phase: **Phase 2A -- image library completion**. Phase 2 is GO at
 `2db456a77f3aa9d7bbf8f69f89c1f8dfb640e8cf` and its clean Git-archive proof
-passes. Local OCR is the current slice. Phase 3 has not started.
+passes. Local OCR is GO; provider workflow configuration is the current slice.
+Phase 3 has not started.
 
 Phase 2A recovery rules:
 
@@ -754,8 +755,8 @@ Phase 2A checkpoint 1 implements local OCR through `recognize()` with explicit
 `image_mode="ocr"`, immutable confidence settings, a lazy maintained RapidOCR
 adapter, four typed error categories, ordered multi-image Markdown, zero-call
 metadata, and the optional `ocr` extra. The 870-test base suite, fresh real
-engine test, and two authorized screenshot probe pass; a clean committed wheel
-and fresh-extra install remain before GO. See
+engine test, two authorized screenshot probes, clean committed wheel, and fresh
+331,832,087-byte OCR-extra install pass. `image.ocr.rapidocr` is available. See
 `docs/local_ocr_implementation_checkpoint_2026-07-12.md`.
 
 Checkpoint 6 implements the production image-command adapter without adding a

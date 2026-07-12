@@ -17,7 +17,7 @@ The Rust/PyO3 plan in `Architecture.md` is suspended future planning.
 Phase 0 contract honesty is GO at commit `5018ad0` on the exact clean evidence
 recorded in `docs/ocrllm_library_go_no_go.md`; Phase 1 real board/image is GO,
 and Phase 2 JSON/JSONL worker is GO. Phase 2A image-library completion is active
-before Phase 3; local OCR is the current slice.
+before Phase 3; local OCR is GO and provider workflow configuration is current.
 
 ## One-Sentence Goal
 
@@ -1264,8 +1264,8 @@ provider error taxonomies/credential pools, then image resume. See
 slice boundaries.
 
 Phase 2A checkpoint 1 implements the local-OCR facade/adapter and real offline
-probes. Its capability remains experimental until clean committed packaging and
-fresh-extra gates pass.
+probes. Clean committed packaging and fresh-extra gates pass, so the capability
+is available. Provider workflow configuration is the next slice.
 
 Phase 2 checkpoint 1 implements the three command DTOs plus strict parsing and
 serialization. It deliberately left the six event DTOs and worker process

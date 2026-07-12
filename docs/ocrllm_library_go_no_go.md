@@ -113,7 +113,8 @@ Phase 0/1/2 transition evidence and current implementation truth, as of
   explicitly configured Python executable. Packaged Electron compatibility
   remains a Phase 6 gate.
 - Phase 2A image-library completion is active before PDF. Its current and only
-  slice is local OCR through the direct `recognize()` facade. See
+  slice is provider workflow configuration; local OCR through the direct
+  `recognize()` facade is GO. See
   `image_library_completion_decision_2026-07-12.md`.
 - PDF, audio, and video remain unsupported by the active package.
 - At the Phase 0 transition, package metadata had no base runtime requirements
@@ -1822,8 +1823,8 @@ explicit decision changes the order.
 Phase 2A checkpoint 1 implements the local-OCR direct facade, maintained lazy
 RapidOCR adapter, typed errors, optional extra, deterministic tests, and real
 offline generated/private-input probes. The base suite passes 870 tests with
-one optional-profile skip. `image.ocr.rapidocr` remains `experimental` until the
-committed clean-wheel and fresh `ocr`-extra gates pass. See
+one optional-profile skip. Committed clean-wheel and fresh `ocr`-extra gates
+pass; `image.ocr.rapidocr` is `available`. See
 `local_ocr_implementation_checkpoint_2026-07-12.md`.
 
 ### Phase 3: PDFium PDF

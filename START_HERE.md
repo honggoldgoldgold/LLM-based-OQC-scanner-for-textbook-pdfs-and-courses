@@ -44,9 +44,9 @@ from ocrllm import Config, DashScopeSettings, recognize
 
 Current phase: **Phase 2A -- image library completion**. Phase 0 contract
 honesty, Phase 1 real board/image, and Phase 2 JSONL worker are GO. The current
-slice is local OCR through the same `recognize()` facade. Phase 3 PDFium remains
-not started. The Phase 2 formal GO commit is `2db456a` and its clean Git-archive
-proof passes.
+slice is generalized provider workflow configuration; local OCR through the same
+`recognize()` facade is GO. Phase 3 PDFium remains not started. The Phase 2
+formal GO commit is `2db456a` and its clean Git-archive proof passes.
 The active facade now decodes valid PNG/JPEG inputs before provider dispatch,
 passes request-scoped validated snapshots isolated from later caller-path
 changes to one synchronous injected provider,
@@ -71,7 +71,7 @@ The clean Git-archive gate at `0278b66` passed 712 tests, fixture-byte identity,
 compilation, a 67,266-byte wheel, base import and timing budgets, a generated
 image recognition, and fresh `image` plus Beijing `image,dashscope` profiles.
 The image/provider and v1alpha1 worker capabilities are available. The active
-post-Phase-2 decision authorizes only the Phase 2A local-OCR slice.
+post-Phase-2 decision now authorizes only the Phase 2A provider-workflow slice.
 
 The active library still has no local OCR path, API-key pool,
 retry/model-fallback policy, resume support, PDF, audio, or video support. Local

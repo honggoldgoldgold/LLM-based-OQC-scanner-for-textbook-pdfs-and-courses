@@ -79,7 +79,7 @@ def test_zero_argument_reports_local_image_gates_without_guessing_provider_regio
 
     assert reports["image.board.png"].status == "available"
     assert reports["image.board.jpeg"].status == "available"
-    assert reports["image.ocr.rapidocr"].status == "experimental"
+    assert reports["image.ocr.rapidocr"].status == "available"
     assert reports["provider.dashscope.vision"].status == "unavailable"
     assert "region" in reports["provider.dashscope.vision"].reason
     assert "secret-sentinel" not in repr(reports)
@@ -125,12 +125,12 @@ def test_explicit_providerless_config_is_unavailable() -> None:
     assert reports["provider.dashscope.vision"].status == "unavailable"
 
 
-def test_explicit_local_ocr_config_is_experimental_without_claiming_provider() -> None:
+def test_explicit_local_ocr_config_is_available_without_claiming_provider() -> None:
     reports = _by_name(Config(image_mode="ocr"))
 
-    assert reports["image.board.png"].status == "experimental"
-    assert reports["image.board.jpeg"].status == "experimental"
-    assert reports["image.ocr.rapidocr"].status == "experimental"
+    assert reports["image.board.png"].status == "available"
+    assert reports["image.board.jpeg"].status == "available"
+    assert reports["image.ocr.rapidocr"].status == "available"
     assert reports["provider.dashscope.vision"].status == "unavailable"
 
 
