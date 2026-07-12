@@ -759,6 +759,14 @@ pass 51 cases; the full suite passes 763. The next checkpoint owns bounded
 stdin reading and protocol-only flushed stdout writing, not the process control
 loop yet. See `docs/phase2_worker_event_contract_2026-07-11.md`.
 
+Checkpoint 3 adds bounded binary stdin reading, protocol-only compact UTF-8
+stdout writing, partial-write completion, flush proof, oversized-record
+draining, and typed error-event construction with canonical request-ID recovery.
+The command/event/I/O suite passes 66 tests and the full suite passes 778. The
+next checkpoint is a deterministic no-job capability/error/EOF control loop;
+do not combine its first proof with recognition process concurrency. See
+`docs/phase2_worker_jsonl_io_2026-07-11.md`.
+
 Preserve every earlier Phase 1 evidence file unchanged. The passing decision is
 bound to v17 evidence SHA-256
 `6f0454d634dbe76f68f29c07a4c0ced4a047c080e46bb75dda2cb84ffca3a96b`

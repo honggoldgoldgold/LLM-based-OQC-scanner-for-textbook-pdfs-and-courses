@@ -39,33 +39,36 @@ def parse_worker_command(value: object) -> WorkerCommand:
     if not isinstance(value, Mapping) or any(not isinstance(key, str) for key in value):
         raise _command_invalid()
 
+    recovered_request_id = _try_recover_request_id(value.get("request_id"))
+
     protocol_version = value.get("protocol_version")
     if protocol_version != CURRENT_WORKER_PROTOCOL_VERSION:
         if isinstance(protocol_version, str):
             raise OCRLLMError(
                 "Worker protocol version is not supported.",
                 code="PROTOCOL_UNSUPPORTED",
+                details=_request_id_details(recovered_request_id),
             )
-        raise _command_invalid()
+        raise _command_invalid(recovered_request_id)
 
     command = value.get("command")
     if command == "capabilities":
-        _require_exact_fields(value, _CONTROL_FIELDS)
+        _require_exact_fields(value, _CONTROL_FIELDS, recovered_request_id)
         request_id = _parse_request_id(value.get("request_id"))
         return CapabilitiesCommand(request_id=request_id)
     if command == "cancel":
-        _require_exact_fields(value, _CONTROL_FIELDS)
+        _require_exact_fields(value, _CONTROL_FIELDS, recovered_request_id)
         request_id = _parse_request_id(value.get("request_id"))
         return CancelCommand(request_id=request_id)
     if command != "recognize":
-        raise _command_invalid()
+        raise _command_invalid(recovered_request_id)
 
-    _require_exact_fields(value, _RECOGNIZE_FIELDS)
+    _require_exact_fields(value, _RECOGNIZE_FIELDS, recovered_request_id)
     request_id = _parse_request_id(value.get("request_id"))
     sources_value = value.get("sources")
-    if not isinstance(sources_value, list):
-        raise ConfigError("Recognition sources must be a nonempty JSON array.")
     try:
+        if not isinstance(sources_value, list):
+            raise ConfigError("Recognition sources must be a nonempty JSON array.")
         sources = tuple(_parse_source_descriptor(source) for source in sources_value)
         input_languages_value = value.get("input_languages")
         if not isinstance(input_languages_value, list) or any(
@@ -83,17 +86,21 @@ def parse_worker_command(value: object) -> WorkerCommand:
             profile=cast(object, value.get("profile")),
             options=cast(object, options),
         )
-    except ConfigError:
+    except ConfigError as exc:
+        if recovered_request_id is not None:
+            exc._add_safe_detail("request_id", recovered_request_id)
         raise
     except (TypeError, ValueError):
         raise ConfigError("Recognition command configuration is invalid.") from None
 
 
 def _require_exact_fields(
-    value: Mapping[object, object], expected: frozenset[str]
+    value: Mapping[object, object],
+    expected: frozenset[str],
+    recovered_request_id: str | None,
 ) -> None:
     if set(value) != expected:
-        raise _command_invalid()
+        raise _command_invalid(recovered_request_id)
 
 
 def _parse_request_id(value: object) -> str:
@@ -101,6 +108,13 @@ def _parse_request_id(value: object) -> str:
         return validate_worker_request_id(value)
     except (TypeError, ValueError):
         raise _command_invalid() from None
+
+
+def _try_recover_request_id(value: object) -> str | None:
+    try:
+        return validate_worker_request_id(value)
+    except (TypeError, ValueError):
+        return None
 
 
 def _parse_source_descriptor(value: object) -> SourceDescriptor:
@@ -112,5 +126,13 @@ def _parse_source_descriptor(value: object) -> SourceDescriptor:
     )
 
 
-def _command_invalid() -> OCRLLMError:
-    return OCRLLMError("Worker command is invalid.", code="COMMAND_INVALID")
+def _request_id_details(request_id: str | None) -> dict[str, str]:
+    return {} if request_id is None else {"request_id": request_id}
+
+
+def _command_invalid(request_id: str | None = None) -> OCRLLMError:
+    return OCRLLMError(
+        "Worker command is invalid.",
+        code="COMMAND_INVALID",
+        details=_request_id_details(request_id),
+    )

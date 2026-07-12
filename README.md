@@ -178,6 +178,12 @@ error details are recursively redacted. Worker stdin/stdout, child isolation,
 cancellation, and the Node harness remain pending. See
 `docs/phase2_worker_event_contract_2026-07-11.md`.
 
+Phase 2 checkpoint 3 adds a strict 1 MiB binary stdin JSONL reader, compact
+UTF-8 partial-write-safe/flushed event writer, and typed error-event builder
+with canonical request-ID recovery. Full verification passes 778 tests. Process
+creation, control, cancellation, and the Node harness remain pending. See
+`docs/phase2_worker_jsonl_io_2026-07-11.md`.
+
 Provider cost/reliability assumptions are recorded in
 `docs/provider_cost_and_reliability_policy.md`. The complete checkpoint,
 parallel-review, and atomic-writer history is in

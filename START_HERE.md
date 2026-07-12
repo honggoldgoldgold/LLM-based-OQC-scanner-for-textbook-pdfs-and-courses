@@ -26,6 +26,7 @@ Read next:
 - `docs/phase1_live_quality_result_v17_2026-07-11.md`
 - `docs/phase2_worker_command_contract_2026-07-11.md`
 - `docs/phase2_worker_event_contract_2026-07-11.md`
+- `docs/phase2_worker_jsonl_io_2026-07-11.md`
 
 Public import shape:
 

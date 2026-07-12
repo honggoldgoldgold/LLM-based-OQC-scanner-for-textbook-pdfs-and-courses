@@ -1741,6 +1741,14 @@ I/O, process isolation/control, cancellation, Node harness, and live smoke still
 remain; Phase 2 is not GO. See
 `phase2_worker_event_contract_2026-07-11.md`.
 
+Phase 2 checkpoint 3 implements the bounded binary JSONL reader, sole compact
+UTF-8 event writer, and typed error-event conversion. Exact-limit, oversize
+drain, invalid UTF-8, incomplete record, partial write, flush, embedded newline,
+request-ID recovery, retryability, and redaction tests pass. The full suite
+passes 778. There is still no process/control loop, cancellation, Node harness,
+or live smoke; Phase 2 is not GO. See
+`phase2_worker_jsonl_io_2026-07-11.md`.
+
 ### Phase 3: PDFium PDF
 
 GO when all are true:
